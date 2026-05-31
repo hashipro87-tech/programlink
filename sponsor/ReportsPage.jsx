@@ -1,0 +1,327 @@
+// ReportsPage.jsx — Sponsor monthly meal count summary report.
+// Pulls verified and submitted totals per site for a selected month.
+// Sponsors can export the data as CSV for USDA reimbursement prep.
+
+import { useState, useEffect } from 'react';
+import {
+  BarChart2, Download, RefreshCw, CheckCircle,
+  AlertTriangle, UtensilsCrossed, Calendar,
+  TrendingUp, FileText, Info,
+} from 'lucide-react';
+import api from '../../services/api';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtMonth(ym) {
+  if (!ym) return '—';
+  const [year, month] = ym.split('-');
+  return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function num(v) {
+  return v == null ? '—' : Number(v).toLocaleString();
+}
+
+// Build and trigger a CSV download from the summary data
+function exportCsv(month, sites) {
+  const header = [
+    'Site Name',
+    'Days Reported',
+    'Days Unverified',
+    'Total Submitted',
+    'Total Verified',
+    'Difference',
+  ].join(',');
+
+  const rows = sites.map((s) => {
+    const submitted = Number(s.total_submitted ?? 0);
+    const verified  = Number(s.total_verified  ?? 0);
+    return [
+      `"${s.site_name}"`,
+      s.days_reported   ?? 0,
+      s.days_unverified ?? 0,
+      submitted,
+      verified,
+      verified - submitted,
+    ].join(',');
+  });
+
+  // Totals row
+  const totSubmitted = sites.reduce((a, s) => a + Number(s.total_submitted ?? 0), 0);
+  const totVerified  = sites.reduce((a, s) => a + Number(s.total_verified  ?? 0), 0);
+  rows.push(['TOTAL', '', '', totSubmitted, totVerified, totVerified - totSubmitted].join(','));
+
+  const csv  = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `meal-counts-${month}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Site Summary Row ─────────────────────────────────────────────────────────
+
+function SiteRow({ site }) {
+  const submitted   = Number(site.total_submitted ?? 0);
+  const verified    = Number(site.total_verified  ?? 0);
+  const diff        = verified - submitted;
+  const hasUnverified = Number(site.days_unverified ?? 0) > 0;
+  const wasAdjusted   = diff !== 0 && verified > 0;
+
+  return (
+    <tr className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+      <td className="px-5 py-3.5">
+        <p className="text-sm font-semibold text-gray-900">{site.site_name}</p>
+      </td>
+      <td className="px-4 py-3.5 text-center">
+        <span className="text-sm text-gray-700">{site.days_reported ?? 0}</span>
+      </td>
+      <td className="px-4 py-3.5 text-center">
+        {hasUnverified ? (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-yellow-700 bg-yellow-50 border border-yellow-100 px-2 py-0.5 rounded-full">
+            <AlertTriangle className="w-3 h-3" />
+            {site.days_unverified}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
+            <CheckCircle className="w-3 h-3" />
+            All verified
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <span className="text-sm text-gray-700 font-medium">{num(site.total_submitted)}</span>
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        <span className={`text-sm font-bold ${verified > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+          {verified > 0 ? num(verified) : '—'}
+        </span>
+      </td>
+      <td className="px-4 py-3.5 text-right">
+        {wasAdjusted ? (
+          <span className={`text-xs font-semibold ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {diff > 0 ? '+' : ''}{num(diff)}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function ReportsPage() {
+  const today = new Date();
+  const [month, setMonth] = useState(
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  );
+  const [summary,  setSummary]  = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
+
+  const fetchSummary = () => {
+    setLoading(true);
+    setError(null);
+    api.get(`/meal-counts/summary?month=${month}`)
+      .then(({ data }) => setSummary(data))
+      .catch((err) => {
+        setError('Could not load report data.');
+        setSummary(null);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchSummary(); }, [month]);
+
+  const sites          = summary?.sites ?? [];
+  const totSubmitted   = sites.reduce((a, s) => a + Number(s.total_submitted ?? 0), 0);
+  const totVerified    = sites.reduce((a, s) => a + Number(s.total_verified  ?? 0), 0);
+  const sitesWithIssues = sites.filter((s) => Number(s.days_unverified ?? 0) > 0).length;
+  const allVerified     = sites.length > 0 && sitesWithIssues === 0;
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Monthly Report</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Meal count summary by site — verify counts before exporting for reimbursement.
+          </p>
+        </div>
+
+        {/* Export button */}
+        {sites.length > 0 && (
+          <button
+            onClick={() => exportCsv(month, sites)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+        )}
+      </div>
+
+      {/* Month picker */}
+      <div className="card mb-6">
+        <div className="px-5 py-3 flex flex-wrap items-center gap-3">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <label className="text-sm font-medium text-gray-600">Reporting month</label>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <span className="text-sm text-gray-400">{fmtMonth(month)}</span>
+          <button
+            onClick={fetchSummary}
+            className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Summary stat bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Sites reporting',    value: loading ? '—' : sites.length,      icon: FileText,       color: 'text-gray-900' },
+          { label: 'Total submitted',    value: loading ? '—' : num(totSubmitted),  icon: UtensilsCrossed, color: 'text-gray-900' },
+          { label: 'Total verified',     value: loading ? '—' : num(totVerified),   icon: CheckCircle,    color: totVerified > 0 ? 'text-green-600' : 'text-gray-900' },
+          { label: 'Sites with issues',  value: loading ? '—' : sitesWithIssues,    icon: AlertTriangle,  color: sitesWithIssues > 0 ? 'text-yellow-600' : 'text-gray-900' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="card px-5 py-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Icon className={`w-4 h-4 ${color}`} />
+              <p className="text-xs font-medium text-gray-500">{label}</p>
+            </div>
+            <p className={`text-2xl font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Verification status banner */}
+      {!loading && sites.length > 0 && (
+        <div className={`rounded-xl border px-5 py-3.5 mb-5 flex items-start gap-3 ${
+          allVerified
+            ? 'bg-green-50 border-green-200'
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          {allVerified
+            ? <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            : <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          }
+          <div>
+            <p className={`text-sm font-semibold ${allVerified ? 'text-green-800' : 'text-yellow-800'}`}>
+              {allVerified
+                ? 'All counts verified — ready to export'
+                : `${sitesWithIssues} site${sitesWithIssues !== 1 ? 's have' : ' has'} unverified days`
+              }
+            </p>
+            <p className={`text-xs mt-0.5 ${allVerified ? 'text-green-600' : 'text-yellow-600'}`}>
+              {allVerified
+                ? 'This report reflects verified counts only. Export when ready.'
+                : 'Go to Meal Count Review to verify outstanding submissions before exporting.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Data table */}
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="py-16 text-center text-sm text-gray-400">Loading report…</div>
+        ) : error ? (
+          <div className="py-16 text-center">
+            <BarChart2 className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 font-medium">{error}</p>
+          </div>
+        ) : sites.length === 0 ? (
+          <div className="py-16 text-center">
+            <UtensilsCrossed className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 font-medium">No meal count data for {fmtMonth(month)}.</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Counts submitted by sites will appear here once they're in the system.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="px-5 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Site
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Days reported
+                  </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Verification
+                  </th>
+                  <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Submitted
+                  </th>
+                  <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Verified
+                  </th>
+                  <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                    Diff
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sites.map((site) => (
+                  <SiteRow key={site.site_id} site={site} />
+                ))}
+              </tbody>
+
+              {/* Totals footer */}
+              <tfoot>
+                <tr className="border-t-2 border-gray-200 bg-gray-50">
+                  <td className="px-5 py-3.5 text-sm font-bold text-gray-900">Total</td>
+                  <td className="px-4 py-3.5 text-center text-sm text-gray-500">
+                    {sites.reduce((a, s) => a + Number(s.days_reported ?? 0), 0)}
+                  </td>
+                  <td className="px-4 py-3.5" />
+                  <td className="px-4 py-3.5 text-right text-sm font-bold text-gray-900">
+                    {num(totSubmitted)}
+                  </td>
+                  <td className="px-4 py-3.5 text-right text-sm font-bold text-green-700">
+                    {totVerified > 0 ? num(totVerified) : '—'}
+                  </td>
+                  <td className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500">
+                    {totVerified > 0
+                      ? <span className={totVerified - totSubmitted !== 0 ? (totVerified - totSubmitted > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-300'}>
+                          {totVerified - totSubmitted !== 0
+                            ? `${totVerified - totSubmitted > 0 ? '+' : ''}${num(totVerified - totSubmitted)}`
+                            : '—'}
+                        </span>
+                      : '—'}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Footnote */}
+      {!loading && sites.length > 0 && (
+        <div className="mt-4 flex items-start gap-2 text-xs text-gray-400">
+          <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <p>
+            "Diff" shows the difference between verified and submitted counts.
+            A positive diff means the sponsor increased the count during verification;
+            negative means it was reduced. Zero or blank means no adjustment was made.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
