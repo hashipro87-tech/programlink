@@ -82,8 +82,8 @@ function Overview() {
       api.get('/users'),
       api.get('/organizations'),
     ]).then(([usersRes, orgsRes]) => {
-      const users = usersRes.data ?? [];
-      const orgs  = orgsRes.data ?? [];
+      const users = usersRes.data.users ?? usersRes.data ?? [];
+      const orgs  = orgsRes.data.organizations ?? orgsRes.data ?? [];
       setStats({
         total_users:    users.length,
         active_users:   users.filter((u) => u.is_active).length,
@@ -182,7 +182,7 @@ function AdminUsersPage() {
   const fetchUsers = () => {
     setLoading(true);
     api.get('/users')
-      .then(({ data }) => setUsers(data ?? []))
+      .then(({ data }) => setUsers(data.users ?? data ?? []))
       .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   };
