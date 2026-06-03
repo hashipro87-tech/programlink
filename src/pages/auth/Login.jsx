@@ -12,6 +12,7 @@ const ROLE_ROUTES = {
   kitchen:     '/dashboard/kitchen',
   site:        '/dashboard/site',
   delivery:    '/dashboard/delivery',
+  admin:       '/dashboard/admin',
 };
 
 export default function Login() {
