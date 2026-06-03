@@ -1,0 +1,171 @@
+// scheduledJobs.js — Background jobs that run on a timer inside the Express process.
+// Uses node-cron so no external scheduler is needed — Railway keeps the server
+// running 24/7 so these fire reliably.
+//
+// Jobs:
+//   1. Document expiry alerts  — 8am daily
+//      Finds documents expiring within 30 days and notifies the org's users
+//      and their assigned coordinators/sponsors.
+//
+//   2. Meal count reminders    — 4pm daily
+//      Finds sites/kitchens that haven't submitted a count for today
+//      and sends a reminder to all active users in that org.
+
+const cron = require('node-cron');
+const pool = require('../config/database');
+const { createNotification, notifyCoordinators } = require('./notificationService');
+
+// ─── Job 1: Document expiry alerts ───────────────────────────────────────────
+// Runs every day at 8:00am UTC.
+// Only fires alerts for documents expiring in exactly 30, 14, or 7 days
+// to avoid spamming the same alert every day.
+
+async function checkDocumentExpiry() {
+  console.log('[cron] Running document expiry check…');
+  try {
+    // Find documents expiring in 30, 14, or 7 days (not already expired)
+    const result = await pool.query(`
+      SELECT
+        d.id,
+        d.name          AS doc_name,
+        d.expires_at,
+        d.org_id,
+        o.name          AS org_name,
+        o.sponsor_id,
+        DATE_PART('day', d.expires_at - NOW()) AS days_left
+      FROM documents d
+      JOIN organizations o ON d.org_id = o.id
+      WHERE d.expires_at IS NOT NULL
+        AND d.expires_at > NOW()
+        AND d.status != 'expired'
+        AND DATE_PART('day', d.expires_at - NOW()) IN (30, 14, 7)
+    `);
+
+    if (!result.rows.length) {
+      console.log('[cron] No expiring documents found.');
+      return;
+    }
+
+    for (const doc of result.rows) {
+      const days = Math.round(doc.days_left);
+      const urgency = days <= 7 ? '🔴' : days <= 14 ? '🟡' : '🟠';
+      const title   = `${urgency} Document expiring in ${days} days`;
+      const body    = `"${doc.doc_name}" for ${doc.org_name} expires in ${days} days. Upload a renewed copy to stay compliant.`;
+      const actionUrl = '/dashboard/sponsor/documents';
+
+      // Notify all active users in the org
+      const orgUsers = await pool.query(
+        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`,
+        [doc.org_id]
+      );
+
+      if (orgUsers.rows.length) {
+        await createNotification(orgUsers.rows.map((u) => ({
+          userId: u.id,
+          type: 'document_expiry',
+          title,
+          body,
+          actionUrl,
+        })));
+      }
+
+      // Also notify coordinators and sponsors so nothing slips through
+      if (doc.sponsor_id) {
+        await notifyCoordinators(doc.sponsor_id, {
+          type: 'document_expiry',
+          title,
+          body,
+          actionUrl,
+        });
+      }
+    }
+
+    console.log(`[cron] Document expiry alerts sent for ${result.rows.length} documents.`);
+  } catch (err) {
+    console.error('[cron] Document expiry check failed:', err.message);
+  }
+}
+
+// ─── Job 2: Daily meal count reminders ───────────────────────────────────────
+// Runs every day at 4:00pm UTC (end of afternoon — gives kitchen staff time to submit).
+// Finds sites/kitchens that haven't submitted ANY count for today's date.
+
+async function checkMealCountReminders() {
+  console.log('[cron] Running meal count reminder check…');
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Find approved kitchens and sites that have NOT submitted a count today
+    const result = await pool.query(`
+      SELECT
+        o.id        AS org_id,
+        o.name      AS org_name,
+        o.type      AS org_type,
+        o.sponsor_id
+      FROM organizations o
+      WHERE o.type IN ('kitchen', 'site')
+        AND o.status = 'active'
+        AND o.id NOT IN (
+          SELECT DISTINCT mc.org_id
+          FROM meal_counts mc
+          WHERE mc.date = $1
+        )
+    `, [today]);
+
+    if (!result.rows.length) {
+      console.log('[cron] All orgs have submitted counts for today.');
+      return;
+    }
+
+    for (const org of result.rows) {
+      // Notify all active users in the org
+      const users = await pool.query(
+        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`,
+        [org.org_id]
+      );
+
+      if (users.rows.length) {
+        await createNotification(users.rows.map((u) => ({
+          userId: u.id,
+          type: 'meal_count_reminder',
+          title: '⏰ Meal count not yet submitted',
+          body: `Don't forget to submit today's meal counts for ${org.org_name}. Counts are due by end of day.`,
+          actionUrl: org.org_type === 'kitchen'
+            ? '/dashboard/kitchen/meals'
+            : '/dashboard/site/meals',
+        })));
+      }
+
+      // Also notify coordinators so they can follow up if needed
+      if (org.sponsor_id) {
+        await notifyCoordinators(org.sponsor_id, {
+          type: 'meal_count_reminder',
+          title: `⏰ ${org.org_name} hasn't submitted counts`,
+          body: `${org.org_name} has not submitted meal counts for today (${today}).`,
+          actionUrl: '/dashboard/coordinator/meal-counts',
+        });
+      }
+    }
+
+    console.log(`[cron] Meal count reminders sent for ${result.rows.length} orgs.`);
+  } catch (err) {
+    console.error('[cron] Meal count reminder check failed:', err.message);
+  }
+}
+
+// ─── Start all jobs ───────────────────────────────────────────────────────────
+function startScheduledJobs() {
+  // Document expiry check — 8:00am UTC every day
+  cron.schedule('0 8 * * *', checkDocumentExpiry, {
+    timezone: 'UTC',
+  });
+
+  // Meal count reminder — 4:00pm UTC every day
+  cron.schedule('0 16 * * *', checkMealCountReminders, {
+    timezone: 'UTC',
+  });
+
+  console.log('✅ Scheduled jobs started (doc expiry @ 8am UTC, meal reminders @ 4pm UTC)');
+}
+
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders };
