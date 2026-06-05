@@ -63,7 +63,7 @@ function Overview({ stats, loading }) {
   useEffect(() => {
     const month = new Date().toISOString().slice(0, 7);
     api.get(`/meal-counts?month=${month}&limit=5`)
-      .then(({ data }) => setRecentCounts(data.counts ?? data ?? []))
+      .then(({ data }) => setRecentCounts(data.meal_counts ?? data.counts ?? []))
       .catch(() => setRecentCounts([]))
       .finally(() => setCountsLoading(false));
   }, []);

@@ -47,7 +47,7 @@ function Overview() {
     ])
       .then(([orgsRes, countsRes]) => {
         setSites(orgsRes.data.organizations ?? []);
-        const all = countsRes.data.counts ?? countsRes.data ?? [];
+        const all = countsRes.data.meal_counts ?? countsRes.data.counts ?? [];
         setPending(all.filter((c) => !c.verified_at));
       })
       .catch(() => {})

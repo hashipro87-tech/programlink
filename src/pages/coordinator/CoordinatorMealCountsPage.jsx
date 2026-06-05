@@ -120,7 +120,7 @@ export default function CoordinatorMealCountsPage() {
   const fetchCounts = useCallback(() => {
     setLoading(true);
     api.get(`/meal-counts?month=${month}&limit=200`)
-      .then(({ data }) => setCounts(data.counts ?? data ?? []))
+      .then(({ data }) => setCounts(data.meal_counts ?? data.counts ?? []))
       .catch(() => setCounts([]))
       .finally(() => setLoading(false));
   }, [month]);

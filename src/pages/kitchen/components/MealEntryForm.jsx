@@ -280,7 +280,7 @@ export default function MealEntryForm() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const c = data.counts;
+      const c = data.meal_count ?? data.counts ?? {};
       setCounts({
         breakfast: c.breakfast ?? 0,
         lunch:     c.lunch     ?? 0,
