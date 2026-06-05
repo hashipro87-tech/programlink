@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators, notifySponsors } = require('../services/notificationService');
 const { sendApplicationStatusEmail } = require('../services/emailService');
+const { logAction } = require('../services/auditService');
 
 exports.listApplications = async (req, res) => {
   try {
@@ -136,6 +137,18 @@ exports.updateStatus = async (req, res) => {
       } catch (notifErr) {
         console.error('Notification error (non-fatal):', notifErr.message);
       }
+    }
+
+    // Audit log
+    if (status) {
+      logAction({
+        actor:      req.user,
+        action:     `application.${status}`,
+        entityType: 'application',
+        entityId:   app.id,
+        entityName: app.org_name,
+        details:    { status, notes },
+      });
     }
 
     res.json({ application: app });

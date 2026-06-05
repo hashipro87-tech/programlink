@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { logAction } = require('../services/auditService');
 
 exports.listUsers = async (req, res) => {
   try {
@@ -44,6 +45,13 @@ exports.updateUserStatus = async (req, res) => {
       [is_active, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    logAction({
+      actor:      req.user,
+      action:     is_active ? 'user.activated' : 'user.deactivated',
+      entityType: 'user',
+      entityId:   rows[0].id,
+      entityName: rows[0].name,
+    });
     res.json({ user: rows[0] });
   } catch (err) {
     console.error('updateUserStatus error:', err);

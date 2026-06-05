@@ -18,6 +18,7 @@ const NAV = [
   { label: 'Users',         path: '/dashboard/admin/users',        icon: Users           },
   { label: 'Organizations', path: '/dashboard/admin/orgs',         icon: Building2       },
   { label: 'Search',        path: '/dashboard/admin/search',       icon: Search          },
+  { label: 'Audit Log',     path: '/dashboard/admin/audit',        icon: ClipboardList   },
 ];
 
 // ─── Global Search ────────────────────────────────────────────────────────────
@@ -549,6 +550,90 @@ function AdminOrgsPage() {
   );
 }
 
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+function AuditLog() {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter,  setFilter]  = useState('');
+
+  const load = (f = '') => {
+    setLoading(true);
+    const params = f ? `?action=${encodeURIComponent(f)}` : '';
+    api.get(`/audit-log${params}`)
+      .then(({ data }) => setEntries(data.entries ?? []))
+      .catch(() => setEntries([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const ACTION_COLORS = {
+    'application.approved': 'text-green-400',
+    'application.rejected': 'text-red-400',
+    'application.submitted': 'text-blue-400',
+    'user.activated':   'text-green-400',
+    'user.deactivated': 'text-red-400',
+  };
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+          <p className="text-gray-400 mt-1 text-sm">Track who changed what and when.</p>
+        </div>
+        <button onClick={() => load(filter)} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {['', 'application', 'user', 'document'].map((f) => (
+          <button key={f} onClick={() => { setFilter(f); load(f); }}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
+              filter === f ? 'bg-brand-600 text-white' : 'bg-gray-800 border border-gray-700 text-gray-400 hover:text-white'
+            }`}>
+            {f || 'All'}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+        {loading ? (
+          <div className="py-12 text-center text-sm text-gray-500">Loading…</div>
+        ) : entries.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-500">No audit entries yet.</div>
+        ) : (
+          <div className="divide-y divide-gray-700">
+            {entries.map((e) => (
+              <div key={e.id} className="px-5 py-3.5 flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-bold text-gray-300">{e.actor_name?.[0]?.toUpperCase() ?? '?'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-white">{e.actor_name ?? 'System'}</span>
+                    <span className={`text-xs font-semibold ${ACTION_COLORS[e.action] ?? 'text-gray-400'}`}>{e.action}</span>
+                    {e.entity_name && <span className="text-xs text-gray-400 truncate">on {e.entity_name}</span>}
+                  </div>
+                  {e.details && Object.keys(e.details).length > 0 && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {Object.entries(e.details).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs text-gray-600 flex-shrink-0">
+                  {new Date(e.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Shell ────────────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   return (
@@ -561,6 +646,7 @@ export default function AdminDashboard() {
             <Route path="users"   element={<AdminUsersPage />} />
             <Route path="orgs"    element={<AdminOrgsPage />} />
             <Route path="search"  element={<GlobalSearch />} />
+            <Route path="audit"   element={<AuditLog />} />
           </Routes>
         </div>
       </main>

@@ -14,5 +14,6 @@ router.use('/kitchen-directory',  require('./kitchenDirectory'));
 router.use('/stats',              require('./stats'));
 router.use('/settings',           require('./settings'));
 router.use('/users',              require('./users'));
+router.use('/audit-log',          require('./auditLog'));
 
 module.exports = router;
