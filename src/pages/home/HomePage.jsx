@@ -1,4 +1,4 @@
-// HomePage.jsx — Public landing page for ProgramLink.
+// HomePage.jsx — Public landing page for CACFPLink.
 // Designed to feel like real operations software, not a generic startup page.
 // Single-file, no external animation libraries, React + Tailwind only.
 
@@ -22,7 +22,7 @@ function Navbar() {
           <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-gray-900 text-lg tracking-tight">ProgramLink</span>
+          <span className="font-bold text-gray-900 text-lg tracking-tight">CACFPLink</span>
         </div>
 
         {/* Desktop nav */}
@@ -99,7 +99,7 @@ function DashboardMockup() {
         <div className="w-3 h-3 rounded-full bg-yellow-400" />
         <div className="w-3 h-3 rounded-full bg-green-400" />
         <div className="flex-1 mx-4 h-6 bg-gray-100 rounded-md flex items-center px-3">
-          <span className="text-[10px] text-gray-400 font-mono">programlink.app/dashboard/kitchen</span>
+          <span className="text-[10px] text-gray-400 font-mono">cacfplink.com/dashboard/kitchen</span>
         </div>
       </div>
 
@@ -265,7 +265,7 @@ function Hero() {
 }
 
 // ─── Workflow Diagram ─────────────────────────────────────────────────────────
-// Visual hub-and-spoke showing ProgramLink as the central workflow layer
+// Visual hub-and-spoke showing CACFPLink as the central workflow layer
 // connecting all 6 entities: Sponsors, Kitchens, Sites, Meal Counts,
 // Compliance Tracking, and Document Workflows.
 
@@ -343,7 +343,7 @@ function WorkflowDiagram() {
             Everything connected. Nothing fragmented.
           </h2>
           <p className="text-gray-500 max-w-xl mx-auto">
-            ProgramLink's strength isn't any one feature — it's that every part of your operation flows through one system, so nothing gets lost between roles, teams, or deadlines.
+            CACFPLink's strength isn't any one feature — it's that every part of your operation flows through one system, so nothing gets lost between roles, teams, or deadlines.
           </p>
         </div>
 
@@ -378,11 +378,11 @@ function WorkflowDiagram() {
             ))}
           </div>
 
-          {/* ProgramLink Hub */}
+          {/* CACFPLink Hub */}
           <div className="rounded-2xl bg-brand-600 px-6 py-6 text-center shadow-xl mb-0">
             <div className="flex items-center justify-center gap-2.5 mb-2">
               <Zap className="w-5 h-5 text-white" />
-              <span className="text-xl font-bold text-white tracking-tight">ProgramLink</span>
+              <span className="text-xl font-bold text-white tracking-tight">CACFPLink</span>
             </div>
             <p className="text-brand-200 text-sm font-medium">Centralized Compliance &amp; Operations Workflow</p>
             <div className="mt-4 flex flex-wrap justify-center gap-4 sm:gap-8 text-brand-100 text-xs font-medium">
@@ -702,7 +702,7 @@ function MobileSection() {
               Works on the phone in your pocket
             </h2>
             <p className="text-gray-500 leading-relaxed mb-8">
-              Kitchen staff don't sit at desks. ProgramLink is built mobile-first — large buttons, fast loading, and a camera that reads your delivery slips so staff never have to count twice.
+              Kitchen staff don't sit at desks. CACFPLink is built mobile-first — large buttons, fast loading, and a camera that reads your delivery slips so staff never have to count twice.
             </p>
             <ul className="space-y-4">
               {[
@@ -793,7 +793,7 @@ function FinalCTA() {
           Modernize your food program operations
         </h2>
         <p className="text-brand-200 text-lg mb-10 max-w-xl mx-auto">
-          Join kitchens, coordinators, and sponsors already managing their programs with ProgramLink.
+          Join kitchens, coordinators, and sponsors already managing their programs with CACFPLink.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
@@ -828,7 +828,7 @@ function Footer() {
               <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
                 <Zap className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-white text-sm">ProgramLink</span>
+              <span className="font-bold text-white text-sm">CACFPLink</span>
             </div>
             <p className="text-xs leading-relaxed">
               Operations software built for USDA food programs. Replace paper with real-time systems.
@@ -858,7 +858,7 @@ function Footer() {
             {
               title: 'Company',
               links: [
-                { label: 'Contact',         href: 'mailto:support@programlink.app' },
+                { label: 'Contact',         href: 'mailto:support@cacfplink.com' },
                 { label: 'Privacy Policy',  href: '#' },
                 { label: 'Terms of Service',href: '#' },
               ],
@@ -880,7 +880,7 @@ function Footer() {
         </div>
 
         <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs">© {new Date().getFullYear()} ProgramLink. All rights reserved.</p>
+          <p className="text-xs">© {new Date().getFullYear()} CACFPLink. All rights reserved.</p>
           <p className="text-xs">Built for USDA Child and Adult Care Food Programs</p>
         </div>
       </div>

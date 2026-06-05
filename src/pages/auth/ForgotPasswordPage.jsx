@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
           <div className="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center mb-3 shadow-lg">
             <Zap className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">ProgramLink</h1>
+          <h1 className="text-xl font-bold text-gray-900">CACFPLink</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">

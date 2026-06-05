@@ -53,7 +53,7 @@ export default function Login() {
                 d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">ProgramLink</h1>
+          <h1 className="text-2xl font-bold text-gray-900">CACFPLink</h1>
           <p className="text-gray-500 mt-1 text-sm">USDA Food Program Operations</p>
         </div>
 
@@ -121,7 +121,7 @@ export default function Login() {
 
           {/* Help text */}
           <p className="mt-4 text-center text-xs text-gray-500">
-            New to ProgramLink? <Link to="/register" className="text-brand-600 hover:underline">Create an account</Link>
+            New to CACFPLink? <Link to="/register" className="text-brand-600 hover:underline">Create an account</Link>
           </p>
           <p className="mt-2 text-center text-xs text-gray-500">
             <Link to="/forgot-password" className="text-brand-600 hover:underline">Forgot your password?</Link>
@@ -130,7 +130,7 @@ export default function Login() {
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} ProgramLink. All rights reserved.
+          © {new Date().getFullYear()} CACFPLink. All rights reserved.
         </p>
         <p className="text-center mt-3">
           <Link to="/" className="text-xs text-brand-600 hover:underline">← Back to homepage</Link>

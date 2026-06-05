@@ -171,7 +171,7 @@ function AdminSidebar() {
           <Shield className="w-3.5 h-3.5 text-white" />
         </div>
         <div>
-          <span className="font-bold text-white text-sm">ProgramLink</span>
+          <span className="font-bold text-white text-sm">CACFPLink</span>
           <span className="ml-1.5 text-[10px] bg-brand-600 text-white px-1.5 py-0.5 rounded font-semibold">Admin</span>
         </div>
       </div>

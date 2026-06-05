@@ -20,7 +20,7 @@ export default function Sidebar({ navItems = [] }) {
         <div className="w-8 h-8 bg-brand-600 rounded-xl flex items-center justify-center shadow">
           <Zap className="w-4 h-4 text-white" />
         </div>
-        <span className="font-bold text-gray-900 text-sm">ProgramLink</span>
+        <span className="font-bold text-gray-900 text-sm">CACFPLink</span>
       </div>
 
       {/* Nav links */}
@@ -74,7 +74,7 @@ export default function Sidebar({ navItems = [] }) {
           <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
             <Zap className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="font-bold text-sm text-gray-900">ProgramLink</span>
+          <span className="font-bold text-sm text-gray-900">CACFPLink</span>
         </div>
         <button onClick={() => setOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-100">
           <Menu className="w-5 h-5 text-gray-600" />
