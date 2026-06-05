@@ -2,23 +2,6 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useAuth } from './context/AuthContext';
 import { Shield } from 'lucide-react';
 
-function AdminBackButton() {
-  const { user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-  if (user?.role !== 'admin') return null;
-  if (location.pathname.startsWith('/dashboard/admin')) return null;
-  return (
-    <button
-      onClick={() => navigate('/dashboard/admin')}
-      className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors"
-    >
-      <Shield className="w-4 h-4" />
-      Back to Admin
-    </button>
-  );
-}
-
 import HomePage            from './pages/home/HomePage';
 import Login               from './pages/auth/Login';
 import Register            from './pages/auth/Register';
@@ -51,29 +34,48 @@ function PrivateRoute({ children, roles }) {
   return children;
 }
 
+function AdminBackButton() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  if (user?.role !== 'admin') return null;
+  if (location.pathname.startsWith('/dashboard/admin')) return null;
+  return (
+    <button
+      onClick={() => navigate('/dashboard/admin')}
+      className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors"
+    >
+      <Shield className="w-4 h-4" />
+      Back to Admin
+    </button>
+  );
+}
+
 export default function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/"                  element={<HomePage />} />
-      <Route path="/login"             element={<Login />} />
-      <Route path="/register"          element={<Register />} />
-      <Route path="/check-email"       element={<CheckEmailPage />} />
-      <Route path="/verify-email"      element={<VerifyEmailPage />} />
-      <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
-      <Route path="/reset-password"    element={<ResetPasswordPage />} />
+    <>
+      <Routes>
+        {/* Public */}
+        <Route path="/"                  element={<HomePage />} />
+        <Route path="/login"             element={<Login />} />
+        <Route path="/register"          element={<Register />} />
+        <Route path="/check-email"       element={<CheckEmailPage />} />
+        <Route path="/verify-email"      element={<VerifyEmailPage />} />
+        <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
+        <Route path="/reset-password"    element={<ResetPasswordPage />} />
 
-      {/* Dashboards */}
-      <Route path="/dashboard/sponsor/*"     element={<PrivateRoute roles={['sponsor']}><SponsorDashboard /></PrivateRoute>} />
-      <Route path="/dashboard/coordinator/*" element={<PrivateRoute roles={['coordinator']}><CoordinatorDashboard /></PrivateRoute>} />
-      <Route path="/dashboard/kitchen/*"     element={<PrivateRoute roles={['kitchen']}><KitchenDashboard /></PrivateRoute>} />
-      <Route path="/dashboard/site/*"        element={<PrivateRoute roles={['site']}><SiteDashboard /></PrivateRoute>} />
-      <Route path="/dashboard/delivery/*"    element={<PrivateRoute roles={['delivery']}><DeliveryDashboard /></PrivateRoute>} />
-      <Route path="/dashboard/admin/*"       element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
+        {/* Dashboards */}
+        <Route path="/dashboard/sponsor/*"     element={<PrivateRoute roles={['sponsor']}><SponsorDashboard /></PrivateRoute>} />
+        <Route path="/dashboard/coordinator/*" element={<PrivateRoute roles={['coordinator']}><CoordinatorDashboard /></PrivateRoute>} />
+        <Route path="/dashboard/kitchen/*"     element={<PrivateRoute roles={['kitchen']}><KitchenDashboard /></PrivateRoute>} />
+        <Route path="/dashboard/site/*"        element={<PrivateRoute roles={['site']}><SiteDashboard /></PrivateRoute>} />
+        <Route path="/dashboard/delivery/*"    element={<PrivateRoute roles={['delivery']}><DeliveryDashboard /></PrivateRoute>} />
+        <Route path="/dashboard/admin/*"       element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-    <AdminBackButton />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <AdminBackButton />
+    </>
   );
 }
