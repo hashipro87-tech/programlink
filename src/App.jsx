@@ -1,5 +1,23 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Shield } from 'lucide-react';
+
+function AdminBackButton() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  if (user?.role !== 'admin') return null;
+  if (location.pathname.startsWith('/dashboard/admin')) return null;
+  return (
+    <button
+      onClick={() => navigate('/dashboard/admin')}
+      className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl shadow-lg transition-colors"
+    >
+      <Shield className="w-4 h-4" />
+      Back to Admin
+    </button>
+  );
+}
 
 import HomePage            from './pages/home/HomePage';
 import Login               from './pages/auth/Login';
@@ -56,5 +74,6 @@ export default function App() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <AdminBackButton />
   );
 }
