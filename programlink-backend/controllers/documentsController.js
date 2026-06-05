@@ -1,6 +1,7 @@
 const pool   = require('../config/database');
 const multer = require('multer');
 const { uploadFile } = require('../services/storageService');
+const { notifyCoordinators } = require('../services/notificationService');
 
 exports.uploadMiddleware = multer({
   storage: multer.memoryStorage(),
@@ -41,6 +42,18 @@ exports.uploadDocument = async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [org_id || req.user.organizationId, doc_type, label, file_url, file.originalname, req.user.id, expires_at || null]
     );
+
+    // Notify coordinators that a new document was uploaded
+    const org = await pool.query('SELECT name, sponsor_id FROM organizations WHERE id = $1', [org_id || req.user.organizationId]);
+    if (org.rows[0]?.sponsor_id) {
+      notifyCoordinators(org.rows[0].sponsor_id, {
+        type:      'document_uploaded',
+        title:     'New document uploaded',
+        body:      `${org.rows[0].name} uploaded: ${label || doc_type}`,
+        actionUrl: `/dashboard/coordinator/documents`,
+      }).catch(() => {});
+    }
+
     res.status(201).json({ document: rows[0] });
   } catch (err) {
     console.error('uploadDocument error:', err);

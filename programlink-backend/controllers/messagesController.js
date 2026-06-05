@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { createNotification } = require('../services/notificationService');
 
 exports.listThreads = async (req, res) => {
   try {
@@ -61,6 +62,14 @@ exports.createThread = async (req, res) => {
           [message.rows[0].id, rid]
         );
       }
+      // Notify recipients
+      createNotification(recipient_ids.map((rid) => ({
+        userId:    rid,
+        type:      'new_message',
+        title:     'New message',
+        body:      subject ? `Re: ${subject}` : 'You have a new message.',
+        actionUrl: `/dashboard/messages`,
+      }))).catch(() => {});
     }
     res.status(201).json({ thread: thread.rows[0], message: message.rows[0] });
   } catch (err) {
@@ -76,6 +85,29 @@ exports.replyToThread = async (req, res) => {
       `INSERT INTO messages (thread_id, sender_id, body) VALUES ($1,$2,$3) RETURNING *`,
       [req.params.threadId, req.user.id, body]
     );
+
+    // Notify everyone else in the thread
+    const threadParticipants = await pool.query(
+      `SELECT DISTINCT sender_id AS user_id FROM messages WHERE thread_id = $1
+       UNION
+       SELECT DISTINCT recipient_id AS user_id FROM message_recipients mr
+       JOIN messages m ON m.id = mr.message_id WHERE m.thread_id = $1`,
+      [req.params.threadId]
+    );
+    const toNotify = threadParticipants.rows
+      .map((r) => r.user_id)
+      .filter((id) => id !== req.user.id);
+
+    if (toNotify.length) {
+      createNotification(toNotify.map((uid) => ({
+        userId:    uid,
+        type:      'new_message',
+        title:     'New reply in your conversation',
+        body:      body.length > 80 ? body.slice(0, 80) + '…' : body,
+        actionUrl: `/dashboard/messages`,
+      }))).catch(() => {});
+    }
+
     if (recipient_ids?.length) {
       for (const rid of recipient_ids) {
         await pool.query(

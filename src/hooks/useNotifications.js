@@ -19,7 +19,12 @@ export function useNotifications() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  // Poll every 30 seconds for new notifications
+  useEffect(() => {
+    fetch();
+    const interval = setInterval(fetch, 30000);
+    return () => clearInterval(interval);
+  }, [fetch]);
 
   async function markRead(id) {
     await api.patch(`/notifications/${id}/read`);

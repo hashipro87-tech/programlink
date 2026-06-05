@@ -1,4 +1,6 @@
 const pool = require('../config/database');
+const { createNotification, notifyCoordinators, notifySponsors } = require('../services/notificationService');
+const { sendApplicationStatusEmail } = require('../services/emailService');
 
 exports.listApplications = async (req, res) => {
   try {
@@ -83,7 +85,60 @@ exports.updateStatus = async (req, res) => {
       params
     );
     if (!rows.length) return res.status(404).json({ error: 'Application not found.' });
-    res.json({ application: rows[0] });
+
+    const app = rows[0];
+
+    // ── Trigger notifications based on status change ──────────────────────
+    if (status) {
+      try {
+        // Get the org's users to notify them
+        const orgUsers = await pool.query(
+          'SELECT id, name, email FROM users WHERE org_id = $1 AND is_active = TRUE',
+          [app.org_id]
+        );
+
+        if (status === 'submitted') {
+          // Notify coordinators + sponsors that a new application needs review
+          await notifyCoordinators(app.sponsor_id, {
+            type:      'pending_approval',
+            title:     'New application submitted',
+            body:      `${app.org_name} has submitted an application for review.`,
+            actionUrl: `/dashboard/coordinator/applications`,
+          });
+          await notifySponsors(app.sponsor_id, {
+            type:      'pending_approval',
+            title:     'New application submitted',
+            body:      `${app.org_name} has submitted an application for review.`,
+            actionUrl: `/dashboard/sponsor/applications`,
+          });
+        }
+
+        if (status === 'approved' || status === 'rejected') {
+          // Notify all users in the applicant org
+          if (orgUsers.rows.length) {
+            await createNotification(orgUsers.rows.map((u) => ({
+              userId:    u.id,
+              type:      'application_status',
+              title:     status === 'approved' ? 'Application approved!' : 'Application not approved',
+              body:      status === 'approved'
+                ? 'Your application has been approved. You can now use all program features.'
+                : `Your application was not approved. ${notes ? `Note: ${notes}` : ''}`,
+              actionUrl: `/dashboard/${app.org_type}/application`,
+            })));
+
+            // Also send email
+            for (const u of orgUsers.rows) {
+              sendApplicationStatusEmail(u.email, u.name, app.org_name, status, notes)
+                .catch((err) => console.error('Failed to send status email:', err.message));
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.error('Notification error (non-fatal):', notifErr.message);
+      }
+    }
+
+    res.json({ application: app });
   } catch (err) {
     console.error('updateStatus error:', err);
     res.status(500).json({ error: 'Failed to update application.' });
