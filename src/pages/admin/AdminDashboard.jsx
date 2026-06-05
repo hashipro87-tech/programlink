@@ -2,7 +2,7 @@
 // Full platform visibility: all users, all orgs, all programs.
 // Dark theme to visually distinguish from role dashboards.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Routes, Route, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -17,7 +17,146 @@ const NAV = [
   { label: 'Overview',      path: '/dashboard/admin',              icon: LayoutDashboard },
   { label: 'Users',         path: '/dashboard/admin/users',        icon: Users           },
   { label: 'Organizations', path: '/dashboard/admin/orgs',         icon: Building2       },
+  { label: 'Search',        path: '/dashboard/admin/search',       icon: Search          },
 ];
+
+// ─── Global Search ────────────────────────────────────────────────────────────
+function GlobalSearch() {
+  const navigate         = useNavigate();
+  const [query, setQuery]   = useState('');
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef(null);
+
+  const doSearch = useCallback((q) => {
+    if (!q.trim()) { setResults(null); return; }
+    setLoading(true);
+    Promise.all([
+      api.get(`/users?search=${encodeURIComponent(q)}`).catch(() => ({ data: { users: [] } })),
+      api.get(`/organizations?search=${encodeURIComponent(q)}`).catch(() => ({ data: { organizations: [] } })),
+      api.get(`/applications?search=${encodeURIComponent(q)}`).catch(() => ({ data: { applications: [] } })),
+    ]).then(([usersRes, orgsRes, appsRes]) => {
+      setResults({
+        users:         usersRes.data.users         ?? [],
+        organizations: orgsRes.data.organizations  ?? [],
+        applications:  appsRes.data.applications   ?? [],
+      });
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const handleChange = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(q), 400);
+  };
+
+  const total = results ? (results.users.length + results.organizations.length + results.applications.length) : 0;
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white">Global Search</h1>
+        <p className="text-gray-400 mt-1 text-sm">Search across users, organizations, and applications.</p>
+      </div>
+
+      <div className="relative mb-6">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={handleChange}
+          placeholder="Search by name, email, org…"
+          className="w-full pl-12 pr-4 py-3.5 bg-gray-800 border border-gray-700 text-white placeholder-gray-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+        {loading && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        )}
+      </div>
+
+      {results && (
+        <div className="space-y-6">
+          <p className="text-xs text-gray-500">{total} result{total !== 1 ? 's' : ''} for "{query}"</p>
+
+          {/* Users */}
+          {results.users.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Users</p>
+              <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+                {results.users.slice(0, 5).map((u) => (
+                  <button key={u.id} onClick={() => navigate('/dashboard/admin/users')}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-700 border-b border-gray-700 last:border-0 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-gray-300">{u.name?.[0]?.toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{u.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                    </div>
+                    <span className="text-xs text-gray-500 capitalize">{u.role}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Organizations */}
+          {results.organizations.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Organizations</p>
+              <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+                {results.organizations.slice(0, 5).map((o) => (
+                  <button key={o.id} onClick={() => navigate('/dashboard/admin/orgs')}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-700 border-b border-gray-700 last:border-0 transition-colors">
+                    <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{o.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{o.address ?? 'No address'}</p>
+                    </div>
+                    <span className="text-xs text-gray-500 capitalize">{o.type}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Applications */}
+          {results.applications.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Applications</p>
+              <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+                {results.applications.slice(0, 5).map((a) => (
+                  <div key={a.id} className="px-4 py-3 flex items-center gap-3 border-b border-gray-700 last:border-0">
+                    <ClipboardList className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{a.org_name}</p>
+                      <p className="text-xs text-gray-400 capitalize">{a.org_type}</p>
+                    </div>
+                    <span className="text-xs text-gray-500 capitalize">{a.status?.replace(/_/g, ' ')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {total === 0 && !loading && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-sm">No results for "{query}"</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!results && !loading && (
+        <div className="text-center py-16">
+          <Search className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Type to search across the platform</p>
+        </div>
+      )}
+    </>
+  );
+}
 
 function AdminSidebar() {
   const location = useLocation();
@@ -418,9 +557,10 @@ export default function AdminDashboard() {
       <main className="flex-1 overflow-y-auto">
         <div className="px-8 py-8 max-w-5xl mx-auto">
           <Routes>
-            <Route index        element={<Overview />} />
-            <Route path="users" element={<AdminUsersPage />} />
-            <Route path="orgs"  element={<AdminOrgsPage />} />
+            <Route index          element={<Overview />} />
+            <Route path="users"   element={<AdminUsersPage />} />
+            <Route path="orgs"    element={<AdminOrgsPage />} />
+            <Route path="search"  element={<GlobalSearch />} />
           </Routes>
         </div>
       </main>
