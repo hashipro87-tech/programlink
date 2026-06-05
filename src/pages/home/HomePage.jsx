@@ -839,15 +839,29 @@ function Footer() {
           {[
             {
               title: 'Product',
-              links: ['Features', 'How It Works', 'Mobile App', 'Security'],
+              links: [
+                { label: 'Features',     href: '#features' },
+                { label: 'How It Works', href: '#how-it-works' },
+                { label: 'Sign In',      href: '/login' },
+                { label: 'Register',     href: '/register' },
+              ],
             },
             {
               title: 'Roles',
-              links: ['Sponsors', 'Coordinators', 'Kitchens', 'Sites & Daycares'],
+              links: [
+                { label: 'Sponsors',        href: '/register' },
+                { label: 'Coordinators',    href: '/register' },
+                { label: 'Kitchens',        href: '/register' },
+                { label: 'Sites & Daycares',href: '/register' },
+              ],
             },
             {
               title: 'Company',
-              links: ['Contact', 'Privacy Policy', 'Terms of Service'],
+              links: [
+                { label: 'Contact',         href: 'mailto:support@programlink.app' },
+                { label: 'Privacy Policy',  href: '#' },
+                { label: 'Terms of Service',href: '#' },
+              ],
             },
           ].map((col) => (
             <div key={col.title}>
@@ -856,8 +870,8 @@ function Footer() {
               </h4>
               <ul className="space-y-2">
                 {col.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-xs hover:text-white transition-colors">{l}</a>
+                  <li key={l.label}>
+                    <a href={l.href} className="text-xs hover:text-white transition-colors">{l.label}</a>
                   </li>
                 ))}
               </ul>
