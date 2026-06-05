@@ -37,11 +37,11 @@ export default function SettingsPage() {
   useEffect(() => {
     api.get('/settings')
       .then(({ data }) => {
-        setProfile({ name: data.profile.name ?? '', email: data.profile.email ?? '' });
+        setProfile({ name: data.settings?.name ?? '', email: data.settings?.email ?? '' });
         setOrg({
-          name:    data.organization.name    ?? '',
-          address: data.organization.address ?? '',
-          phone:   data.organization.phone   ?? '',
+          name:    data.settings?.org_name ?? '',
+          address: data.settings?.address ?? '',
+          phone:   data.settings?.phone ?? '',
         });
       })
       .catch(() => {})
@@ -78,8 +78,8 @@ export default function SettingsPage() {
     setPasswordMsg('');
     try {
       await api.patch('/settings/password', {
-        currentPassword: passwords.current,
-        newPassword:     passwords.newPass,
+        current_password: passwords.current,
+        new_password: passwords.newPass,
       });
       setPasswordMsg('✓ Password changed.');
       setPasswords({ current: '', newPass: '', confirm: '' });
