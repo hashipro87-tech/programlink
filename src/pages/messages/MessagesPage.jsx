@@ -91,7 +91,7 @@ function MessageBubble({ message, currentUserId }) {
 // ── Thread view pane ──────────────────────────────────────────────────────
 function ThreadView({ threadId, onClose }) {
   const { user } = useAuth();
-  const { thread, messages, loading, reply } = useThread(threadId);
+  const { thread, messages, loading, sendMessage: reply } = useThread(threadId);
   const [replyText, setReplyText] = useState('');
   const [sending,   setSending]   = useState(false);
   const bottomRef = useRef(null);
@@ -191,7 +191,7 @@ function NewThreadModal({ onClose, onCreate }) {
 
   // Load users once on mount
   useEffect(() => {
-    api.get('/users').then(({ data }) => setAllUsers(data ?? [])).catch(() => {});
+    api.get("/users").then(({ data }) => setAllUsers(data.users ?? data ?? [])).catch(() => {});
   }, []);
 
   const filtered = allUsers.filter((u) =>
