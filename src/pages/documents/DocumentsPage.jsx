@@ -36,20 +36,37 @@ function StatusIcon({ status }) {
 
 // ── Document row ─────────────────────────────────────────────────────────────
 function DocumentRow({ doc, isReviewer, onUpload, onReview }) {
-  const fileInputRef = useRef(null);
-  const [reviewing,  setReviewing]  = useState(false);
-  const [rejectNote, setRejectNote] = useState('');
-  const [loading,    setLoading]    = useState(false);
+  const fileInputRef  = useRef(null);
+  const [reviewing,   setReviewing]  = useState(false);
+  const [rejectNote,  setRejectNote] = useState('');
+  const [loading,     setLoading]    = useState(false);
+  const [expiresAt,   setExpiresAt]  = useState('');
+  const [showExpiry,  setShowExpiry] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
 
-  const daysUntilExpiry = doc.expires_at
+  const daysUntilExpiry = doc.days_until_expiry ?? (doc.expires_at
     ? Math.floor((new Date(doc.expires_at) - new Date()) / (1000 * 60 * 60 * 24))
-    : null;
+    : null);
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    await onUpload(file, doc.doc_type, doc.label);
     e.target.value = '';
+    setPendingFile(file);
+    setShowExpiry(true);
+  };
+
+  const confirmUpload = async () => {
+    if (!pendingFile) return;
+    setLoading(true);
+    try {
+      await onUpload(pendingFile, doc.doc_type, doc.label, expiresAt || null);
+      setPendingFile(null);
+      setShowExpiry(false);
+      setExpiresAt('');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -174,6 +191,38 @@ function DocumentRow({ doc, isReviewer, onUpload, onReview }) {
           )}
         </div>
       </div>
+
+      {/* Expiry date picker — shown after file is selected */}
+      {showExpiry && pendingFile && (
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-blue-800 mb-0.5">📄 {pendingFile.name}</p>
+            <p className="text-xs text-blue-600">Optional: set an expiry date so the system can alert you before it expires.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <input
+              type="date"
+              value={expiresAt}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              onClick={confirmUpload}
+              disabled={loading}
+              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg disabled:opacity-50"
+            >
+              {loading ? 'Uploading…' : 'Upload'}
+            </button>
+            <button
+              onClick={() => { setShowExpiry(false); setPendingFile(null); setExpiresAt(''); }}
+              className="px-3 py-1.5 border border-gray-300 text-gray-600 text-xs rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Reject note input */}
       {reviewing && (

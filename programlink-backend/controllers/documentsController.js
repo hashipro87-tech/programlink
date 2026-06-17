@@ -8,6 +8,18 @@ exports.uploadMiddleware = multer({
   limits:  { fileSize: 20 * 1024 * 1024 },
 }).single('file');
 
+// Compute live expiry status — called on every fetch so statuses stay accurate
+function applyExpiryStatus(doc) {
+  if (!doc.expires_at) return doc;
+  const now       = new Date();
+  const expiresAt = new Date(doc.expires_at);
+  const daysLeft  = Math.floor((expiresAt - now) / (1000 * 60 * 60 * 24));
+  let derivedStatus = doc.status;
+  if (daysLeft < 0) derivedStatus = 'expired';
+  else if (daysLeft <= 30 && doc.status === 'valid') derivedStatus = 'expiring_soon';
+  return { ...doc, status: derivedStatus, days_until_expiry: daysLeft };
+}
+
 exports.listDocuments = async (req, res) => {
   try {
     const { org_id } = req.query;
@@ -17,7 +29,7 @@ exports.listDocuments = async (req, res) => {
     else { params.push(req.user.organizationId); query += ` AND org_id = $${params.length}`; }
     query += ' ORDER BY uploaded_at DESC';
     const { rows } = await pool.query(query, params);
-    res.json({ documents: rows });
+    res.json({ documents: rows.map(applyExpiryStatus) });
   } catch (err) {
     console.error('listDocuments error:', err);
     res.status(500).json({ error: 'Failed to fetch documents.' });
