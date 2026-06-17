@@ -640,7 +640,7 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-gray-950 text-gray-100">
       <AdminSidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="px-8 py-8 max-w-5xl mx-auto">
+        <div className="p-4 pt-20 sm:px-8 sm:py-8 max-w-5xl mx-auto">
           <Routes>
             <Route index          element={<Overview />} />
             <Route path="users"   element={<AdminUsersPage />} />

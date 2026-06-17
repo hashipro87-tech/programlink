@@ -26,6 +26,7 @@ import MealEntryForm       from './components/MealEntryForm';
 import DocumentUploadCard  from './components/DocumentUploadCard';
 import SponsorMessaging    from './components/SponsorMessaging';
 import AlertsCenter        from './components/AlertsCenter';
+import ActionCenter        from '../../components/common/ActionCenter';
 
 const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',             icon: CheckCircle,   end: true },
@@ -80,6 +81,34 @@ export default function KitchenDashboard() {
 
   const bannerStatus = getBannerStatus(stats.application_status);
 
+  // Build Action Center tasks from real stats
+  const actionTasks = [
+    {
+      id: 'docs',
+      label: `Upload required documents (${stats.docs_uploaded ?? 0}/3 uploaded)`,
+      path: '/dashboard/kitchen/documents',
+      done: (stats.docs_uploaded ?? 0) >= 3,
+    },
+    {
+      id: 'app',
+      label: 'Submit your application for review',
+      path: '/dashboard/kitchen/application',
+      done: bannerStatus !== 'not_submitted',
+    },
+    {
+      id: 'meals',
+      label: 'Submit today\'s meal counts',
+      path: '/dashboard/kitchen/meals',
+      done: bannerStatus !== 'approved' || !!stats.counts_today,
+    },
+    {
+      id: 'messages',
+      label: `Respond to unread messages (${stats.unread_messages ?? 0})`,
+      path: '/dashboard/kitchen/messages',
+      done: !(stats.unread_messages > 0),
+    },
+  ];
+
   // Navigate to the right sub-page when a banner action is clicked
   const handleBannerAction = () => {
     if (uploadedDocs.length < 3) {
@@ -117,6 +146,9 @@ export default function KitchenDashboard() {
                   Manage your daily operations, documents, and deliveries.
                 </p>
               </div>
+
+              {/* ── Action Center ── */}
+              <ActionCenter tasks={actionTasks} loading={loading} />
 
               {/* ── Next Action Banner — always tells the kitchen what to do next ── */}
               <NextActionBanner

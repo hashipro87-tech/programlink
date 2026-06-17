@@ -22,6 +22,7 @@ import SettingsPage               from '../settings/SettingsPage';
 import CoordinatorSitesPage       from './CoordinatorSitesPage';
 import CoordinatorMealCountsPage  from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage    from './CoordinatorKitchensPage';
+import ActionCenter               from '../../components/common/ActionCenter';
 
 const NAV_ITEMS = [
   { label: 'Overview',     path: '/dashboard/coordinator',               icon: CheckCircle  },
@@ -57,12 +58,32 @@ function Overview() {
   const activeCount     = sites.filter((s) => s.status === 'active').length;
   const docAlertCount   = sites.filter((s) => (s.doc_alerts ?? 0) > 0).length;
 
+  const actionTasks = [
+    {
+      id: 'verify',
+      label: `Verify ${pending.length} pending meal count${pending.length !== 1 ? 's' : ''}`,
+      path: '/dashboard/coordinator/meal-counts',
+      urgent: pending.length > 5,
+      done: pending.length === 0,
+    },
+    {
+      id: 'docs',
+      label: `${docAlertCount} site${docAlertCount !== 1 ? 's have' : ' has'} document alerts`,
+      path: '/dashboard/coordinator/sites',
+      urgent: true,
+      done: docAlertCount === 0,
+    },
+  ];
+
   return (
     <>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Coordinator Dashboard</h1>
         <p className="text-gray-500 mt-1">Manage your assigned sites, verify meal counts, and track compliance.</p>
       </div>
+
+      {/* Action Center */}
+      <ActionCenter tasks={actionTasks} loading={loading} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">

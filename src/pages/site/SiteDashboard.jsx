@@ -12,6 +12,7 @@ import {
 
 import Sidebar       from '../../components/layout/Sidebar';
 import StatCard      from '../../components/common/StatCard';
+import ActionCenter  from '../../components/common/ActionCenter';
 import api           from '../../services/api';
 
 // Pages
@@ -53,6 +54,29 @@ function buildChecklist(stats) {
 function Overview({ stats, loading }) {
   const navigate     = useNavigate();
   const checklist    = buildChecklist(stats);
+  const appStatus    = stats.application_status;
+  const isApproved   = appStatus === 'approved';
+
+  const actionTasks = [
+    {
+      id: 'app',
+      label: 'Start your application',
+      path: '/dashboard/site/application',
+      done: !!(appStatus && appStatus !== 'not_started'),
+    },
+    {
+      id: 'meals',
+      label: 'Submit today\'s meal counts',
+      path: '/dashboard/site/meals',
+      done: !isApproved || !!stats.counts_today,
+    },
+    {
+      id: 'messages',
+      label: `Respond to unread messages (${stats.unread_messages ?? 0})`,
+      path: '/dashboard/site/messages',
+      done: !(stats.unread_messages > 0),
+    },
+  ];
   const completed    = checklist.filter((s) => s.done).length;
   const progressPct  = Math.round((completed / checklist.length) * 100);
 
@@ -68,15 +92,15 @@ function Overview({ stats, loading }) {
       .finally(() => setCountsLoading(false));
   }, []);
 
-  const appStatus = stats.application_status;
-  const isApproved = appStatus === 'approved';
-
   return (
     <>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Site Dashboard</h1>
         <p className="text-gray-500 mt-1">Track your daily meal counts, compliance, and program status.</p>
       </div>
+
+      {/* Action Center */}
+      <ActionCenter tasks={actionTasks} loading={loading} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

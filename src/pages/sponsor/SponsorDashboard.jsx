@@ -18,6 +18,7 @@ import SitesPage       from './SitesPage';
 import KitchensPage      from './KitchensPage';
 import CoordinatorsPage  from './CoordinatorsPage';
 import ReportsPage        from './ReportsPage';
+import ActionCenter       from '../../components/common/ActionCenter';
 import api from '../../services/api';
 
 const NAV_ITEMS = [
@@ -86,6 +87,33 @@ export default function SponsorDashboard() {
                 <h1 className="text-2xl font-bold text-gray-900">Program Overview</h1>
                 <p className="text-gray-500 mt-1">Monitor all sites, kitchens, and compliance status across your program.</p>
               </div>
+
+              {/* Action Center */}
+              <ActionCenter
+                loading={loading}
+                tasks={[
+                  {
+                    id: 'approvals',
+                    label: `Review ${stats.pending_approvals ?? 0} pending application${stats.pending_approvals !== 1 ? 's' : ''}`,
+                    path: '/dashboard/sponsor/applications',
+                    urgent: (stats.pending_approvals ?? 0) > 0,
+                    done: !(stats.pending_approvals > 0),
+                  },
+                  {
+                    id: 'compliance',
+                    label: `${stats.compliance_alerts ?? 0} document${stats.compliance_alerts !== 1 ? 's' : ''} expiring within 30 days`,
+                    path: '/dashboard/sponsor/documents',
+                    urgent: true,
+                    done: !(stats.compliance_alerts > 0),
+                  },
+                  {
+                    id: 'messages',
+                    label: `Respond to unread messages (${stats.unread_messages ?? 0})`,
+                    path: '/dashboard/sponsor/messages',
+                    done: !(stats.unread_messages > 0),
+                  },
+                ]}
+              />
 
               {/* Stat cards — driven by real counts from the /stats API */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
