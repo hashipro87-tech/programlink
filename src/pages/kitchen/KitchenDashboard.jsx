@@ -27,6 +27,7 @@ import DocumentUploadCard  from './components/DocumentUploadCard';
 import SponsorMessaging    from './components/SponsorMessaging';
 import AlertsCenter        from './components/AlertsCenter';
 import ActionCenter        from '../../components/common/ActionCenter';
+import ActivityTimeline    from '../../components/common/ActivityTimeline';
 
 const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',             icon: CheckCircle,   end: true },
@@ -245,6 +246,9 @@ export default function KitchenDashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* ── Activity Timeline ── */}
+              <ActivityTimeline />
 
               {/* ── Required Document Upload Card ── */}
               <DocumentUploadCard onAllUploaded={handleAllUploaded} />

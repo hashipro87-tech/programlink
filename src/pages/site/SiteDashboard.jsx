@@ -12,8 +12,9 @@ import {
 
 import Sidebar       from '../../components/layout/Sidebar';
 import StatCard      from '../../components/common/StatCard';
-import ActionCenter  from '../../components/common/ActionCenter';
-import api           from '../../services/api';
+import ActionCenter      from '../../components/common/ActionCenter';
+import ActivityTimeline  from '../../components/common/ActivityTimeline';
+import api               from '../../services/api';
 
 // Pages
 import ApplicationPage      from '../application/ApplicationPage';
@@ -194,6 +195,9 @@ function Overview({ stats, loading }) {
           ))}
         </div>
       </div>
+
+      {/* Activity Timeline */}
+      <ActivityTimeline />
 
       {/* Recent meal count submissions */}
       <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
