@@ -15,6 +15,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'https://programlink-cotz.vercel.app',
+  'https://cacfplink.com',
+  'https://www.cacfplink.com',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
