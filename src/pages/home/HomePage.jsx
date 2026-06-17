@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import {
   Camera, FileText, Building2, Users, BarChart2, ShieldCheck,
   ClipboardList, Truck, CheckCircle, AlertTriangle, ArrowRight,
-  Zap, Clock, X, Menu, UtensilsCrossed, MapPin,
+  Zap, Clock, X, Menu, UtensilsCrossed, MapPin, Shield, RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -214,12 +214,12 @@ function Hero() {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-5">
-              Operations &amp; Compliance Software for{' '}
-              <span className="text-brand-600">Food Program Organizations</span>
+              Stop managing CACFP with{' '}
+              <span className="text-brand-600">spreadsheets, emails, and phone calls.</span>
             </h1>
 
             <p className="text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
-              Manage meal counts, compliance documents, kitchens, sites, and coordinators — all in one platform built for USDA food programs.
+              Manage meal counts, compliance documents, kitchens, sites, and coordinators in one platform built for USDA food programs.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">
@@ -238,15 +238,15 @@ function Hero() {
               </a>
             </div>
 
-            {/* Trust signals */}
-            <div className="flex flex-wrap gap-6 text-sm text-gray-500">
+            {/* Social proof chips */}
+            <div className="flex flex-wrap gap-3 text-sm text-gray-500">
               {[
-                'Built for USDA food programs',
-                'Role-based access',
-                'No spreadsheets required',
+                'Built specifically for CACFP sponsors, kitchens, and meal sites',
+                'Designed around real compliance and reporting workflows',
+                'No credit card required',
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   {item}
                 </span>
               ))}
@@ -585,6 +585,274 @@ function Features() {
   );
 }
 
+// ─── Compliance Dashboard Mockup ─────────────────────────────────────────────
+
+function ComplianceMockup() {
+  const orgs = [
+    { name: 'Sunshine Learning Center', type: 'site',    tier: 'compliant', score: 95, app: 'approved', docs: '3 valid',          expiry: null },
+    { name: 'Riverside Kitchen',        type: 'kitchen', tier: 'at_risk',   score: 62, app: 'approved', docs: '1 valid · 1 expiring', expiry: '12d' },
+    { name: 'Eastside Daycare',         type: 'site',    tier: 'critical',  score: 30, app: 'pending',  docs: '0 valid · 2 expired', expiry: '3d ago' },
+    { name: 'Westview Kitchen',         type: 'kitchen', tier: 'compliant', score: 88, app: 'approved', docs: '3 valid',          expiry: null },
+  ];
+  const tierColor = { compliant: 'text-green-500', at_risk: 'text-yellow-500', critical: 'text-red-500' };
+  const scoreColor = { compliant: 'bg-green-100 text-green-700', at_risk: 'bg-yellow-100 text-yellow-700', critical: 'bg-red-100 text-red-600' };
+
+  return (
+    <div className="w-full bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden text-left">
+      {/* Topbar */}
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <div className="w-3 h-3 rounded-full bg-red-400" />
+        <div className="w-3 h-3 rounded-full bg-yellow-400" />
+        <div className="w-3 h-3 rounded-full bg-green-400" />
+        <div className="flex-1 mx-4 h-6 bg-gray-100 rounded-md flex items-center px-3">
+          <span className="text-[10px] text-gray-400 font-mono">cacfplink.com/dashboard/sponsor/compliance</span>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-bold text-gray-900">Compliance</p>
+            <p className="text-[10px] text-gray-400">Monitor document status across all sites and kitchens</p>
+          </div>
+          <div className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-200 rounded-lg">
+            <RefreshCw className="w-3 h-3 text-gray-400" />
+            <span className="text-[10px] text-gray-500 font-medium">Refresh</span>
+          </div>
+        </div>
+
+        {/* Summary cards */}
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          {[
+            { label: 'Total Orgs', value: '12', color: 'text-blue-600',  bg: 'bg-blue-50' },
+            { label: 'Compliant',  value: '8',  color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'At Risk',    value: '3',  color: 'text-yellow-600',bg: 'bg-yellow-50' },
+            { label: 'Critical',   value: '1',  color: 'text-red-600',   bg: 'bg-red-50' },
+          ].map((c) => (
+            <div key={c.label} className={`${c.bg} rounded-xl p-2.5`}>
+              <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">{c.label}</p>
+              <p className={`text-lg font-black ${c.color}`}>{c.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Alert banner */}
+        <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+          <p className="text-[10px] text-red-700 font-medium">2 expired documents · 1 expiring within 14 days</p>
+        </div>
+
+        {/* Org rows */}
+        <div className="bg-gray-50 rounded-xl overflow-hidden">
+          {orgs.map((org, i) => (
+            <div key={org.name} className={`flex items-center gap-2.5 px-3 py-2.5 ${i < orgs.length - 1 ? 'border-b border-gray-100' : ''}`}>
+              <Shield className={`w-3.5 h-3.5 flex-shrink-0 ${tierColor[org.tier]}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] font-semibold text-gray-900 truncate">{org.name}</p>
+                  <span className="text-[9px] bg-gray-200 text-gray-500 px-1 rounded uppercase font-bold">{org.type}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-[9px] ${org.app === 'approved' ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {org.app === 'approved' ? '✓ Approved' : '⏳ Pending'}
+                  </span>
+                  <span className="text-[9px] text-gray-400">{org.docs}</span>
+                  {org.expiry && (
+                    <span className="text-[9px] text-red-500 font-medium">⏱ {org.expiry}</span>
+                  )}
+                </div>
+              </div>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${scoreColor[org.tier]}`}>
+                {org.score}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Action Center Mockup ─────────────────────────────────────────────────────
+
+function ActionCenterMockup() {
+  const tasks = [
+    { label: 'Review 3 pending applications', urgent: true },
+    { label: '1 document expiring within 30 days', urgent: true },
+    { label: 'Verify meal counts for Eastside Daycare', urgent: false },
+  ];
+
+  return (
+    <div className="w-full bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden text-left">
+      {/* Topbar */}
+      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <div className="w-3 h-3 rounded-full bg-red-400" />
+        <div className="w-3 h-3 rounded-full bg-yellow-400" />
+        <div className="w-3 h-3 rounded-full bg-green-400" />
+        <div className="flex-1 mx-4 h-6 bg-gray-100 rounded-md flex items-center px-3">
+          <span className="text-[10px] text-gray-400 font-mono">cacfplink.com/dashboard/sponsor</span>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <p className="text-sm font-bold text-gray-900 mb-3">Program Overview</p>
+
+        {/* Action Center */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
+          <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-2">Tasks Requiring Attention</p>
+          <div className="space-y-2">
+            {tasks.map((t) => (
+              <div key={t.label} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-amber-100">
+                {t.urgent
+                  ? <AlertTriangle className="w-3 h-3 text-red-500 flex-shrink-0" />
+                  : <Clock className="w-3 h-3 text-yellow-500 flex-shrink-0" />
+                }
+                <span className="text-[10px] text-gray-700 font-medium flex-1">{t.label}</span>
+                <ArrowRight className="w-3 h-3 text-gray-400" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: 'Sites',      value: '8',  color: 'text-blue-600' },
+            { label: 'Kitchens',   value: '4',  color: 'text-green-600' },
+            { label: 'Pending',    value: '3',  color: 'text-yellow-600' },
+            { label: 'Alerts',     value: '1',  color: 'text-red-600' },
+          ].map((c) => (
+            <div key={c.label} className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 text-center">
+              <p className="text-[9px] text-gray-400 uppercase">{c.label}</p>
+              <p className={`text-base font-black ${c.color}`}>{c.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Screenshots Section ──────────────────────────────────────────────────────
+
+function ScreenshotsSection() {
+  return (
+    <section className="py-20 px-6 bg-white">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+            <span className="text-xs font-semibold text-brand-700">See it in action</span>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Purpose-built for CACFP operations
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto">
+            Not adapted from a generic tool. Every screen was designed around real food program workflows.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-10 items-start">
+          {/* Compliance Dashboard */}
+          <div>
+            <div className="mb-5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full uppercase tracking-wide mb-3">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Compliance Dashboard
+              </span>
+              <h3 className="text-xl font-bold text-gray-900 mt-2 mb-2">Know every org's compliance status at a glance</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Per-organization compliance scores, document expiry alerts, and tier classification — so you're never caught off guard before a USDA review.
+              </p>
+            </div>
+            <ComplianceMockup />
+          </div>
+
+          {/* Action Center */}
+          <div>
+            <div className="mb-5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full uppercase tracking-wide mb-3">
+                <CheckCircle className="w-3.5 h-3.5" />
+                Action Center
+              </span>
+              <h3 className="text-xl font-bold text-gray-900 mt-2 mb-2">Every role sees exactly what needs attention</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Sponsors, coordinators, kitchens, and sites each get a focused list of outstanding tasks — no inbox hunting, no spreadsheet-checking.
+              </p>
+            </div>
+            <ActionCenterMockup />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Trust Section ────────────────────────────────────────────────────────────
+
+function TrustSection() {
+  const pillars = [
+    {
+      icon: ClipboardList,
+      title: 'Reliable meal reporting',
+      desc: 'Daily counts logged, verified, and summarized — audit-ready the moment you need them.',
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      border: 'border-blue-100',
+    },
+    {
+      icon: FileText,
+      title: 'Document tracking',
+      desc: 'W-9s, menu plans, insurance certs — tracked with 30-day expiry alerts so nothing lapses quietly.',
+      color: 'text-violet-600',
+      bg: 'bg-violet-50',
+      border: 'border-violet-100',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Audit-ready records',
+      desc: 'Every submission, approval, and document change is logged with a timestamp and actor name.',
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      border: 'border-green-100',
+    },
+  ];
+
+  return (
+    <section className="py-20 px-6 bg-gray-50 border-t border-gray-100">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">
+            Built for organizations that take compliance seriously
+          </h2>
+          <p className="text-gray-500 max-w-2xl mx-auto">
+            Built for organizations that need reliable meal reporting, document tracking, and audit-ready records — not a tool you have to adapt to fit a USDA workflow.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-5">
+          {pillars.map((p) => (
+            <div key={p.title} className={`bg-white border ${p.border} rounded-2xl p-6`}>
+              <div className={`w-10 h-10 ${p.bg} rounded-xl flex items-center justify-center mb-4`}>
+                <p.icon className={`w-5 h-5 ${p.color}`} />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">{p.title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">{p.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CACFP-specific callout */}
+        <div className="mt-8 bg-brand-600 rounded-2xl px-8 py-6 text-center">
+          <p className="text-white font-semibold text-lg mb-1">Built specifically for CACFP sponsors, kitchens, and meal sites.</p>
+          <p className="text-brand-200 text-sm">Not a generic project tool. Not a repurposed HR system. Purpose-built for USDA food program compliance.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── How It Works ─────────────────────────────────────────────────────────────
 
 function HowItWorks() {
@@ -898,6 +1166,8 @@ export default function HomePage() {
       <WorkflowDiagram />
       <ProblemSolution />
       <Features />
+      <ScreenshotsSection />
+      <TrustSection />
       <HowItWorks />
       <MobileSection />
       <Impact />
