@@ -9,6 +9,7 @@ import {
   Zap, Clock, X, Menu, UtensilsCrossed, MapPin, Shield, RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
+import DemoPlayer from '../../components/common/DemoPlayer';
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
@@ -258,6 +259,46 @@ function Hero() {
             <div className="absolute -inset-4 bg-brand-50 rounded-3xl -z-10" />
             <DashboardMockup />
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Demo Section ─────────────────────────────────────────────────────────────
+
+function DemoSection() {
+  return (
+    <section className="py-20 px-4 sm:px-6 bg-gradient-to-b from-white to-gray-50 border-t border-gray-100">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+            <span className="text-xs font-semibold text-brand-700">Interactive Product Demo</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-4">
+            Stop Managing CACFP With<br className="hidden sm:block" /> Spreadsheets, Emails &amp; Phone Calls
+          </h2>
+          <p className="text-lg text-gray-500 max-w-2xl mx-auto mb-8">
+            See how sponsors, kitchens, coordinators, and meal sites manage applications, meal counts, compliance, and communication in one place.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            <Link
+              to="/register"
+              className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+            >
+              Try CACFPLink Free
+            </Link>
+            <a
+              href="#demo"
+              className="px-6 py-3 border border-gray-200 hover:border-gray-300 text-gray-700 font-bold rounded-xl transition-colors"
+            >
+              View Demo ↓
+            </a>
+          </div>
+        </div>
+        <div id="demo">
+          <DemoPlayer />
         </div>
       </div>
     </section>
@@ -1163,6 +1204,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <DemoSection />
       <WorkflowDiagram />
       <ProblemSolution />
       <Features />
