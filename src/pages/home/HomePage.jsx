@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import DemoPlayer from '../../components/common/DemoPlayer';
+import { trackCTAClick } from '../../utils/analytics';
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 
@@ -226,6 +227,7 @@ function Hero() {
             <div className="flex flex-wrap gap-3 mb-10">
               <Link
                 to="/register"
+                onClick={() => trackCTAClick('hero_get_started')}
                 className="flex items-center gap-2 px-6 py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
               >
                 Get Started Free
@@ -285,6 +287,7 @@ function DemoSection() {
           <div className="flex flex-wrap justify-center gap-3 mb-10">
             <Link
               to="/register"
+              onClick={() => trackCTAClick('demo_section_try_free')}
               className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors shadow-sm"
             >
               Try CACFPLink Free
@@ -1107,6 +1110,7 @@ function FinalCTA() {
         <div className="flex flex-wrap justify-center gap-4">
           <Link
             to="/register"
+            onClick={() => trackCTAClick('bottom_cta_get_started')}
             className="px-8 py-4 bg-white hover:bg-gray-50 text-brand-700 font-bold rounded-xl transition-colors shadow-sm"
           >
             Get Started Free

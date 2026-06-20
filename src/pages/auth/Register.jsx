@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { trackRoleSelect, trackSignUp } from '../../utils/analytics';
 
 const ROLE_OPTIONS = [
   {
@@ -81,6 +82,7 @@ export default function Register() {
       });
 
       // Registration now requires email verification — show confirmation screen
+      trackSignUp(role);
       navigate('/register/check-email', { state: { email: form.email }, replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -128,7 +130,7 @@ export default function Register() {
             </div>
 
             <button
-              onClick={() => setStep(2)}
+              onClick={() => { trackRoleSelect(role); setStep(2); }}
               disabled={!role}
               className="mt-6 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium
                          rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
