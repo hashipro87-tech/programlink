@@ -48,7 +48,7 @@ export default function SponsorDashboard() {
   const location   = useLocation();
   const navigate   = useNavigate();
   const isOverview = location.pathname === '/dashboard/sponsor';
-  const { stats }  = useDashboardStats();
+  const { stats, loading }  = useDashboardStats();
 
   // Fetch the 5 most recent applications from the real database
   const [recentApps, setRecentApps]   = useState([]);
