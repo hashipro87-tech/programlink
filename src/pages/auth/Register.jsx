@@ -129,10 +129,23 @@ export default function Register() {
               ))}
             </div>
 
+            {/* Warn non-sponsors that they need a Sponsor ID before continuing */}
+            {role && role !== 'sponsor' && (
+              <div className="mt-4 flex gap-2.5 items-start p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                <span className="text-base leading-none mt-0.5">⚠️</span>
+                <div>
+                  <p className="font-semibold mb-0.5">You'll need a Sponsor ID to finish registration.</p>
+                  <p className="text-xs text-amber-700">
+                    This is a code provided by your USDA program sponsor. Ask them for it before continuing — you won't be able to complete signup without it.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => { trackRoleSelect(role); setStep(2); }}
               disabled={!role}
-              className="mt-6 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium
+              className="mt-4 w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium
                          rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Continue
