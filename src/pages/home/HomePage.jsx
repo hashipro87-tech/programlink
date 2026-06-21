@@ -321,10 +321,9 @@ function TryDemoSection() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">
             Explore any role instantly
           </h2>
-          <p className="text-gray-500 max-w-xl mx-auto mb-2">
-            Click a role below to open a live demo dashboard pre-filled with sample data. See exactly what CACFPLink looks like for your team.
+          <p className="text-gray-500 max-w-xl mx-auto">
+            Explore the platform with realistic sample data. No account required. No setup. See exactly how CACFPLink works before signing up.
           </p>
-          <p className="text-sm font-semibold text-brand-600">No account. No credit card. Just click.</p>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
