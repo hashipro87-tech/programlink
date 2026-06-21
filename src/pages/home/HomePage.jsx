@@ -233,12 +233,13 @@ function Hero() {
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <a
-                href="#how-it-works"
-                className="px-6 py-3.5 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-colors"
+              <Link
+                to="/demo"
+                onClick={() => trackCTAClick('hero_try_demo')}
+                className="flex items-center gap-2 px-6 py-3.5 border-2 border-brand-200 hover:border-brand-400 bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold rounded-xl transition-colors"
               >
-                See How It Works
-              </a>
+                👀 Try Demo
+              </Link>
             </div>
 
             {/* Social proof chips */}
@@ -320,9 +321,10 @@ function TryDemoSection() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">
             Explore any role instantly
           </h2>
-          <p className="text-gray-500 max-w-xl mx-auto">
+          <p className="text-gray-500 max-w-xl mx-auto mb-2">
             Click a role below to open a live demo dashboard pre-filled with sample data. See exactly what CACFPLink looks like for your team.
           </p>
+          <p className="text-sm font-semibold text-brand-600">No account. No credit card. Just click.</p>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
