@@ -267,6 +267,102 @@ function Hero() {
   );
 }
 
+// ─── Try Demo Roles Section ───────────────────────────────────────────────────
+
+function TryDemoSection() {
+  const roles = [
+    {
+      to: '/demo/sponsor',
+      emoji: '🟣',
+      label: 'Sponsor',
+      color: 'border-indigo-100 hover:border-indigo-300 bg-white',
+      dot: 'bg-indigo-500',
+      iconBg: 'bg-indigo-50 text-indigo-600',
+      highlights: ['Compliance dashboard', 'Applications to review', 'Expiring documents', 'Program-wide messages'],
+    },
+    {
+      to: '/demo/kitchen',
+      emoji: '🟢',
+      label: 'Kitchen',
+      color: 'border-emerald-100 hover:border-emerald-300 bg-white',
+      dot: 'bg-emerald-500',
+      iconBg: 'bg-emerald-50 text-emerald-600',
+      highlights: ['Production records', 'Document uploads', 'Messages from sponsor', 'Meal count history'],
+    },
+    {
+      to: '/demo/site',
+      emoji: '🔵',
+      label: 'Site',
+      color: 'border-sky-100 hover:border-sky-300 bg-white',
+      dot: 'bg-sky-500',
+      iconBg: 'bg-sky-50 text-sky-600',
+      highlights: ['Meal count submission', "Today's tasks", 'Reporting history', 'Compliance documents'],
+    },
+    {
+      to: '/demo/coordinator',
+      emoji: '🟠',
+      label: 'Coordinator',
+      color: 'border-orange-100 hover:border-orange-300 bg-white',
+      dot: 'bg-orange-500',
+      iconBg: 'bg-orange-50 text-orange-600',
+      highlights: ['Organization oversight', 'Approval workflows', 'Active alerts', 'Site compliance status'],
+    },
+  ];
+
+  return (
+    <section className="py-20 px-4 sm:px-6 bg-white border-t border-gray-100">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="text-xs font-semibold text-green-700">No account required</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3">
+            Explore any role instantly
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto">
+            Click a role below to open a live demo dashboard pre-filled with sample data. See exactly what CACFPLink looks like for your team.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {roles.map(({ to, emoji, label, color, dot, highlights }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={() => trackCTAClick(`demo_role_${label.toLowerCase()}`)}
+              className={`group border rounded-2xl p-5 transition-all hover:shadow-md ${color}`}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`w-3 h-3 rounded-full ${dot}`} />
+                <span className="text-sm font-bold text-gray-900">{label}</span>
+              </div>
+              <ul className="space-y-1.5 mb-5">
+                {highlights.map((h) => (
+                  <li key={h} className="flex items-start gap-2 text-xs text-gray-500">
+                    <span className="mt-0.5 text-gray-300">—</span>
+                    {h}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center gap-1 text-xs font-bold text-brand-600 group-hover:gap-2 transition-all">
+                {emoji} Try {label} demo →
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <p className="text-center text-sm text-gray-400 mt-8">
+          Seen enough?{' '}
+          <Link to="/register" className="text-brand-600 font-semibold hover:underline" onClick={() => trackCTAClick('demo_roles_signup')}>
+            Create your free account →
+          </Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Demo Section ─────────────────────────────────────────────────────────────
 
 function DemoSection() {
@@ -1208,6 +1304,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <TryDemoSection />
       <DemoSection />
       <WorkflowDiagram />
       <ProblemSolution />

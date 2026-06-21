@@ -17,6 +17,12 @@ import SiteDashboard        from './pages/site/SiteDashboard';
 import DeliveryDashboard    from './pages/delivery/DeliveryDashboard';
 import AdminDashboard       from './pages/admin/AdminDashboard';
 
+import DemoLanding      from './pages/demo/DemoLanding';
+import SponsorDemo      from './pages/demo/SponsorDemo';
+import KitchenDemo      from './pages/demo/KitchenDemo';
+import SiteDemo         from './pages/demo/SiteDemo';
+import CoordinatorDemo  from './pages/demo/CoordinatorDemo';
+
 const ROLE_DASHBOARD = {
   sponsor:     '/dashboard/sponsor',
   coordinator: '/dashboard/coordinator',
@@ -71,6 +77,13 @@ export default function App() {
         <Route path="/dashboard/site/*"        element={<PrivateRoute roles={['site']}><SiteDashboard /></PrivateRoute>} />
         <Route path="/dashboard/delivery/*"    element={<PrivateRoute roles={['delivery']}><DeliveryDashboard /></PrivateRoute>} />
         <Route path="/dashboard/admin/*"       element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
+
+        {/* Demo — no login required */}
+        <Route path="/demo"               element={<DemoLanding />} />
+        <Route path="/demo/sponsor/*"     element={<SponsorDemo />} />
+        <Route path="/demo/kitchen/*"     element={<KitchenDemo />} />
+        <Route path="/demo/site/*"        element={<SiteDemo />} />
+        <Route path="/demo/coordinator/*" element={<CoordinatorDemo />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
