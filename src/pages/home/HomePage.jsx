@@ -1193,6 +1193,109 @@ function MobileSection() {
 
 // ─── Final CTA ────────────────────────────────────────────────────────────────
 
+// ─── Contact Section ──────────────────────────────────────────────────────────
+
+function ContactSection() {
+  const [form, setForm] = useState({ name: '', email: '', role: '', message: '' });
+  const [status, setStatus] = useState('idle'); // idle | sending | sent | error
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus('sending');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://programlink-production.up.railway.app/api'}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error();
+      setStatus('sent');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <section id="contact" className="py-20 px-4 sm:px-6 bg-gray-50 border-t border-gray-100">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Have questions? We're here.</h2>
+          <p className="text-gray-500">
+            Whether you're a sponsor, kitchen, or site — reach out and we'll get back to you the same day.
+          </p>
+        </div>
+
+        {status === 'sent' ? (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-10 text-center">
+            <div className="text-4xl mb-3">✅</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Message received!</h3>
+            <p className="text-gray-500 text-sm">We'll get back to you at <strong>{form.email}</strong> shortly.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your name <span className="text-red-500">*</span></label>
+                <input
+                  required value={form.name} onChange={set('name')}
+                  placeholder="Jane Smith"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email address <span className="text-red-500">*</span></label>
+                <input
+                  required type="email" value={form.email} onChange={set('email')}
+                  placeholder="jane@example.com"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">I am a…</label>
+              <select
+                value={form.role} onChange={set('role')}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
+              >
+                <option value="">Select your role (optional)</option>
+                <option value="sponsor">Sponsor / Program Administrator</option>
+                <option value="kitchen">Kitchen / Food Production Site</option>
+                <option value="site">Site / Daycare Center</option>
+                <option value="coordinator">Coordinator</option>
+                <option value="other">Other / Just curious</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-red-500">*</span></label>
+              <textarea
+                required value={form.message} onChange={set('message')}
+                rows={4}
+                placeholder="Tell us about your program, or ask anything you'd like to know..."
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+              />
+            </div>
+            {status === 'error' && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+                Something went wrong. Please try again or email us directly at hashipro87@gmail.com.
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={status === 'sending'}
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors disabled:opacity-60"
+            >
+              {status === 'sending' ? 'Sending…' : 'Send Message'}
+            </button>
+            <p className="text-center text-xs text-gray-400">We typically reply within a few hours.</p>
+          </form>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function FinalCTA() {
   return (
     <section className="py-20 px-6 bg-brand-600">
@@ -1314,6 +1417,7 @@ export default function HomePage() {
       <HowItWorks />
       <MobileSection />
       <Impact />
+      <ContactSection />
       <FinalCTA />
       <Footer />
     </div>
