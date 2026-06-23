@@ -23,6 +23,10 @@ import KitchenDemo      from './pages/demo/KitchenDemo';
 import SiteDemo         from './pages/demo/SiteDemo';
 import CoordinatorDemo  from './pages/demo/CoordinatorDemo';
 
+import AboutPage   from './pages/about/AboutPage';
+import PrivacyPage from './pages/legal/PrivacyPage';
+import TermsPage   from './pages/legal/TermsPage';
+
 const ROLE_DASHBOARD = {
   sponsor:     '/dashboard/sponsor',
   coordinator: '/dashboard/coordinator',
@@ -84,6 +88,11 @@ export default function App() {
         <Route path="/demo/kitchen/*"     element={<KitchenDemo />} />
         <Route path="/demo/site/*"        element={<SiteDemo />} />
         <Route path="/demo/coordinator/*" element={<CoordinatorDemo />} />
+
+        {/* Public pages */}
+        <Route path="/about"   element={<AboutPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms"   element={<TermsPage />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
