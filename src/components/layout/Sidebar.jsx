@@ -30,6 +30,7 @@ export default function Sidebar({ navItems = [] }) {
             <NavLink
               to={path}
               end={navItems.some((n) => n.path !== path && path.startsWith(n.path))}
+              onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
                   isActive

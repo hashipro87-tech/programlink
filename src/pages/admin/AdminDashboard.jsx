@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   Users, Building2, ClipboardList, BarChart2,
   ChevronRight, Shield, LogOut, Search, CheckCircle,
-  AlertTriangle, X, RefreshCw, LayoutDashboard,
+  AlertTriangle, X, RefreshCw, LayoutDashboard, Menu,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -160,11 +160,12 @@ function GlobalSearch() {
 }
 
 function AdminSidebar() {
-  const location = useLocation();
-  const { logout } = useAuth();
+  const location      = useLocation();
+  const { logout }    = useAuth();
+  const [open, setOpen] = useState(false);
 
-  return (
-    <div className="w-52 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col h-screen">
+  const navLinks = (
+    <>
       {/* Logo */}
       <div className="px-4 py-5 border-b border-gray-800 flex items-center gap-2.5">
         <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
@@ -184,6 +185,7 @@ function AdminSidebar() {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => setOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 active
                   ? 'bg-brand-600 text-white'
@@ -207,7 +209,46 @@ function AdminSidebar() {
           Sign out
         </button>
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <div className="hidden sm:flex w-52 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex-col h-screen">
+        {navLinks}
+      </div>
+
+      {/* Mobile top bar */}
+      <div className="sm:hidden fixed top-0 left-0 right-0 z-30 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
+            <Shield className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="font-bold text-white text-sm">CACFPLink</span>
+          <span className="text-[10px] bg-brand-600 text-white px-1.5 py-0.5 rounded font-semibold">Admin</span>
+        </div>
+        <button onClick={() => setOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-800">
+          <Menu className="w-5 h-5 text-gray-300" />
+        </button>
+      </div>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="sm:hidden fixed inset-0 z-40 flex">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <aside className="relative w-64 bg-gray-900 h-full flex flex-col shadow-xl">
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-gray-800"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+            {navLinks}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -640,7 +681,7 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-gray-950 text-gray-100">
       <AdminSidebar />
       <main className="flex-1 overflow-y-auto">
-        <div className="p-4 pt-20 sm:px-8 sm:py-8 max-w-5xl mx-auto">
+        <div className="p-4 pt-16 sm:pt-8 sm:px-8 sm:py-8 max-w-5xl mx-auto">
           <Routes>
             <Route index          element={<Overview />} />
             <Route path="users"   element={<AdminUsersPage />} />
