@@ -390,7 +390,7 @@ export default function MessagesPage() {
               <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : error ? (
-            <p className="text-sm text-red-500 p-4 text-center">{error}</p>
+            <p className="text-sm text-red-500 p-4 text-center">{error?.message ?? 'Failed to load messages'}</p>
           ) : threads.length === 0 ? (
             <div className="text-center py-12 px-4">
               <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
