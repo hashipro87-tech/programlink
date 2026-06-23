@@ -6,7 +6,7 @@ const router  = express.Router();
 
 const RESEND_API_KEY  = process.env.RESEND_API_KEY;
 const FROM_ADDRESS    = process.env.EMAIL_FROM || '"CACFPLink" <onboarding@resend.dev>';
-const OWNER_EMAIL     = process.env.CONTACT_EMAIL || 'hashipro87@gmail.com';
+const OWNER_EMAIL     = process.env.CONTACT_EMAIL || 'cacfplink@gmail.com';
 
 router.post('/', async (req, res) => {
   const { name, email, role, message } = req.body;

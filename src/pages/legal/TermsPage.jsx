@@ -78,7 +78,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-2">Contact</h2>
-            <p className="text-sm">Questions about these terms? Email us at <a href="mailto:support@cacfplink.com" className="text-brand-600">support@cacfplink.com</a>.</p>
+            <p className="text-sm">Questions about these terms? Email us at <a href="mailto:cacfplink@gmail.com" className="text-brand-600">cacfplink@gmail.com</a>.</p>
           </section>
 
         </div>

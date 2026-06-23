@@ -127,10 +127,10 @@ export default function AboutPage() {
             Reach out directly — I respond personally.
           </p>
           <a
-            href="mailto:support@cacfplink.com"
+            href="mailto:cacfplink@gmail.com"
             className="inline-flex items-center gap-2 bg-white text-brand-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
-            support@cacfplink.com
+            cacfplink@gmail.com
           </a>
         </div>
 
@@ -163,7 +163,7 @@ export default function AboutPage() {
           <div className="flex gap-5">
             <Link to="/privacy" className="hover:text-gray-600">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-gray-600">Terms of Service</Link>
-            <a href="mailto:support@cacfplink.com" className="hover:text-gray-600">support@cacfplink.com</a>
+            <a href="mailto:cacfplink@gmail.com" className="hover:text-gray-600">cacfplink@gmail.com</a>
           </div>
         </div>
       </footer>

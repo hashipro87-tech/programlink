@@ -1333,7 +1333,7 @@ function ContactSection() {
             </div>
             {status === 'error' && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-                Something went wrong. Please try again or email us directly at hashipro87@gmail.com.
+                Something went wrong. Please try again or email us directly at cacfplink@gmail.com.
               </p>
             )}
             <button
@@ -1426,7 +1426,7 @@ function Footer() {
               title: 'Company',
               links: [
                 { label: 'About',           href: '/about' },
-                { label: 'Contact',         href: 'mailto:support@cacfplink.com' },
+                { label: 'Contact',         href: 'mailto:cacfplink@gmail.com' },
                 { label: 'Privacy Policy',  href: '/privacy' },
                 { label: 'Terms of Service',href: '/terms' },
               ],

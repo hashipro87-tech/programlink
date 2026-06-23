@@ -59,7 +59,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-2">Data Retention</h2>
-            <p className="text-sm">We retain your account and program data for as long as your account is active. If you close your account, you may request deletion of your data by contacting us at <a href="mailto:support@cacfplink.com" className="text-brand-600">support@cacfplink.com</a>.</p>
+            <p className="text-sm">We retain your account and program data for as long as your account is active. If you close your account, you may request deletion of your data by contacting us at <a href="mailto:cacfplink@gmail.com" className="text-brand-600">cacfplink@gmail.com</a>.</p>
           </section>
 
           <section>
@@ -75,12 +75,12 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-2">Your Rights</h2>
-            <p className="text-sm">You have the right to access, correct, or delete your personal information at any time. To make a request, email us at <a href="mailto:support@cacfplink.com" className="text-brand-600">support@cacfplink.com</a>.</p>
+            <p className="text-sm">You have the right to access, correct, or delete your personal information at any time. To make a request, email us at <a href="mailto:cacfplink@gmail.com" className="text-brand-600">cacfplink@gmail.com</a>.</p>
           </section>
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-2">Contact</h2>
-            <p className="text-sm">If you have questions about this privacy policy, please contact us at <a href="mailto:support@cacfplink.com" className="text-brand-600">support@cacfplink.com</a>.</p>
+            <p className="text-sm">If you have questions about this privacy policy, please contact us at <a href="mailto:cacfplink@gmail.com" className="text-brand-600">cacfplink@gmail.com</a>.</p>
           </section>
 
         </div>
