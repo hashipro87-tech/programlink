@@ -1,6 +1,7 @@
 // DemoLanding — role picker for the demo, no login required
 import { Link } from 'react-router-dom';
 import { Building2, UtensilsCrossed, Users, MapPin, ArrowRight } from 'lucide-react';
+import { trackDemoRoleClick } from '../../utils/analytics';
 
 const ROLES = [
   {
@@ -81,6 +82,7 @@ export default function DemoLanding() {
             <Link
               key={path}
               to={path}
+              onClick={() => trackDemoRoleClick(path.replace('/demo/', ''))}
               className="group bg-white border border-gray-200 hover:border-brand-300 hover:shadow-md rounded-2xl p-6 transition-all"
             >
               <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-4 ${color}`}>

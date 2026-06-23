@@ -1,11 +1,11 @@
 // Register.jsx — Self-registration for new organizations
 // Sponsors register independently; kitchens/sites/delivery need a sponsor ID
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { trackRoleSelect, trackSignUp } from '../../utils/analytics';
+import { trackRoleSelect, trackSignUp, trackRegisterField, trackRegisterAbort, trackRegisterSubmit } from '../../utils/analytics';
 
 const ROLE_OPTIONS = [
   {
@@ -59,6 +59,24 @@ export default function Register() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  // Track the last field the user touched — used for abandonment event
+  const lastFieldRef = useRef('');
+  const trackField = (fieldName) => {
+    lastFieldRef.current = fieldName;
+    trackRegisterField(fieldName);
+  };
+
+  // Fire abandonment event if user leaves step 2 without submitting
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    if (step !== 2) return;
+    return () => {
+      if (!submittedRef.current) {
+        trackRegisterAbort(2, lastFieldRef.current || 'none');
+      }
+    };
+  }, [step]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -82,6 +100,8 @@ export default function Register() {
       });
 
       // Registration now requires email verification — show confirmation screen
+      submittedRef.current = true;
+      trackRegisterSubmit(role);
       trackSignUp(role);
       navigate('/register/check-email', { state: { email: form.email }, replace: true });
     } catch (err) {
@@ -213,6 +233,7 @@ export default function Register() {
                   </label>
                   <input
                     type="text" required value={form.orgName} onChange={set('orgName')}
+                    onFocus={() => trackField('org_name')}
                     placeholder={role === 'sponsor' ? 'e.g. Illinois USDA Food Program' : 'e.g. Sunshine Daycare Center'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -224,6 +245,7 @@ export default function Register() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                     <input
                       type="text" value={form.orgAddress} onChange={set('orgAddress')}
+                      onFocus={() => trackField('org_address')}
                       placeholder="123 Main St, City, State"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                  focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -233,6 +255,7 @@ export default function Register() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                     <input
                       type="tel" value={form.orgPhone} onChange={set('orgPhone')}
+                      onFocus={() => trackField('org_phone')}
                       placeholder="(312) 555-0100"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                  focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -248,6 +271,7 @@ export default function Register() {
                     </label>
                     <input
                       type="text" required value={form.sponsorId} onChange={set('sponsorId')}
+                      onFocus={() => trackField('sponsor_id')}
                       placeholder="Provided by your program sponsor"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                  focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -272,6 +296,7 @@ export default function Register() {
                   </label>
                   <input
                     type="text" required value={form.name} onChange={set('name')}
+                    onFocus={() => trackField('full_name')}
                     placeholder="Jane Smith"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -283,6 +308,7 @@ export default function Register() {
                   </label>
                   <input
                     type="email" required value={form.email} onChange={set('email')}
+                    onFocus={() => trackField('email')}
                     placeholder="jane@example.com"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -294,6 +320,7 @@ export default function Register() {
                   </label>
                   <input
                     type="password" required minLength={8} value={form.password} onChange={set('password')}
+                    onFocus={() => trackField('password')}
                     placeholder="At least 8 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                                focus:outline-none focus:ring-2 focus:ring-brand-500"

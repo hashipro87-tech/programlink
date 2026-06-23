@@ -11,3 +11,11 @@ export function track(eventName, params = {}) {
 export const trackCTAClick   = (label) => track('cta_click',            { label });
 export const trackRoleSelect = (role)  => track('register_role_select', { role });
 export const trackSignUp     = (role)  => track('sign_up',              { method: role });
+
+// Registration funnel drop-off tracking
+export const trackRegisterField  = (field)  => track('register_field_focus',  { field });
+export const trackRegisterAbort  = (step, last_field) => track('register_abandoned', { step, last_field });
+export const trackRegisterSubmit = (role)   => track('register_submitted',    { role });
+
+// Demo role tracking
+export const trackDemoRoleClick  = (role)   => track('demo_role_click',       { role });
