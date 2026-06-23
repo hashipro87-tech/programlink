@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api';
 
+const errMsg = (err) => err?.response?.data?.error ?? err?.message ?? 'Something went wrong';
+
 export function useThreads() {
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,7 +11,7 @@ export function useThreads() {
   const fetchThreads = useCallback(() => {
     api.get('/messages/threads')
       .then(({ data }) => setThreads(data.threads ?? data ?? []))
-      .catch((err) => setError(err))
+      .catch((err) => setError(errMsg(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -53,7 +55,7 @@ export function useThread(threadId) {
           setMessages(incoming);
         }
       })
-      .catch((err) => setError(err))
+      .catch((err) => setError(errMsg(err)))
       .finally(() => setLoading(false));
   }, [threadId]);
 
