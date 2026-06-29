@@ -1,32 +1,43 @@
-// emailService.js — Sends transactional emails via nodemailer.
+// emailService.js — Sends transactional emails via Resend API.
 // Configure by setting these Railway environment variables:
-//   EMAIL_HOST  — SMTP host (e.g. smtp.gmail.com)
-//   EMAIL_PORT  — SMTP port (587 for TLS, 465 for SSL)
-//   EMAIL_USER  — SMTP username / Gmail address
-//   EMAIL_PASS  — SMTP password / Gmail App Password
-//   EMAIL_FROM  — "From" address shown to recipients
-//   FRONTEND_URL — base URL of the frontend (e.g. https://programlink-cotz.vercel.app)
+//   RESEND_API_KEY  — API key from resend.com (required for emails to send)
+//   EMAIL_FROM      — "From" address, must be from a Resend-verified domain
+//                     e.g. "CACFPLink <noreply@cacfplink.com>"
+//   FRONTEND_URL    — base URL of the frontend (https://cacfplink.com)
 //
-// If EMAIL_HOST is not set, emails are NOT sent but the reset URL is
-// logged to the console so you can test without email configured.
+// If RESEND_API_KEY is not set, emails are NOT sent but the URL is
+// logged to Railway console so you can debug without email configured.
 
-const nodemailer = require('nodemailer');
+const RESEND_API_URL = 'https://api.resend.com/emails';
 
-function createTransport() {
-  if (!process.env.EMAIL_HOST) return null;
+async function sendEmail({ to, subject, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
 
-  return nodemailer.createTransport({
-    host:   process.env.EMAIL_HOST,
-    port:   parseInt(process.env.EMAIL_PORT || '587', 10),
-    secure: process.env.EMAIL_PORT === '465',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+  if (!apiKey) {
+    console.log('📧 [RESEND_API_KEY not set] Email not sent to', to);
+    console.log('   Subject:', subject);
+    return;
+  }
+
+  const from = process.env.EMAIL_FROM || '"CACFPLink" <noreply@cacfplink.com>';
+
+  const response = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ from, to, subject, html }),
   });
-}
 
-const transporter = createTransport();
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`Resend API error ${response.status}: ${JSON.stringify(data)}`);
+  }
+
+  console.log(`📧 Email sent to ${to} — id: ${data.id}`);
+}
 
 /**
  * Send a password reset email.
@@ -35,25 +46,23 @@ const transporter = createTransport();
  * @param {string} name  - Recipient's name for personalization
  */
 async function sendPasswordResetEmail(to, token, name) {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://programlink-cotz.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://cacfplink.com';
   const resetUrl    = `${frontendUrl}/reset-password?token=${token}`;
   const expiryMins  = 60;
 
-  if (!transporter) {
-    // No email configured — log so the developer can test manually
+  if (!process.env.RESEND_API_KEY) {
     console.log('📧 [email not configured] Password reset URL for', to, ':');
     console.log('   ', resetUrl);
     return;
   }
 
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM || `"ProgramLink" <noreply@programlink.app>`,
+  await sendEmail({
     to,
-    subject: 'Reset your ProgramLink password',
+    subject: 'Reset your CACFPLink password',
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #111;">
         <div style="background: #4f46e5; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">ProgramLink</h1>
+          <h1 style="color: white; margin: 0; font-size: 20px;">CACFPLink</h1>
         </div>
         <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
           <p style="font-size: 16px; margin-top: 0;">Hi ${name},</p>
@@ -74,11 +83,7 @@ async function sendPasswordResetEmail(to, token, name) {
       </div>
     `,
   });
-
-  console.log(`📧 Password reset email sent to ${to}`);
 }
-
-
 
 /**
  * Send an email verification link after registration.
@@ -87,34 +92,33 @@ async function sendPasswordResetEmail(to, token, name) {
  * @param {string} name  - Recipient's name
  */
 async function sendVerificationEmail(to, token, name) {
-  const frontendUrl   = process.env.FRONTEND_URL || 'https://programlink-cotz.vercel.app';
-  const verifyUrl     = `${frontendUrl}/verify-email?token=${token}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://cacfplink.com';
+  const verifyUrl   = `${frontendUrl}/verify-email?token=${token}`;
 
-  if (!transporter) {
+  if (!process.env.RESEND_API_KEY) {
     console.log('📧 [email not configured] Verification URL for', to, ':');
     console.log('   ', verifyUrl);
     return;
   }
 
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM || `"ProgramLink" <noreply@programlink.app>`,
+  await sendEmail({
     to,
-    subject: 'Verify your ProgramLink email',
+    subject: 'Verify your CACFPLink email',
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #111;">
         <div style="background: #4f46e5; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">ProgramLink</h1>
+          <h1 style="color: white; margin: 0; font-size: 20px;">CACFPLink</h1>
         </div>
         <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
           <p style="font-size: 16px; margin-top: 0;">Hi ${name},</p>
-          <p>Welcome to ProgramLink! Please verify your email address to activate your account.</p>
+          <p>Welcome to CACFPLink! Please verify your email address to activate your account.</p>
           <a href="${verifyUrl}"
              style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px;
                     border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
             Verify Email Address
           </a>
           <p style="color: #6b7280; font-size: 14px;">
-            If you didn't create a ProgramLink account, you can safely ignore this email.
+            If you didn't create a CACFPLink account, you can safely ignore this email.
           </p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
           <p style="color: #9ca3af; font-size: 12px; margin: 0;">
@@ -124,11 +128,7 @@ async function sendVerificationEmail(to, token, name) {
       </div>
     `,
   });
-
-  console.log(`📧 Verification email sent to ${to}`);
 }
-
-
 
 /**
  * Send an application approval or rejection email.
@@ -139,17 +139,16 @@ async function sendVerificationEmail(to, token, name) {
  * @param {string} notes    - Optional reviewer notes
  */
 async function sendApplicationStatusEmail(to, name, orgName, status, notes) {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://programlink-cotz.vercel.app';
-  const isApproved  = status === 'approved';
+  const frontendUrl  = process.env.FRONTEND_URL || 'https://cacfplink.com';
+  const isApproved   = status === 'approved';
   const dashboardUrl = `${frontendUrl}/login`;
 
-  if (!transporter) {
+  if (!process.env.RESEND_API_KEY) {
     console.log(`📧 [email not configured] Application ${status} email for ${to}`);
     return;
   }
 
-  await transporter.sendMail({
-    from:    process.env.EMAIL_FROM || `"ProgramLink" <noreply@programlink.app>`,
+  await sendEmail({
     to,
     subject: isApproved
       ? `✅ ${orgName} — Application Approved`
@@ -157,7 +156,7 @@ async function sendApplicationStatusEmail(to, name, orgName, status, notes) {
     html: `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #111;">
         <div style="background: ${isApproved ? '#4f46e5' : '#dc2626'}; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">ProgramLink</h1>
+          <h1 style="color: white; margin: 0; font-size: 20px;">CACFPLink</h1>
         </div>
         <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
           <p style="font-size: 16px; margin-top: 0;">Hi ${name},</p>
@@ -175,8 +174,6 @@ async function sendApplicationStatusEmail(to, name, orgName, status, notes) {
       </div>
     `,
   });
-
-  console.log(`📧 Application ${status} email sent to ${to}`);
 }
 
 module.exports = { sendPasswordResetEmail, sendVerificationEmail, sendApplicationStatusEmail };
