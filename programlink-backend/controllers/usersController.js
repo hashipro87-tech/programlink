@@ -3,16 +3,31 @@ const { logAction } = require('../services/auditService');
 
 exports.listUsers = async (req, res) => {
   try {
-    const sponsorId = req.user.sponsorId || req.user.organizationId;
-    const { rows } = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role, u.is_active, u.last_login_at, u.created_at,
-              o.name AS org_name
-       FROM users u
-       LEFT JOIN organizations o ON o.id = u.org_id
-       WHERE o.sponsor_id = $1 OR u.org_id = $1
-       ORDER BY u.created_at DESC`,
-      [sponsorId]
-    );
+    let rows;
+
+    if (req.user.role === 'admin') {
+      // Admins see all users across every organization
+      ({ rows } = await pool.query(
+        `SELECT u.id, u.name, u.email, u.role, u.is_active, u.last_login_at, u.created_at,
+                o.name AS org_name
+         FROM users u
+         LEFT JOIN organizations o ON o.id = u.org_id
+         ORDER BY u.created_at DESC`
+      ));
+    } else {
+      // Sponsors and coordinators only see users within their program
+      const sponsorId = req.user.sponsorId || req.user.organizationId;
+      ({ rows } = await pool.query(
+        `SELECT u.id, u.name, u.email, u.role, u.is_active, u.last_login_at, u.created_at,
+                o.name AS org_name
+         FROM users u
+         LEFT JOIN organizations o ON o.id = u.org_id
+         WHERE o.sponsor_id = $1 OR u.org_id = $1
+         ORDER BY u.created_at DESC`,
+        [sponsorId]
+      ));
+    }
+
     res.json({ users: rows });
   } catch (err) {
     console.error('listUsers error:', err);
