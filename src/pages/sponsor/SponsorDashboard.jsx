@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -18,6 +18,7 @@ import SitesPage       from './SitesPage';
 import KitchensPage      from './KitchensPage';
 import CoordinatorsPage  from './CoordinatorsPage';
 import ReportsPage        from './ReportsPage';
+import MealOrdersPage     from './MealOrdersPage';
 import ActionCenter       from '../../components/common/ActionCenter';
 import CompliancePage     from './CompliancePage';
 import api from '../../services/api';
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',          path: '/dashboard/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',       path: '/dashboard/sponsor/kitchens',     icon: Building2 },
+  { label: 'Meal Orders',    path: '/dashboard/sponsor/meal-orders',  icon: Truck },
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
@@ -220,6 +222,7 @@ export default function SponsorDashboard() {
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />
               <Route path="kitchens"         element={<KitchensPage />} />
+              <Route path="meal-orders"      element={<MealOrdersPage />} />
               <Route path="coordinators"     element={<CoordinatorsPage />} />
               <Route path="reports"          element={<ReportsPage />} />
               <Route path="meal-counts"    element={<MealCountsPage />} />

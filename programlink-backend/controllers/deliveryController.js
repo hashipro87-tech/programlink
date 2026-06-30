@@ -5,7 +5,8 @@ exports.listRoutes = async (req, res) => {
     const { date } = req.query;
     let query = 'SELECT * FROM routes WHERE 1=1';
     const params = [];
-    if (req.user.role === 'delivery') {
+    // Delivery providers and kitchens only see their own routes
+    if (req.user.role === 'delivery' || req.user.role === 'kitchen') {
       params.push(req.user.organizationId);
       query += ` AND delivery_provider_id = $${params.length}`;
     }
