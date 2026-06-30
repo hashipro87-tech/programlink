@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Building2, Search, CheckCircle, AlertTriangle, Clock,
   XCircle, ChevronRight, X, Phone, MapPin, RefreshCw,
-  FileWarning, ClipboardList, UtensilsCrossed, ShieldCheck,
+  FileWarning, ClipboardList, UtensilsCrossed, ShieldCheck, Plus,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -212,6 +212,155 @@ function DetailPanel({ site, onClose, onStatusChange }) {
   );
 }
 
+// ─── Add Site Modal ───────────────────────────────────────────────────────────
+
+const EMPTY_FORM = { name: '', address: '', phone: '', region: '', status: 'active' };
+
+function AddSiteModal({ onClose, onAdded }) {
+  const [form,   setForm]   = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Site name is required.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const { data } = await api.post('/organizations', { ...form, type: 'site' });
+      onAdded(data.organization ?? data);
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to add site. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Add a Site</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              No account needed — just fill in the site details.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {/* Name */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Site name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={set('name')}
+              placeholder="e.g. Sunshine Family Daycare"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Address</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={set('address')}
+              placeholder="123 Main St, City, State 12345"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Phone + Region */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={set('phone')}
+                placeholder="(555) 000-0000"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Region / County</label>
+              <input
+                type="text"
+                value={form.region}
+                onChange={set('region')}
+                placeholder="e.g. Wayne County"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Initial status</label>
+            <select
+              value={form.status}
+              onChange={set('status')}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold
+                         text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
+                         text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Adding…' : 'Add Site'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Site Row ─────────────────────────────────────────────────────────────────
 
 function SiteRow({ site, onClick }) {
@@ -278,11 +427,12 @@ const STATUS_FILTERS = [
 ];
 
 export default function SitesPage() {
-  const [sites,     setSites]     = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState('');
-  const [filter,    setFilter]    = useState('all');
-  const [selected,  setSelected]  = useState(null); // site for detail panel
+  const [sites,      setSites]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState('');
+  const [filter,     setFilter]     = useState('all');
+  const [selected,   setSelected]   = useState(null); // site for detail panel
+  const [showAdd,    setShowAdd]    = useState(false);
   const searchRef = useRef(null);
 
   const fetchSites = () => {
@@ -307,6 +457,11 @@ export default function SitesPage() {
   const totalAlerts    = sites.filter((s) => s.doc_alerts > 0).length;
   const totalPending   = sites.filter((s) => s.pending_applications > 0).length;
 
+  // When a new site is added via modal, prepend to list
+  const handleSiteAdded = (newSite) => {
+    setSites((prev) => [{ ...newSite, doc_alerts: 0, pending_applications: 0 }, ...prev]);
+  };
+
   // When sponsor changes a site's status in the panel, update local state
   const handleStatusChange = (siteId, newStatus) => {
     setSites((prev) =>
@@ -318,11 +473,21 @@ export default function SitesPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Sites</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          All meal sites in your program — monitor compliance, document status, and activity.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Sites</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            All meal sites in your program — monitor compliance, document status, and activity.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700
+                     text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          Add Site
+        </button>
       </div>
 
       {/* Summary stat bar */}
@@ -441,6 +606,14 @@ export default function SitesPage() {
           site={selected}
           onClose={() => setSelected(null)}
           onStatusChange={handleStatusChange}
+        />
+      )}
+
+      {/* Add Site modal */}
+      {showAdd && (
+        <AddSiteModal
+          onClose={() => setShowAdd(false)}
+          onAdded={handleSiteAdded}
         />
       )}
     </div>
