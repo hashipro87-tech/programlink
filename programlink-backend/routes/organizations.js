@@ -7,6 +7,7 @@ const {
   getOrganization,
   createOrganization,
   updateOrganization,
+  deleteOrganization,
   inviteKitchen,
   inviteSite,
   inviteCoordinator,
@@ -24,5 +25,6 @@ router.post('/invite-kitchen',     authorizeRoles('sponsor', 'coordinator', 'adm
 router.post('/invite-site',        authorizeRoles('sponsor', 'coordinator', 'admin'), inviteSite);
 router.post('/invite-coordinator', authorizeRoles('sponsor', 'admin'),                inviteCoordinator);
 router.patch('/:id',               authorizeRoles('sponsor', 'coordinator', 'admin'), updateOrganization);
+router.delete('/:id',              authorizeRoles('sponsor', 'admin'),                deleteOrganization);
 
 module.exports = router;

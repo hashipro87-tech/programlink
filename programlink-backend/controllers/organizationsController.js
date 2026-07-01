@@ -49,6 +49,26 @@ exports.createOrganization = async (req, res) => {
   }
 };
 
+exports.deleteOrganization = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM organizations WHERE id = $1 RETURNING id, name',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Organization not found.' });
+    res.json({ message: `${rows[0].name} has been removed.` });
+  } catch (err) {
+    console.error('deleteOrganization error:', err);
+    // FK violation — org has linked data (meal counts, routes, etc.)
+    if (err.code === '23503') {
+      return res.status(400).json({
+        error: 'Cannot delete — this organization has linked records (meal counts, delivery routes, etc.). Deactivate it instead.',
+      });
+    }
+    res.status(500).json({ error: `Failed to remove organization: ${err.message}` });
+  }
+};
+
 exports.updateOrganization = async (req, res) => {
   try {
     const { name, status, region, address, phone } = req.body;

@@ -60,11 +60,14 @@ function HealthDot({ site }) {
 
 // ─── Site Detail Panel ────────────────────────────────────────────────────────
 
-function DetailPanel({ site, onClose, onStatusChange }) {
-  const [saving, setSaving]   = useState(false);
-  const [status, setStatus]   = useState(site.status);
-  const [detail, setDetail]   = useState(null); // richer site data
+function DetailPanel({ site, onClose, onStatusChange, onRemoved }) {
+  const [saving,        setSaving]        = useState(false);
+  const [status,        setStatus]        = useState(site.status);
+  const [detail,        setDetail]        = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(true);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing,      setRemoving]      = useState(false);
+  const [removeError,   setRemoveError]   = useState('');
 
   // Fetch full org detail (includes more fields)
   useEffect(() => {
@@ -84,6 +87,20 @@ function DetailPanel({ site, onClose, onStatusChange }) {
       alert('Failed to update status — please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      await api.delete(`/organizations/${site.id}`);
+      onRemoved(site.id);
+      onClose();
+    } catch (err) {
+      setRemoveError(err?.response?.data?.error || 'Failed to remove. Please try again.');
+      setRemoving(false);
+      setConfirmRemove(false);
     }
   };
 
@@ -181,7 +198,7 @@ function DetailPanel({ site, onClose, onStatusChange }) {
           </div>
 
           {/* Status management */}
-          <div className="px-6 py-5">
+          <div className="px-6 py-5 border-b border-gray-50">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Manage status</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {['active', 'pending', 'suspended', 'inactive'].map((s) => (
@@ -205,6 +222,45 @@ function DetailPanel({ site, onClose, onStatusChange }) {
             >
               {saving ? 'Saving…' : 'Save status'}
             </button>
+          </div>
+
+          {/* Danger zone */}
+          <div className="px-6 py-5">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Danger zone</p>
+            {removeError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 mb-3">
+                {removeError}
+              </p>
+            )}
+            {!confirmRemove ? (
+              <button
+                onClick={() => setConfirmRemove(true)}
+                className="w-full py-2.5 text-sm font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+              >
+                Remove site
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  This will permanently remove <strong>{site.name}</strong>. This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmRemove(false)}
+                    className="flex-1 py-2 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRemove}
+                    disabled={removing}
+                    className="flex-1 py-2 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {removing ? 'Removing…' : 'Yes, remove'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -489,6 +545,11 @@ export default function SitesPage() {
     setSelected((prev) => prev?.id === siteId ? { ...prev, status: newStatus } : prev);
   };
 
+  const handleSiteRemoved = (siteId) => {
+    setSites((prev) => prev.filter((s) => s.id !== siteId));
+    setSelected(null);
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
@@ -625,6 +686,7 @@ export default function SitesPage() {
           site={selected}
           onClose={() => setSelected(null)}
           onStatusChange={handleStatusChange}
+          onRemoved={handleSiteRemoved}
         />
       )}
 

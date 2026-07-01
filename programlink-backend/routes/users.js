@@ -2,7 +2,7 @@
 const express = require('express');
 const router  = express.Router();
 const { authenticate, authorizeRoles } = require('../middleware/auth');
-const { listUsers, getUser, updateUserStatus } = require('../controllers/usersController');
+const { listUsers, getUser, updateUserStatus, removeUser } = require('../controllers/usersController');
 
 // All routes require authentication
 router.use(authenticate);
@@ -15,5 +15,8 @@ router.get('/:id', authorizeRoles('sponsor', 'coordinator', 'admin'), getUser);
 
 // Activate / deactivate a user — sponsor only
 router.patch('/:id/status', authorizeRoles('sponsor', 'admin'), updateUserStatus);
+
+// Permanently remove a user — sponsor only
+router.delete('/:id', authorizeRoles('sponsor', 'admin'), removeUser);
 
 module.exports = router;

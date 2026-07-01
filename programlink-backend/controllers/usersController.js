@@ -52,6 +52,30 @@ exports.getUser = async (req, res) => {
   }
 };
 
+exports.removeUser = async (req, res) => {
+  try {
+    if (String(req.params.id) === String(req.user.id)) {
+      return res.status(400).json({ error: 'You cannot remove your own account.' });
+    }
+    const { rows } = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, name',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found.' });
+    logAction({
+      actor:      req.user,
+      action:     'user.removed',
+      entityType: 'user',
+      entityId:   rows[0].id,
+      entityName: rows[0].name,
+    });
+    res.json({ message: `${rows[0].name} has been removed.` });
+  } catch (err) {
+    console.error('removeUser error:', err);
+    res.status(500).json({ error: `Failed to remove user: ${err.message}` });
+  }
+};
+
 exports.updateUserStatus = async (req, res) => {
   try {
     const { is_active } = req.body;
