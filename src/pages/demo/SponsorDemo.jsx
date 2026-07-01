@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed, FileText, Settings, Truck, ChefHat, Clock, Plus, X } from 'lucide-react';
+import { CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed, FileText, Settings, Truck, ChefHat, Clock, Plus, X, ShieldCheck, ShieldAlert, ShieldX, Shield } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
@@ -10,7 +10,7 @@ const NAV = [
   { label: 'Compliance',   path: '/demo/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',        path: '/demo/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',     path: '/demo/sponsor/kitchens',     icon: Building2 },
-  { label: 'Meal Orders',  path: '/demo/sponsor/meal-orders',  icon: Truck },
+  { label: 'Deliveries',   path: '/demo/sponsor/deliveries',   icon: Truck },
   { label: 'Coordinators', path: '/demo/sponsor/coordinators', icon: Users },
   { label: 'Meal Counts',  path: '/demo/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',    path: '/demo/sponsor/documents',    icon: FileText },
@@ -49,7 +49,7 @@ function DemoOrderModal({ onClose }) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Create Meal Order</h2>
+            <h2 className="text-lg font-bold text-gray-900">Schedule Delivery</h2>
             <p className="text-xs text-gray-500 mt-0.5">Assign a kitchen to deliver meals to a site.</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -141,7 +141,7 @@ export default function SponsorDemo() {
               </div>
               <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-100 rounded-xl">
                 <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                <span className="text-sm text-red-800 font-medium">3 documents expiring within 30 days</span>
+                <span className="text-sm text-red-800 font-medium">2 orgs missing required documents · 1 expiring soon</span>
                 <Link to="/register" className="ml-auto text-xs font-semibold text-brand-600 hover:underline">Sign up to action →</Link>
               </div>
               <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
@@ -205,31 +205,112 @@ export default function SponsorDemo() {
             </div>
           </div>
 
-          {/* Compliance */}
+          {/* Compliance Action Center */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Compliance Alerts</h2>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Compliance Action Center</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Track document compliance across all kitchens and sites</p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <span className="px-2 py-1 bg-green-50 text-green-700 border border-green-100 rounded-lg font-semibold">6 Kitchens</span>
+                <span className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg font-semibold">18 Sites</span>
+              </div>
             </div>
-            <div className="px-6 py-4">
-              <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
-                3 documents are expiring within 30 days. <Link to="/register" className="font-semibold underline">Sign up to review →</Link>
-              </p>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-4 gap-0 border-b border-gray-100">
+              {[
+                { label: 'Total Kitchens', value: '6',  color: 'text-gray-900' },
+                { label: 'Total Sites',    value: '18', color: 'text-gray-900' },
+                { label: 'Missing Docs',   value: '2',  color: 'text-red-600' },
+                { label: 'Expiring Soon',  value: '3',  color: 'text-orange-500' },
+              ].map((c, i) => (
+                <div key={c.label} className={`px-5 py-3.5 ${i < 3 ? 'border-r border-gray-100' : ''}`}>
+                  <p className="text-xs text-gray-400">{c.label}</p>
+                  <p className={`text-xl font-bold mt-0.5 ${c.color}`}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Org rows */}
+            {[
+              {
+                name: 'Happy Hearts Center', type: 'Site',
+                tier: 'Missing Docs', tierBg: 'bg-red-50', tierText: 'text-red-700', tierBorder: 'border-red-100',
+                score: 52, docs: '5/10', missing: 3, expiring: 0,
+                Icon: ShieldX, iconColor: 'text-red-400',
+              },
+              {
+                name: 'Sunshine Daycare', type: 'Site',
+                tier: 'Expiring Soon', tierBg: 'bg-orange-50', tierText: 'text-orange-700', tierBorder: 'border-orange-100',
+                score: 78, docs: '8/10', missing: 0, expiring: 2,
+                Icon: ShieldAlert, iconColor: 'text-orange-400',
+              },
+              {
+                name: 'Metro Meals LLC', type: 'Kitchen',
+                tier: 'Pending Review', tierBg: 'bg-yellow-50', tierText: 'text-yellow-700', tierBorder: 'border-yellow-100',
+                score: 65, docs: '3/5', missing: 0, expiring: 1,
+                Icon: Shield, iconColor: 'text-yellow-400',
+              },
+              {
+                name: 'Lincoln Kitchen', type: 'Kitchen',
+                tier: 'Compliant', tierBg: 'bg-green-50', tierText: 'text-green-700', tierBorder: 'border-green-100',
+                score: 100, docs: '5/5', missing: 0, expiring: 0,
+                Icon: ShieldCheck, iconColor: 'text-green-500',
+              },
+            ].map((org) => (
+              <div key={org.name} className="px-6 py-3.5 border-b border-gray-50 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                <org.Icon className={`w-4 h-4 flex-shrink-0 ${org.iconColor}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold text-gray-900">{org.name}</p>
+                    <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{org.type}</span>
+                  </div>
+                  {/* score bar */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 max-w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${org.score >= 90 ? 'bg-green-400' : org.score >= 70 ? 'bg-orange-400' : 'bg-red-400'}`}
+                        style={{ width: `${org.score}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500">{org.score}%</span>
+                    <span className="text-xs text-gray-400">·</span>
+                    <span className="text-xs text-gray-500">{org.docs} docs</span>
+                    {org.missing > 0 && <span className="text-xs text-red-500">· {org.missing} missing</span>}
+                    {org.expiring > 0 && <span className="text-xs text-orange-500">· {org.expiring} expiring</span>}
+                  </div>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 ${org.tierBg} ${org.tierText} ${org.tierBorder}`}>
+                  {org.tier}
+                </span>
+                <Link to="/register" className="text-xs text-brand-600 hover:underline flex-shrink-0 font-medium">
+                  Fix issues →
+                </Link>
+              </div>
+            ))}
+
+            <div className="px-6 py-3.5 text-center">
+              <Link to="/register" className="text-xs font-semibold text-brand-600 hover:underline">
+                Sign up to manage full compliance center →
+              </Link>
             </div>
           </div>
 
-          {/* Meal Orders */}
+          {/* Deliveries */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-brand-500" />
-                <h2 className="font-semibold text-gray-900">Today's Meal Orders</h2>
+                <h2 className="font-semibold text-gray-900">Today's Deliveries</h2>
               </div>
               <button
                 onClick={() => setShowOrder(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700
                            text-white text-xs font-semibold rounded-lg transition-colors"
               >
-                <Plus className="w-3.5 h-3.5" /> Create Order
+                <Plus className="w-3.5 h-3.5" /> Schedule Delivery
               </button>
             </div>
             <div className="divide-y divide-gray-50">
@@ -252,7 +333,7 @@ export default function SponsorDemo() {
             </div>
             <div className="px-6 py-3 border-t border-gray-50 text-center">
               <Link to="/register" className="text-xs font-semibold text-brand-600 hover:underline">
-                Sign up to manage all orders →
+                Sign up to manage all deliveries →
               </Link>
             </div>
           </div>
