@@ -1,16 +1,24 @@
-// routes/compliance.js — Sponsor-only compliance overview
-// GET /compliance — returns per-org compliance status across documents + applications
+// routes/compliance.js — Sponsor compliance action center
+// GET  /compliance            — per-org compliance with score breakdown
+// POST /compliance/:id/remind — send nudge notification to all users in an org
 
 const express = require('express');
 const router  = express.Router();
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const pool = require('../config/database');
+const { createNotification } = require('../services/notificationService');
 
-router.get('/', authenticate, authorizeRoles('sponsor', 'admin'), async (req, res) => {
+// Required doc types per org type (mirrors frontend constants)
+const REQUIRED = {
+  kitchen: ['w9', 'food_permit', 'insurance', 'menu_plan', 'health_cert'],
+  site:    ['enrollment', 'license', 'insurance', 'health_cert'],
+};
+
+// ── GET /compliance ───────────────────────────────────────────────────────────
+router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), async (req, res) => {
   try {
     const sponsorId = req.user.organizationId;
 
-    // Pull all orgs under this sponsor with their doc + application stats
     const { rows: orgs } = await pool.query(
       `SELECT
          o.id,
@@ -18,63 +26,162 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'admin'), async (req, re
          o.type,
          o.status AS org_status,
 
-         -- Application compliance
-         (SELECT status FROM applications WHERE org_id = o.id ORDER BY created_at DESC LIMIT 1) AS app_status,
+         -- Application status + timestamp
+         (SELECT a.status    FROM applications a WHERE a.org_id = o.id ORDER BY a.created_at DESC LIMIT 1) AS app_status,
+         (SELECT a.updated_at FROM applications a WHERE a.org_id = o.id ORDER BY a.created_at DESC LIMIT 1) AS app_updated_at,
 
          -- Document counts
-         COUNT(d.id) FILTER (WHERE d.status = 'valid')          AS docs_valid,
-         COUNT(d.id) FILTER (WHERE d.status = 'expired')        AS docs_expired,
-         COUNT(d.id) FILTER (WHERE d.status = 'expiring_soon'
-           OR (d.expires_at IS NOT NULL
-               AND d.expires_at > NOW()
-               AND d.expires_at <= NOW() + INTERVAL '30 days'
-               AND d.status = 'valid'))                          AS docs_expiring,
-         COUNT(d.id) FILTER (WHERE d.status = 'rejected')       AS docs_rejected,
-         COUNT(d.id) FILTER (WHERE d.status = 'pending_review') AS docs_pending,
+         COUNT(d.id) FILTER (WHERE d.status = 'valid')                                         AS docs_valid,
+         COUNT(d.id) FILTER (WHERE d.status = 'expired')                                       AS docs_expired,
+         COUNT(d.id) FILTER (
+           WHERE d.status = 'expiring_soon'
+             OR  (d.expires_at IS NOT NULL
+                  AND d.expires_at  > NOW()
+                  AND d.expires_at <= NOW() + INTERVAL '30 days'
+                  AND d.status = 'valid')
+         )                                                                                      AS docs_expiring,
+         COUNT(d.id) FILTER (WHERE d.status = 'rejected')                                      AS docs_rejected,
+         COUNT(d.id) FILTER (WHERE d.status = 'pending_review')                                AS docs_pending,
+         COUNT(d.id) FILTER (WHERE d.status = 'requested')                                     AS docs_requested,
 
-         -- Soonest expiry date
+         -- Soonest upcoming expiry (valid or expiring_soon docs only)
          MIN(d.expires_at) FILTER (
-           WHERE d.expires_at IS NOT NULL AND d.expires_at > NOW()
-         ) AS next_expiry
+           WHERE d.expires_at IS NOT NULL
+             AND d.expires_at > NOW()
+             AND d.status IN ('valid', 'expiring_soon')
+         ) AS next_expiry,
+
+         -- Most recent upload across all real docs
+         (SELECT MAX(dd.uploaded_at)
+          FROM documents dd
+          WHERE dd.org_id    = o.id
+            AND dd.file_url != ''
+            AND dd.status  NOT IN ('superseded', 'requested')
+         ) AS last_doc_upload,
+
+         -- Distinct doc types that have a current valid/pending upload
+         -- (used to compute missing-doc checklist on frontend)
+         (SELECT COALESCE(json_agg(DISTINCT dd.doc_type), '[]'::json)
+          FROM documents dd
+          WHERE dd.org_id = o.id
+            AND dd.status IN ('valid', 'expiring_soon', 'pending_review')
+         ) AS uploaded_doc_types
 
        FROM organizations o
        LEFT JOIN documents d ON d.org_id = o.id
-       WHERE o.sponsor_id = $1 AND o.type IN ('site', 'kitchen')
+       WHERE o.sponsor_id = $1
+         AND o.type IN ('site', 'kitchen')
        GROUP BY o.id
        ORDER BY o.name`,
       [sponsorId]
     );
 
-    // Compute a simple compliance score per org (0–100)
+    // Enrich each org with score, tier, and missing-doc info
     const withScores = orgs.map((org) => {
+      const requiredTypes  = REQUIRED[org.type] ?? [];
+      const uploadedSet    = new Set(org.uploaded_doc_types ?? []);
+      const missingDocs    = requiredTypes.filter((t) => !uploadedSet.has(t));
+      const docsRequired   = requiredTypes.length;
+      const docsUploaded   = requiredTypes.filter((t) => uploadedSet.has(t)).length;
+
+      // ── Score (0–100) ───────────────────────────────────────────────────────
       let score = 100;
-      if (org.app_status !== 'approved')  score -= 30;
-      if (org.docs_expired   > 0)         score -= (org.docs_expired   * 20);
-      if (org.docs_rejected  > 0)         score -= (org.docs_rejected  * 10);
-      if (org.docs_expiring  > 0)         score -= (org.docs_expiring  *  5);
-      score = Math.max(0, score);
+      if (!org.app_status)                    score -= 20;
+      else if (org.app_status !== 'approved') score -= 10;
+      score -= Number(org.docs_expired  ?? 0) * 20;
+      score -= Number(org.docs_rejected ?? 0) * 10;
+      score -= missingDocs.length              * 10;
+      score -= Number(org.docs_expiring ?? 0) *  5;
+      score  = Math.max(0, Math.min(100, score));
 
-      let tier = 'compliant';
-      if (score < 50)  tier = 'critical';
-      else if (score < 80) tier = 'at_risk';
+      // ── Tier ────────────────────────────────────────────────────────────────
+      let tier;
+      if (Number(org.docs_expired) > 0 || Number(org.docs_rejected) > 0) {
+        tier = 'overdue';
+      } else if (missingDocs.length > 0 && !org.app_status) {
+        tier = 'overdue';
+      } else if (missingDocs.length > 0) {
+        tier = 'missing';
+      } else if (Number(org.docs_expiring) > 0) {
+        tier = 'expiring';
+      } else if (
+        Number(org.docs_pending) > 0 ||
+        (org.app_status && org.app_status !== 'approved' && org.app_status !== 'rejected')
+      ) {
+        tier = 'pending';
+      } else {
+        tier = 'compliant';
+      }
 
-      return { ...org, score, tier };
+      return {
+        ...org,
+        score,
+        tier,
+        docs_required:       docsRequired,
+        docs_uploaded:       docsUploaded,
+        missing_docs:        missingDocs,         // array of doc_type strings
+        uploaded_doc_types:  [...uploadedSet],
+      };
     });
 
-    // Summary counts
+    // ── Program-wide summary ─────────────────────────────────────────────────
     const summary = {
-      total:      withScores.length,
-      compliant:  withScores.filter((o) => o.tier === 'compliant').length,
-      at_risk:    withScores.filter((o) => o.tier === 'at_risk').length,
-      critical:   withScores.filter((o) => o.tier === 'critical').length,
-      docs_expiring_soon: withScores.reduce((s, o) => s + Number(o.docs_expiring  ?? 0), 0),
-      docs_expired:       withScores.reduce((s, o) => s + Number(o.docs_expired   ?? 0), 0),
+      total:            withScores.length,
+      total_kitchens:   withScores.filter((o) => o.type === 'kitchen').length,
+      total_sites:      withScores.filter((o) => o.type === 'site').length,
+      compliant:        withScores.filter((o) => o.tier === 'compliant').length,
+      pending:          withScores.filter((o) => o.tier === 'pending').length,
+      missing:          withScores.filter((o) => o.tier === 'missing').length,
+      expiring:         withScores.filter((o) => o.tier === 'expiring').length,
+      overdue:          withScores.filter((o) => o.tier === 'overdue').length,
+      missing_docs_orgs:    withScores.filter((o) => o.missing_docs.length > 0).length,
+      docs_expiring_soon:   withScores.reduce((s, o) => s + Number(o.docs_expiring  ?? 0), 0),
+      docs_expired:         withScores.reduce((s, o) => s + Number(o.docs_expired   ?? 0), 0),
     };
 
     res.json({ summary, organizations: withScores });
   } catch (err) {
-    console.error('compliance error:', err);
+    console.error('compliance GET error:', err);
     res.status(500).json({ error: 'Failed to fetch compliance data.' });
+  }
+});
+
+// ── POST /compliance/:orgId/remind ────────────────────────────────────────────
+router.post('/:orgId/remind', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), async (req, res) => {
+  try {
+    const { orgId }  = req.params;
+    const { message } = req.body;
+    const sponsorId  = req.user.organizationId;
+
+    // Verify org belongs to this sponsor
+    const { rows: orgRows } = await pool.query(
+      'SELECT name FROM organizations WHERE id = $1 AND sponsor_id = $2',
+      [orgId, sponsorId]
+    );
+    if (!orgRows.length) return res.status(404).json({ error: 'Organization not found.' });
+    const orgName = orgRows[0].name;
+
+    // Notify all active users in the org
+    const { rows: users } = await pool.query(
+      'SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE',
+      [orgId]
+    );
+    if (!users.length) return res.json({ success: true, notified: 0 });
+
+    await createNotification(
+      users.map((u) => ({
+        userId:    u.id,
+        type:      'compliance_reminder',
+        title:     'Compliance Reminder',
+        body:      message || 'Your program coordinator has sent a compliance reminder. Please review your outstanding requirements.',
+        actionUrl: '/dashboard/kitchen/documents',
+      }))
+    );
+
+    res.json({ success: true, notified: users.length, orgName });
+  } catch (err) {
+    console.error('compliance remind error:', err);
+    res.status(500).json({ error: 'Failed to send reminder.' });
   }
 });
 
