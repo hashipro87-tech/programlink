@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS documents (
   expires_at    TIMESTAMPTZ,            -- NULL = no expiration
   -- status is auto-computed but stored for fast querying
   status        VARCHAR(50) NOT NULL DEFAULT 'valid'
-                  CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_review')),
+                  CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_review', 'requested', 'superseded')),
   rejection_note TEXT,                  -- coordinator note if rejected
   version       INT NOT NULL DEFAULT 1, -- increments on re-upload (audit trail)
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -211,3 +211,9 @@ CREATE INDEX IF NOT EXISTS idx_routes_provider_date ON routes(delivery_provider_
 
 -- Add any missing columns to existing tables (safe to run multiple times)
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS form_data JSONB;
+
+-- Expand documents.status to include 'requested' and 'superseded'
+-- (needed for the compliance document-request workflow)
+ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_status_check;
+ALTER TABLE documents ADD CONSTRAINT documents_status_check
+  CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_review', 'requested', 'superseded'));

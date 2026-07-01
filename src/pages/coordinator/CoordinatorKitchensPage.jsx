@@ -59,10 +59,11 @@ function DetailPanel({ kitchen, onClose }) {
     const month = new Date().toISOString().slice(0, 7);
 
     Promise.all([
-      api.get(`/kitchen-directory?kitchen_id=${kitchen.id}`).catch(() => ({ data: [] })),
+      api.get('/organizations?type=site&limit=100').catch(() => ({ data: { organizations: [] } })),
       api.get(`/meal-counts/summary?month=${month}`).catch(() => ({ data: {} })),
-    ]).then(([dirRes, countsRes]) => {
-      setSites(dirRes.data ?? []);
+    ]).then(([sitesRes, countsRes]) => {
+      const allSites = sitesRes.data?.organizations ?? sitesRes.data ?? [];
+      setSites(Array.isArray(allSites) ? allSites : []);
       const rows = countsRes.data?.sites ?? [];
       const row  = rows.find((r) => r.org_id === kitchen.id || r.kitchen_id === kitchen.id);
       setCounts(row ?? null);
