@@ -179,9 +179,11 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
   const [dueDate,  setDueDate]  = useState('');
   const [message,  setMessage]  = useState('');
   const [sending,  setSending]  = useState(false);
+  const [error,    setError]    = useState('');
 
   async function send() {
     if (!docType || !label) return;
+    setError('');
     setSending(true);
     try {
       await api.post('/documents/request', {
@@ -193,8 +195,9 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
       });
       onSent?.();
       onClose();
-    } catch {
-      // noop — parent handles toast
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Failed to send request. Please try again.';
+      setError(msg);
     } finally {
       setSending(false);
     }
@@ -254,6 +257,11 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
           </div>
         </div>
 
+        {error && (
+          <div className="mx-5 mb-1 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+            {error}
+          </div>
+        )}
         <div className="px-5 py-3 border-t flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">Cancel</button>
           <button
