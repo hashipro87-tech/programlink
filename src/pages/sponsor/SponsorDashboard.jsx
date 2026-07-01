@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',          path: '/dashboard/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',       path: '/dashboard/sponsor/kitchens',     icon: Building2 },
-  { label: 'Meal Orders',    path: '/dashboard/sponsor/meal-orders',  icon: Truck },
+  { label: 'Deliveries',     path: '/dashboard/sponsor/meal-orders',  icon: Truck },
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },

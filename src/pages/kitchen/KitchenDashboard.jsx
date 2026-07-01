@@ -3,11 +3,12 @@
 // delivery status board, sponsor messaging, and an alert center.
 // All components are independent and pull from real API endpoints.
 
+import { useState, useEffect } from 'react';
 import { useLocation, Outlet, Routes, Route, useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, Building2, MessageSquare,
-  UtensilsCrossed, CheckCircle, Settings,
+  UtensilsCrossed, CheckCircle, Settings, Truck,
 } from 'lucide-react';
 
 import Sidebar           from '../../components/layout/Sidebar';
@@ -18,6 +19,7 @@ import MessagesPage      from '../messages/MessagesPage';
 import NotificationsPage from '../notifications/NotificationsPage';
 import KitchenDirectoryPage from './KitchenDirectoryPage';
 import SettingsPage      from '../settings/SettingsPage';
+import api               from '../../services/api';
 
 // New kitchen-specific components
 import NextActionBanner    from './components/NextActionBanner';
@@ -30,14 +32,195 @@ import ActionCenter        from '../../components/common/ActionCenter';
 import ActivityTimeline    from '../../components/common/ActivityTimeline';
 
 const NAV_ITEMS = [
-  { label: 'Overview',        path: '/dashboard/kitchen',             icon: CheckCircle,   end: true },
-  { label: 'Meal Counts',     path: '/dashboard/kitchen/meals',       icon: UtensilsCrossed },
-  { label: 'My Application',  path: '/dashboard/kitchen/application', icon: ClipboardList },
-  { label: 'Documents',       path: '/dashboard/kitchen/documents',   icon: FileText },
-  { label: 'Connected Sites', path: '/dashboard/kitchen/sites',       icon: Building2 },
-  { label: 'Messages',        path: '/dashboard/kitchen/messages',    icon: MessageSquare },
-  { label: 'Settings',        path: '/dashboard/kitchen/settings',    icon: Settings },
+  { label: 'Overview',        path: '/dashboard/kitchen',              icon: CheckCircle,    end: true },
+  { label: 'Deliveries',      path: '/dashboard/kitchen/deliveries',   icon: Truck },
+  { label: 'Meal Counts',     path: '/dashboard/kitchen/meals',        icon: UtensilsCrossed },
+  { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
+  { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
+  { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
+  { label: 'Messages',        path: '/dashboard/kitchen/messages',     icon: MessageSquare },
+  { label: 'Settings',        path: '/dashboard/kitchen/settings',     icon: Settings },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function todayISO()    { return new Date().toISOString().split('T')[0]; }
+function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
+function dateLabel(iso) {
+  if (iso === todayISO())    return 'Today';
+  if (iso === tomorrowISO()) return 'Tomorrow';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+function fmt12(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
+}
+function mealLabel(v) {
+  return ({ breakfast:'Breakfast', am_snack:'AM Snack', lunch:'Lunch', pm_snack:'PM Snack', dinner:'Dinner' }[v] ?? v);
+}
+
+// ─── Upcoming Deliveries Panel (kitchen view) ─────────────────────────────────
+function UpcomingDeliveriesPanel({ onViewAll }) {
+  const [routes, setRoutes]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/delivery/routes')
+      .then(({ data }) => {
+        const all = Array.isArray(data) ? data : (data.routes ?? []);
+        // Show only upcoming (not delivered, not cancelled), sort by date asc
+        const upcoming = all
+          .filter(r => r.status !== 'delivered' && r.status !== 'cancelled')
+          .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+          .slice(0, 5);
+        setRoutes(upcoming);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const t = todayISO();
+  const tm = tomorrowISO();
+  const highlighted = routes.filter(r => r.date === t || r.date === tm);
+
+  return (
+    <div className="card mb-6">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Truck className="w-4 h-4 text-brand-600" />
+          <h2 className="font-semibold text-gray-900">Upcoming Deliveries</h2>
+        </div>
+        <button onClick={onViewAll} className="text-sm text-brand-600 hover:underline">View all</button>
+      </div>
+
+      {loading ? (
+        <div className="px-6 py-8 text-center text-sm text-gray-400">Loading…</div>
+      ) : routes.length === 0 ? (
+        <div className="px-6 py-10 text-center">
+          <Truck className="w-7 h-7 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No upcoming deliveries scheduled.</p>
+          <p className="text-xs text-gray-400 mt-1">Your sponsor will assign deliveries here.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {routes.map((route) => {
+            const stops = route.stops ?? [];
+            const totalMeals = stops.reduce((s, st) => s + (st.meal_count || 0), 0);
+            const isNear = route.date === t || route.date === tm;
+            return (
+              <div key={route.id} className={`px-6 py-4 ${isNear ? 'bg-brand-50/40' : ''}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`text-sm font-bold ${isNear ? 'text-brand-800' : 'text-gray-800'}`}>
+                    {dateLabel(route.date)}
+                  </span>
+                  <span className="text-xs font-semibold text-gray-500">
+                    {totalMeals} meal{totalMeals !== 1 ? 's' : ''} · {stops.length} site{stops.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {stops.map((stop, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                      <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <span className="flex-1 truncate">{stop.site_name ?? 'Site'}</span>
+                      <span className="text-gray-500 flex-shrink-0">{stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s</span>
+                      {stop.pickup_time && (
+                        <span className="text-gray-400 flex-shrink-0 text-xs">ETA {fmt12(stop.pickup_time)}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Full Deliveries Page (kitchen) ──────────────────────────────────────────
+function KitchenDeliveriesPage() {
+  const [routes,  setRoutes]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    api.get('/delivery/routes')
+      .then(({ data }) => {
+        const all = Array.isArray(data) ? data : (data.routes ?? []);
+        setRoutes(all.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Group by date
+  const byDate = {};
+  for (const r of routes) {
+    const d = r.date ?? 'unknown';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(r);
+  }
+  const dates = Object.keys(byDate).sort();
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Deliveries</h1>
+          <p className="text-sm text-gray-500 mt-1">All meal deliveries assigned to your kitchen.</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-20 text-center text-sm text-gray-400">Loading…</div>
+      ) : dates.length === 0 ? (
+        <div className="py-24 text-center">
+          <Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+          <p className="text-base font-bold text-gray-600">No deliveries yet</p>
+          <p className="text-sm text-gray-400 mt-1">Your sponsor assigns deliveries from their dashboard.</p>
+        </div>
+      ) : (
+        dates.map((date) => {
+          const dayRoutes = byDate[date];
+          const allStops  = dayRoutes.flatMap(r => r.stops ?? []);
+          const total     = allStops.reduce((s, st) => s + (st.meal_count || 0), 0);
+          const isNear    = date === todayISO() || date === tomorrowISO();
+
+          return (
+            <div key={date} className="mb-8">
+              <div className="flex items-baseline gap-3 mb-3">
+                <h2 className={`text-base font-bold ${isNear ? 'text-brand-700' : 'text-gray-800'}`}>
+                  {dateLabel(date)}
+                </h2>
+                <span className="text-sm text-gray-400">{total} meals · {allStops.length} sites</span>
+              </div>
+
+              <div className="card divide-y divide-gray-100">
+                {allStops.map((stop, i) => (
+                  <div key={i} className="px-5 py-4 flex items-center gap-4">
+                    <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{stop.site_name ?? 'Site'}</p>
+                      {stop.pickup_time && (
+                        <p className="text-xs text-gray-400">Pickup by {fmt12(stop.pickup_time)}</p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-gray-900">
+                        {stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
 
 // Derive onboarding checklist steps from real API stats
 function buildChecklist(stats) {
@@ -161,6 +344,9 @@ export default function KitchenDashboard() {
               {/* ── Meal Reminder — warns if recent entries are missing ── */}
               <MealReminderBanner onLogNow={() => navigate('/dashboard/kitchen/meals')} />
 
+              {/* ── Upcoming Deliveries — what meals to prep ── */}
+              <UpcomingDeliveriesPanel onViewAll={() => navigate('/dashboard/kitchen/deliveries')} />
+
               {/* ── Alerts — derived from real stats ── */}
               <AlertsCenter stats={stats} onNavigate={handleAlertNav} />
 
@@ -261,6 +447,7 @@ export default function KitchenDashboard() {
             </>
           ) : (
             <Routes>
+              <Route path="deliveries"    element={<KitchenDeliveriesPage />} />
               <Route path="meals"         element={<MealEntryForm />} />
               <Route path="application"   element={<ApplicationPage />} />
               <Route path="documents"     element={<DocumentsPage />} />

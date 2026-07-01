@@ -16,8 +16,8 @@ router.use(authenticate);
 router.get('/routes',      listRoutes);
 router.get('/routes/:id',  getRoute);
 
-// Only coordinators and sponsors create routes
-router.post('/routes', authorizeRoles('coordinator', 'sponsor'), createRoute);
+// Sponsors, coordinators, and admins create routes
+router.post('/routes', authorizeRoles('coordinator', 'sponsor', 'admin'), createRoute);
 
 // Delivery providers and coordinators/sponsors can update route status
 router.patch('/routes/:id/status', updateRouteStatus);

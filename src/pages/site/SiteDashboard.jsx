@@ -7,7 +7,7 @@ import { useLocation, Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
-  Building2, CheckCircle, Settings, AlertTriangle, ArrowRight,
+  Building2, CheckCircle, Settings, AlertTriangle, ArrowRight, Truck,
 } from 'lucide-react';
 
 import Sidebar       from '../../components/layout/Sidebar';
@@ -26,14 +26,177 @@ import SettingsPage         from '../settings/SettingsPage';
 import MealEntryForm        from '../kitchen/components/MealEntryForm';
 
 const NAV_ITEMS = [
-  { label: 'Overview',       path: '/dashboard/site',             icon: CheckCircle    },
-  { label: 'Meal Counts',    path: '/dashboard/site/meals',       icon: UtensilsCrossed },
-  { label: 'My Application', path: '/dashboard/site/application', icon: ClipboardList  },
-  { label: 'Documents',      path: '/dashboard/site/documents',   icon: FileText       },
-  { label: 'My Kitchen',     path: '/dashboard/site/kitchen',     icon: Building2      },
-  { label: 'Messages',       path: '/dashboard/site/messages',    icon: MessageSquare  },
-  { label: 'Settings',       path: '/dashboard/site/settings',    icon: Settings       },
+  { label: 'Overview',       path: '/dashboard/site',              icon: CheckCircle    },
+  { label: 'Deliveries',     path: '/dashboard/site/deliveries',   icon: Truck          },
+  { label: 'Meal Counts',    path: '/dashboard/site/meals',        icon: UtensilsCrossed },
+  { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
+  { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
+  { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
+  { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
+  { label: 'Settings',       path: '/dashboard/site/settings',     icon: Settings       },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function todayISO()    { return new Date().toISOString().split('T')[0]; }
+function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
+function dateLabel(iso) {
+  if (iso === todayISO())    return 'Today';
+  if (iso === tomorrowISO()) return 'Tomorrow';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+function fmt12(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':').map(Number);
+  return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
+}
+function mealLabel(v) {
+  return ({ breakfast:'Breakfast', am_snack:'AM Snack', lunch:'Lunch', pm_snack:'PM Snack', dinner:'Dinner' }[v] ?? v);
+}
+
+// ─── Incoming Deliveries Banner (site view) ───────────────────────────────────
+// "Tomorrow we are receiving: 100 lunches, ETA 11:45 AM"
+function IncomingDeliveriesCard({ onViewAll }) {
+  const [stops,   setStops]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [label,   setLabel]   = useState('');
+
+  useEffect(() => {
+    api.get('/delivery/routes')
+      .then(({ data }) => {
+        const all = Array.isArray(data) ? data : (data.routes ?? []);
+        const t  = todayISO();
+        const tm = tomorrowISO();
+        // Find nearest upcoming date with deliveries
+        const upcoming = all
+          .filter(r => r.status !== 'delivered' && r.status !== 'cancelled')
+          .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+        if (upcoming.length === 0) { setLoading(false); return; }
+        const nearest = upcoming[0];
+        setLabel(dateLabel(nearest.date));
+        setStops(nearest.stops ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return null;
+  if (stops.length === 0) return null;
+
+  const totalMeals = stops.reduce((s, st) => s + (st.meal_count || 0), 0);
+
+  return (
+    <div className="bg-brand-600 text-white rounded-2xl px-5 py-5 mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Truck className="w-5 h-5 text-brand-200" />
+        <span className="text-sm font-semibold text-brand-200 uppercase tracking-wide">{label}</span>
+      </div>
+      <p className="text-xl font-bold mb-3">We are receiving {totalMeals} meal{totalMeals!==1?'s':''}</p>
+      <div className="space-y-1.5 mb-4">
+        {stops.map((stop, i) => (
+          <div key={i} className="flex items-center gap-2 text-brand-100 text-sm">
+            <span className="font-semibold text-white">
+              {stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s
+            </span>
+            {stop.pickup_time && (
+              <span>· ETA {fmt12(stop.pickup_time)}</span>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={onViewAll}
+        className="text-xs font-semibold text-brand-200 hover:text-white underline"
+      >
+        View all deliveries →
+      </button>
+    </div>
+  );
+}
+
+// ─── Full Deliveries Page (site view) ────────────────────────────────────────
+function SiteDeliveriesPage() {
+  const [routes, setRoutes]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/delivery/routes')
+      .then(({ data }) => {
+        const all = Array.isArray(data) ? data : (data.routes ?? []);
+        setRoutes(all.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')));
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const byDate = {};
+  for (const r of routes) {
+    const d = r.date ?? 'unknown';
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(r);
+  }
+  const dates = Object.keys(byDate).sort();
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Incoming Deliveries</h1>
+        <p className="text-sm text-gray-500 mt-1">Meals scheduled for delivery to your site.</p>
+      </div>
+
+      {loading ? (
+        <div className="py-20 text-center text-sm text-gray-400">Loading…</div>
+      ) : dates.length === 0 ? (
+        <div className="py-24 text-center">
+          <Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+          <p className="text-base font-bold text-gray-600">No deliveries scheduled</p>
+          <p className="text-sm text-gray-400 mt-1">Your sponsor will schedule meal deliveries here.</p>
+        </div>
+      ) : (
+        dates.map((date) => {
+          const dayRoutes = byDate[date];
+          const allStops  = dayRoutes.flatMap(r => r.stops ?? []);
+          const total     = allStops.reduce((s, st) => s + (st.meal_count || 0), 0);
+          const isNear    = date === todayISO() || date === tomorrowISO();
+
+          return (
+            <div key={date} className="mb-8">
+              <div className="flex items-baseline gap-3 mb-3">
+                <h2 className={`text-base font-bold ${isNear ? 'text-brand-700' : 'text-gray-800'}`}>
+                  {dateLabel(date)}
+                </h2>
+                <span className="text-sm text-gray-400">{total} meal{total!==1?'s':''}</span>
+              </div>
+              <div className={`card divide-y divide-gray-100 ${isNear ? 'border-brand-200' : ''}`}>
+                {allStops.map((stop, i) => (
+                  <div key={i} className="px-5 py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-bold text-gray-900">
+                          {stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s
+                        </p>
+                        {stop.pickup_time && (
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            ETA {fmt12(stop.pickup_time)}
+                          </p>
+                        )}
+                      </div>
+                      {dayRoutes[0]?.kitchen_name && (
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">From kitchen</p>
+                          <p className="text-sm font-semibold text-gray-700">{dayRoutes[0].kitchen_name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
 
 // ─── Onboarding checklist ─────────────────────────────────────────────────────
 function buildChecklist(stats) {
@@ -102,6 +265,9 @@ function Overview({ stats, loading }) {
 
       {/* Action Center */}
       <ActionCenter tasks={actionTasks} loading={loading} />
+
+      {/* Incoming deliveries — what meals are coming */}
+      <IncomingDeliveriesCard onViewAll={() => navigate('/dashboard/site/deliveries')} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -270,6 +436,7 @@ export default function SiteDashboard() {
             <Overview stats={stats} loading={loading} />
           ) : (
             <Routes>
+              <Route path="deliveries"   element={<SiteDeliveriesPage />} />
               <Route path="meals"        element={<MealEntryForm />} />
               <Route path="application"  element={<ApplicationPage />} />
               <Route path="documents"    element={<DocumentsPage />} />
