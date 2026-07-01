@@ -81,10 +81,11 @@ async function _sendOrgInvite({ orgType, role, roleLabel, name, address, phone, 
   if (!name?.trim())          return res.status(400).json({ error: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} name is required.` });
   if (!contact_email?.trim()) return res.status(400).json({ error: 'Contact email is required.' });
 
+  // sponsor_id may be null for admin users — allow it (column is nullable)
   const { rows } = await pool.query(
     `INSERT INTO organizations (name, type, address, phone, region, sponsor_id, status)
      VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING *`,
-    [name.trim(), orgType, address || null, phone || null, region || null, sponsorId]
+    [name.trim(), orgType, address || null, phone || null, region || null, sponsorId || null]
   );
   const org = rows[0];
 
@@ -118,7 +119,7 @@ exports.inviteKitchen = async (req, res) => {
     res.status(201).json({ organization: org, message: 'Invite sent.' });
   } catch (err) {
     console.error('inviteKitchen error:', err);
-    res.status(500).json({ error: 'Failed to send kitchen invite.' });
+    res.status(500).json({ error: `Failed to send kitchen invite: ${err.message}` });
   }
 };
 
@@ -137,7 +138,7 @@ exports.inviteSite = async (req, res) => {
     res.status(201).json({ organization: org, message: 'Invite sent.' });
   } catch (err) {
     console.error('inviteSite error:', err);
-    res.status(500).json({ error: 'Failed to send site invite.' });
+    res.status(500).json({ error: `Failed to send site invite: ${err.message}` });
   }
 };
 
