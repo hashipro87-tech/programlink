@@ -231,3 +231,96 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Password reset failed. Please try again.' });
   }
 };
+
+/**
+ * Accept an invite link (Kitchen, Site, or Coordinator).
+ * The invite token is a signed JWT from /organizations/invite-kitchen (or invite-site / invite-coordinator).
+ * On success, creates the user account (pre-verified), activates the org if applicable,
+ * and returns a session token so the user lands directly on their dashboard.
+ */
+exports.acceptInvite = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+
+    // Verify the invite JWT
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    } catch {
+      return res.status(400).json({ error: 'This invite link has expired or is invalid. Please ask your sponsor to resend it.' });
+    }
+
+    // Accept both old 'kitchen_invite' type and new generic 'invite'
+    if (payload.type !== 'invite' && payload.type !== 'kitchen_invite') {
+      return res.status(400).json({ error: 'Invalid invite token type.' });
+    }
+
+    // Determine user role: new tokens have 'role', old kitchen tokens default to 'kitchen'
+    const userRole = payload.role || 'kitchen';
+    const { org_id, org_name, contact_name, email, sponsor_id } = payload;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Invite token is missing email address.' });
+    }
+
+    // Check not already registered
+    const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        error: 'An account with this email already exists. Please sign in instead.',
+        code:  'ALREADY_REGISTERED',
+      });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const userName      = contact_name?.trim() || email.split('@')[0];
+
+    // Create user — pre-verified (they clicked the emailed link)
+    const result = await pool.query(
+      `INSERT INTO users
+         (name, email, password_hash, role, org_id, is_verified, verified_at, is_active)
+       VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), TRUE)
+       RETURNING id, name, email, role, org_id`,
+      [userName, email.toLowerCase(), password_hash, userRole, org_id || null]
+    );
+    const user = result.rows[0];
+
+    // Activate the org (it was created as 'pending' during invite)
+    if (org_id) {
+      await pool.query(
+        `UPDATE organizations SET status = 'active' WHERE id = $1 AND status = 'pending'`,
+        [org_id]
+      );
+    }
+
+    // Resolve sponsor_id — prefer token value, else look it up from the org
+    let resolvedSponsorId = sponsor_id;
+    if (!resolvedSponsorId && org_id) {
+      const orgRow = await pool.query('SELECT sponsor_id FROM organizations WHERE id = $1', [org_id]);
+      resolvedSponsorId = orgRow.rows[0]?.sponsor_id;
+    }
+
+    await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+    const authToken = generateToken(user.id, user.email, user.role, user.org_id, resolvedSponsorId);
+
+    res.status(201).json({
+      token: authToken,
+      user: {
+        id:    user.id,
+        name:  user.name,
+        email: user.email,
+        role:  user.role,
+        orgId: user.org_id,
+      },
+    });
+  } catch (err) {
+    console.error('acceptInvite error:', err);
+    res.status(500).json({ error: 'Failed to accept invite. Please try again.' });
+  }
+};

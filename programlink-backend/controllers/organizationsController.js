@@ -1,4 +1,6 @@
-const pool = require('../config/database');
+const pool    = require('../config/database');
+const jwt     = require('jsonwebtoken');
+const { sendInviteEmail } = require('../services/emailService');
 
 exports.listOrganizations = async (req, res) => {
   try {
@@ -66,5 +68,109 @@ exports.updateOrganization = async (req, res) => {
   } catch (err) {
     console.error('updateOrganization error:', err);
     res.status(500).json({ error: 'Failed to update organization.' });
+  }
+};
+
+/**
+ * Shared helper — builds signed invite JWT + sends email.
+ * orgType: 'kitchen' | 'site'
+ * role:    'kitchen' | 'site' | 'coordinator'
+ * roleLabel: display label used in the email body (e.g. 'kitchen manager')
+ */
+async function _sendOrgInvite({ orgType, role, roleLabel, name, address, phone, region, contact_name, contact_email, sponsorId, res, logPrefix }) {
+  if (!name?.trim())          return res.status(400).json({ error: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} name is required.` });
+  if (!contact_email?.trim()) return res.status(400).json({ error: 'Contact email is required.' });
+
+  const { rows } = await pool.query(
+    `INSERT INTO organizations (name, type, address, phone, region, sponsor_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING *`,
+    [name.trim(), orgType, address || null, phone || null, region || null, sponsorId]
+  );
+  const org = rows[0];
+
+  const secret    = process.env.JWT_SECRET || 'fallback_secret';
+  const token     = jwt.sign(
+    { type: 'invite', role, org_id: org.id, org_name: org.name,
+      contact_name: contact_name || '', email: contact_email.trim().toLowerCase(), sponsor_id: sponsorId },
+    secret,
+    { expiresIn: '7d' }
+  );
+
+  const frontendUrl = process.env.FRONTEND_URL || 'https://cacfplink.com';
+  const inviteUrl   = `${frontendUrl}/accept-invite?token=${token}`;
+  await sendInviteEmail(contact_email, contact_name || name, org.name, roleLabel, inviteUrl);
+
+  return org;
+}
+
+/**
+ * Sponsor invites a kitchen.
+ */
+exports.inviteKitchen = async (req, res) => {
+  try {
+    const { name, address, phone, region, contact_name, contact_email } = req.body;
+    const sponsorId = req.user.organizationId || req.user.sponsorId;
+    const org = await _sendOrgInvite({
+      orgType: 'kitchen', role: 'kitchen', roleLabel: 'kitchen manager',
+      name, address, phone, region, contact_name, contact_email, sponsorId, res,
+    });
+    if (!org) return; // error already sent
+    res.status(201).json({ organization: org, message: 'Invite sent.' });
+  } catch (err) {
+    console.error('inviteKitchen error:', err);
+    res.status(500).json({ error: 'Failed to send kitchen invite.' });
+  }
+};
+
+/**
+ * Sponsor (or coordinator) invites a site director.
+ */
+exports.inviteSite = async (req, res) => {
+  try {
+    const { name, address, phone, region, contact_name, contact_email } = req.body;
+    const sponsorId = req.user.organizationId || req.user.sponsorId;
+    const org = await _sendOrgInvite({
+      orgType: 'site', role: 'site', roleLabel: 'site director',
+      name, address, phone, region, contact_name, contact_email, sponsorId, res,
+    });
+    if (!org) return;
+    res.status(201).json({ organization: org, message: 'Invite sent.' });
+  } catch (err) {
+    console.error('inviteSite error:', err);
+    res.status(500).json({ error: 'Failed to send site invite.' });
+  }
+};
+
+/**
+ * Sponsor invites a coordinator (belongs to sponsor's own org — no new org created).
+ */
+exports.inviteCoordinator = async (req, res) => {
+  try {
+    const { contact_name, contact_email } = req.body;
+    if (!contact_email?.trim()) return res.status(400).json({ error: 'Contact email is required.' });
+
+    const sponsorOrgId = req.user.organizationId;
+    if (!sponsorOrgId) return res.status(400).json({ error: 'Sponsor organization not found.' });
+
+    // Get org name for the invite email
+    const orgRes  = await pool.query('SELECT name FROM organizations WHERE id = $1', [sponsorOrgId]);
+    const orgName = orgRes.rows[0]?.name || 'Your organization';
+
+    const secret    = process.env.JWT_SECRET || 'fallback_secret';
+    const token     = jwt.sign(
+      { type: 'invite', role: 'coordinator', org_id: sponsorOrgId, org_name: orgName,
+        contact_name: contact_name || '', email: contact_email.trim().toLowerCase(), sponsor_id: sponsorOrgId },
+      secret,
+      { expiresIn: '7d' }
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://cacfplink.com';
+    const inviteUrl   = `${frontendUrl}/accept-invite?token=${token}`;
+    await sendInviteEmail(contact_email, contact_name || 'there', orgName, 'coordinator', inviteUrl);
+
+    res.status(200).json({ message: 'Coordinator invite sent.' });
+  } catch (err) {
+    console.error('inviteCoordinator error:', err);
+    res.status(500).json({ error: 'Failed to send coordinator invite.' });
   }
 };

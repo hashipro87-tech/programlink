@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import {
   Users, Search, X, RefreshCw, CheckCircle,
   Clock, ShieldOff, ChevronRight, Mail,
-  Building2, UserCheck, UserX, Shield,
+  Building2, UserCheck, UserX, Shield, Plus,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -152,6 +152,114 @@ function DetailPanel({ user, onClose, onStatusChange }) {
   );
 }
 
+// ─── Invite Coordinator Modal ─────────────────────────────────────────────────
+
+function InviteCoordinatorModal({ onClose }) {
+  const [form,    setForm]    = useState({ contact_name: '', contact_email: '' });
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+  const [success, setSuccess] = useState('');
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.contact_name.trim())  { setError('Name is required.'); return; }
+    if (!form.contact_email.trim()) { setError('Email is required.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/organizations/invite-coordinator', form);
+      setSuccess(`Invite sent to ${form.contact_email}! They'll receive a link to set up their coordinator account.`);
+      setTimeout(onClose, 2800);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to send invite. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Invite Coordinator</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              They'll receive an email to create their account and join your team.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Full name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.contact_name}
+              onChange={set('contact_name')}
+              placeholder="e.g. Maria Johnson"
+              autoFocus
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Email address <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={form.contact_email}
+              onChange={set('contact_email')}
+              placeholder="coordinator@org.com"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              {success}
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold
+                         text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !!success}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
+                         text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Sending invite…' : 'Send Invite'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── User Row ─────────────────────────────────────────────────────────────────
 
 function UserRow({ user, onClick }) {
@@ -223,6 +331,7 @@ export default function CoordinatorsPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showInactive, setShowInactive] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [showInvite, setShowInvite] = useState(false);
 
   const fetchUsers = () => {
     setLoading(true);
@@ -255,11 +364,21 @@ export default function CoordinatorsPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Team</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          All staff accounts across your program — coordinators, site staff, kitchen teams, and delivery.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Team</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            All staff accounts across your program — coordinators, site staff, kitchen teams, and delivery.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowInvite(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700
+                     text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          Invite Coordinator
+        </button>
       </div>
 
       {/* Stat bar */}
@@ -385,6 +504,11 @@ export default function CoordinatorsPage() {
           onClose={() => setSelected(null)}
           onStatusChange={handleStatusChange}
         />
+      )}
+
+      {/* Invite Coordinator modal */}
+      {showInvite && (
+        <InviteCoordinatorModal onClose={() => setShowInvite(false)} />
       )}
     </div>
   );

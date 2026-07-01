@@ -212,28 +212,32 @@ function DetailPanel({ site, onClose, onStatusChange }) {
   );
 }
 
-// ─── Add Site Modal ───────────────────────────────────────────────────────────
+// ─── Invite Site Modal ────────────────────────────────────────────────────────
 
-const EMPTY_FORM = { name: '', address: '', phone: '', region: '', status: 'active' };
+const EMPTY_FORM = { name: '', address: '', phone: '', region: '', contact_name: '', contact_email: '' };
 
-function AddSiteModal({ onClose, onAdded }) {
-  const [form,   setForm]   = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState('');
+function InviteSiteModal({ onClose, onAdded }) {
+  const [form,    setForm]    = useState(EMPTY_FORM);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+  const [success, setSuccess] = useState('');
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) { setError('Site name is required.'); return; }
+    if (!form.name.trim())          { setError('Site name is required.'); return; }
+    if (!form.contact_name.trim())  { setError('Contact person name is required.'); return; }
+    if (!form.contact_email.trim()) { setError('Contact email is required.'); return; }
     setSaving(true);
     setError('');
     try {
-      const { data } = await api.post('/organizations', { ...form, type: 'site' });
+      const { data } = await api.post('/organizations/invite-site', form);
+      setSuccess(`Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`);
       onAdded(data.organization ?? data);
-      onClose();
+      setTimeout(onClose, 2800);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to add site. Please try again.');
+      setError(err?.response?.data?.error || 'Failed to send invite. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -241,17 +245,14 @@ function AddSiteModal({ onClose, onAdded }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Add a Site</h2>
+            <h2 className="text-lg font-bold text-gray-900">Invite Site</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              No account needed — just fill in the site details.
+              The site director will receive an email to set up their account.
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -259,9 +260,8 @@ function AddSiteModal({ onClose, onAdded }) {
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {/* Name */}
+          {/* Site name */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Site name <span className="text-red-500">*</span>
@@ -278,12 +278,42 @@ function AddSiteModal({ onClose, onAdded }) {
 
           {/* Address */}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Address</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Site address</label>
             <input
               type="text"
               value={form.address}
               onChange={set('address')}
               placeholder="123 Main St, City, State 12345"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Contact person */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Site director / contact <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.contact_name}
+              onChange={set('contact_name')}
+              placeholder="Full name of site director"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Contact email */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Email address <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={form.contact_email}
+              onChange={set('contact_email')}
+              placeholder="director@siteorg.com"
               className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
                          focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
@@ -315,28 +345,17 @@ function AddSiteModal({ onClose, onAdded }) {
             </div>
           </div>
 
-          {/* Status */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Initial status</label>
-            <select
-              value={form.status}
-              onChange={set('status')}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white
-                         focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
               {error}
             </p>
           )}
+          {success && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              {success}
+            </p>
+          )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-1">
             <button
               type="button"
@@ -348,11 +367,11 @@ function AddSiteModal({ onClose, onAdded }) {
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !!success}
               className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
                          text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {saving ? 'Adding…' : 'Add Site'}
+              {saving ? 'Sending invite…' : 'Send Invite'}
             </button>
           </div>
         </form>
@@ -486,7 +505,7 @@ export default function SitesPage() {
                      text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Add Site
+          Invite Site
         </button>
       </div>
 
@@ -609,9 +628,9 @@ export default function SitesPage() {
         />
       )}
 
-      {/* Add Site modal */}
+      {/* Invite Site modal */}
       {showAdd && (
-        <AddSiteModal
+        <InviteSiteModal
           onClose={() => setShowAdd(false)}
           onAdded={handleSiteAdded}
         />

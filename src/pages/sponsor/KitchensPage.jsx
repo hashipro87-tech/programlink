@@ -7,7 +7,7 @@ import {
   ChefHat, Search, CheckCircle, AlertTriangle, Clock,
   ChevronRight, X, Phone, MapPin, RefreshCw,
   FileWarning, ClipboardList, Utensils, ShieldCheck,
-  Building2,
+  Building2, Plus,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -237,6 +237,173 @@ function DetailPanel({ kitchen, onClose, onStatusChange }) {
   );
 }
 
+// ─── Invite Kitchen Modal ─────────────────────────────────────────────────────
+
+const EMPTY_INVITE = { name: '', address: '', phone: '', region: '', contact_name: '', contact_email: '' };
+
+function InviteKitchenModal({ onClose, onAdded }) {
+  const [form,    setForm]    = useState(EMPTY_INVITE);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+  const [success, setSuccess] = useState('');
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim())           { setError('Kitchen name is required.'); return; }
+    if (!form.contact_name.trim())   { setError('Contact person name is required.'); return; }
+    if (!form.contact_email.trim())  { setError('Contact email is required.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const { data } = await api.post('/organizations/invite-kitchen', form);
+      setSuccess(`Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`);
+      onAdded(data.organization ?? data);
+      setTimeout(onClose, 2800);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to send invite. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Invite Kitchen</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              The contact person will receive an email to set up their account.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {/* Kitchen name */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Kitchen name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={set('name')}
+              placeholder="e.g. Lincoln Central Kitchen"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Kitchen address</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={set('address')}
+              placeholder="123 Main St, City, State 12345"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Contact person */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Contact person <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.contact_name}
+              onChange={set('contact_name')}
+              placeholder="Full name of kitchen manager"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Contact email */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Email address <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={form.contact_email}
+              onChange={set('contact_email')}
+              placeholder="manager@kitchen.com"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                         focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Phone + Region */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Phone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={set('phone')}
+                placeholder="(555) 000-0000"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Region / County</label>
+              <input
+                type="text"
+                value={form.region}
+                onChange={set('region')}
+                placeholder="e.g. Wayne County"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+              {success}
+            </p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold
+                         text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !!success}
+              className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
+                         text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Sending invite…' : 'Send Invite'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Kitchen Row ──────────────────────────────────────────────────────────────
 
 function KitchenRow({ kitchen, onClick }) {
@@ -304,6 +471,7 @@ export default function KitchensPage() {
   const [search,    setSearch]    = useState('');
   const [filter,    setFilter]    = useState('all');
   const [selected,  setSelected]  = useState(null);
+  const [showAdd,   setShowAdd]   = useState(false);
   const searchRef = useRef(null);
 
   const fetchKitchens = () => {
@@ -326,6 +494,10 @@ export default function KitchensPage() {
   const totalAlerts  = kitchens.filter((k) => k.doc_alerts > 0).length;
   const totalPending = kitchens.filter((k) => k.pending_applications > 0).length;
 
+  const handleKitchenAdded = (newKitchen) => {
+    setKitchens((prev) => [{ ...newKitchen, doc_alerts: 0, pending_applications: 0 }, ...prev]);
+  };
+
   const handleStatusChange = (kitchenId, newStatus) => {
     setKitchens((prev) =>
       prev.map((k) => k.id === kitchenId ? { ...k, status: newStatus } : k)
@@ -336,11 +508,21 @@ export default function KitchensPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Kitchens</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          All kitchens in your program — track compliance, documents, and connected sites.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Kitchens</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            All kitchens in your program — track compliance, documents, and connected sites.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700
+                     text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          Invite Kitchen
+        </button>
       </div>
 
       {/* Summary stat bar */}
@@ -454,6 +636,14 @@ export default function KitchensPage() {
           kitchen={selected}
           onClose={() => setSelected(null)}
           onStatusChange={handleStatusChange}
+        />
+      )}
+
+      {/* Invite Kitchen modal */}
+      {showAdd && (
+        <InviteKitchenModal
+          onClose={() => setShowAdd(false)}
+          onAdded={handleKitchenAdded}
         />
       )}
     </div>

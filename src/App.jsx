@@ -9,6 +9,7 @@ import CheckEmailPage      from './pages/auth/CheckEmailPage';
 import VerifyEmailPage     from './pages/auth/VerifyEmailPage';
 import ForgotPasswordPage  from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage   from './pages/auth/ResetPasswordPage';
+import AcceptInvitePage    from './pages/auth/AcceptInvitePage';
 
 import SponsorDashboard     from './pages/sponsor/SponsorDashboard';
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard';
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="/verify-email"      element={<VerifyEmailPage />} />
         <Route path="/forgot-password"   element={<ForgotPasswordPage />} />
         <Route path="/reset-password"    element={<ResetPasswordPage />} />
+        <Route path="/accept-invite"     element={<AcceptInvitePage />} />
 
         {/* Dashboards */}
         <Route path="/dashboard/sponsor/*"     element={<PrivateRoute roles={['sponsor']}><SponsorDashboard /></PrivateRoute>} />

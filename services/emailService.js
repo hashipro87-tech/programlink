@@ -176,4 +176,62 @@ async function sendApplicationStatusEmail(to, name, orgName, status, notes) {
   });
 }
 
-module.exports = { sendPasswordResetEmail, sendVerificationEmail, sendApplicationStatusEmail };
+/**
+ * Generic invite email for any role (kitchen, site, coordinator).
+ * roleLabel examples: 'kitchen manager', 'site director', 'coordinator'
+ */
+async function sendInviteEmail(to, contactName, orgName, roleLabel, inviteUrl) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`📧 [email not configured] ${roleLabel} invite URL for ${to}:`);
+    console.log('   ', inviteUrl);
+    return;
+  }
+
+  const ctaMap = {
+    'kitchen manager': 'Set Up My Kitchen Account',
+    'site director':   'Set Up My Site Account',
+    'coordinator':     'Set Up My Coordinator Account',
+  };
+  const ctaText = ctaMap[roleLabel] || 'Accept Invitation';
+
+  await sendEmail({
+    to,
+    subject: `You've been invited to join CACFPLink — ${orgName}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #111;">
+        <div style="background: #4f46e5; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 20px;">CACFPLink</h1>
+        </div>
+        <div style="border: 1px solid #e5e7eb; border-top: none; padding: 32px; border-radius: 0 0 12px 12px;">
+          <p style="font-size: 16px; margin-top: 0;">Hi ${contactName},</p>
+          <p>You've been invited to join <strong>${orgName}</strong> as a <strong>${roleLabel}</strong> on CACFPLink — a platform for managing CACFP meal programs.</p>
+          <p>Click the button below to create your account. You'll have immediate access to your dashboard.</p>
+          <a href="${inviteUrl}"
+             style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px;
+                    border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+            ${ctaText}
+          </a>
+          <p style="color: #6b7280; font-size: 14px;">
+            This invite link expires in 7 days. If you weren't expecting this, you can safely ignore this email.
+          </p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            Or copy this link: <a href="${inviteUrl}" style="color: #4f46e5;">${inviteUrl}</a>
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+// Keep old name as alias for any callers not yet updated
+const sendKitchenInviteEmail = (to, contactName, orgName, inviteUrl) =>
+  sendInviteEmail(to, contactName, orgName, 'kitchen manager', inviteUrl);
+
+module.exports = {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+  sendApplicationStatusEmail,
+  sendInviteEmail,
+  sendKitchenInviteEmail,
+};
