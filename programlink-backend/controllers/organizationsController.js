@@ -5,18 +5,37 @@ const { sendInviteEmail } = require('../services/emailService');
 exports.listOrganizations = async (req, res) => {
   try {
     const { type, sponsor_id } = req.query;
-    let query = 'SELECT * FROM organizations WHERE 1=1';
-    const params = [];
-    if (type) { params.push(type); query += ` AND type = $${params.length}`; }
-    if (sponsor_id) { params.push(sponsor_id); query += ` AND sponsor_id = $${params.length}`; }
+    // Pagination — default 100 rows, max 500 per page
+    const limit  = Math.min(parseInt(req.query.limit,  10) || 100, 500);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0,   0);
+
+    let where = 'WHERE 1=1';
+    const filterParams = [];
+    if (type)       { filterParams.push(type);       where += ` AND type = $${filterParams.length}`; }
+    if (sponsor_id) { filterParams.push(sponsor_id); where += ` AND sponsor_id = $${filterParams.length}`; }
     // Non-sponsors only see orgs within their sponsor's program
     if (req.user.role !== 'sponsor' && req.user.role !== 'admin') {
-      params.push(req.user.sponsorId);
-      query += ` AND (sponsor_id = $${params.length} OR id = $${params.length})`;
+      filterParams.push(req.user.sponsorId);
+      where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
     }
-    query += ' ORDER BY created_at DESC';
-    const { rows } = await pool.query(query, params);
-    res.json({ organizations: rows });
+
+    // Total count (same filters, no pagination)
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) FROM organizations ${where}`,
+      filterParams
+    );
+    const total = parseInt(countRows[0].count, 10);
+
+    // Paginated data
+    const dataParams = [...filterParams, limit, offset];
+    const { rows } = await pool.query(
+      `SELECT * FROM organizations ${where}
+       ORDER BY created_at DESC
+       LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
+      dataParams
+    );
+
+    res.json({ organizations: rows, total, limit, offset, has_more: offset + rows.length < total });
   } catch (err) {
     console.error('listOrganizations error:', err);
     res.status(500).json({ error: 'Failed to fetch organizations.' });

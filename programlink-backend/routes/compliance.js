@@ -19,16 +19,26 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'),
   try {
     const sponsorId = req.user.organizationId;
 
+    // CTE replaces 4 correlated subqueries — single-pass over applications table,
+    // document subqueries become FILTER aggregations on the existing LEFT JOIN.
     const { rows: orgs } = await pool.query(
-      `SELECT
+      `WITH latest_apps AS (
+         SELECT DISTINCT ON (org_id)
+           org_id,
+           status,
+           updated_at
+         FROM applications
+         ORDER BY org_id, created_at DESC
+       )
+       SELECT
          o.id,
          o.name,
          o.type,
          o.status AS org_status,
 
-         -- Application status + timestamp
-         (SELECT a.status    FROM applications a WHERE a.org_id = o.id ORDER BY a.created_at DESC LIMIT 1) AS app_status,
-         (SELECT a.updated_at FROM applications a WHERE a.org_id = o.id ORDER BY a.created_at DESC LIMIT 1) AS app_updated_at,
+         -- Application status (via CTE — no correlated subquery)
+         la.status      AS app_status,
+         la.updated_at  AS app_updated_at,
 
          -- Document counts
          COUNT(d.id) FILTER (WHERE d.status = 'valid')                                         AS docs_valid,
@@ -51,27 +61,27 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'),
              AND d.status IN ('valid', 'expiring_soon')
          ) AS next_expiry,
 
-         -- Most recent upload across all real docs
-         (SELECT MAX(dd.uploaded_at)
-          FROM documents dd
-          WHERE dd.org_id    = o.id
-            AND dd.file_url != ''
-            AND dd.status  NOT IN ('superseded', 'requested')
+         -- Most recent real upload — aggregation replaces correlated subquery
+         MAX(d.uploaded_at) FILTER (
+           WHERE d.file_url IS NOT NULL
+             AND d.file_url != ''
+             AND d.status NOT IN ('superseded', 'requested')
          ) AS last_doc_upload,
 
-         -- Distinct doc types that have a current valid/pending upload
-         -- (used to compute missing-doc checklist on frontend)
-         (SELECT COALESCE(json_agg(DISTINCT dd.doc_type), '[]'::json)
-          FROM documents dd
-          WHERE dd.org_id = o.id
-            AND dd.status IN ('valid', 'expiring_soon', 'pending_review')
+         -- Distinct doc types with current valid/pending upload — aggregation replaces correlated subquery
+         COALESCE(
+           json_agg(DISTINCT d.doc_type) FILTER (
+             WHERE d.status IN ('valid', 'expiring_soon', 'pending_review')
+           ),
+           '[]'::json
          ) AS uploaded_doc_types
 
        FROM organizations o
-       LEFT JOIN documents d ON d.org_id = o.id
+       LEFT JOIN documents d    ON d.org_id  = o.id
+       LEFT JOIN latest_apps la ON la.org_id = o.id
        WHERE o.sponsor_id = $1
          AND o.type IN ('site', 'kitchen')
-       GROUP BY o.id
+       GROUP BY o.id, la.status, la.updated_at
        ORDER BY o.name`,
       [sponsorId]
     );
