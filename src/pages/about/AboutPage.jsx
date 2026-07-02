@@ -35,7 +35,7 @@ export default function AboutPage() {
             <span className="text-xs font-semibold text-brand-700">Our story</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight mb-6">
-            Built by someone who's been in the kitchen.
+            Built by someone who's worked in CACFP operations.
           </h1>
           <p className="text-xl text-gray-500 leading-relaxed">
             CACFPLink exists because I lived the problem firsthand — and I knew there had to be a better way.
@@ -45,31 +45,48 @@ export default function AboutPage() {
         {/* Story */}
         <div className="prose prose-lg max-w-none text-gray-700 space-y-6 mb-14">
           <p>
-            Hi, I'm Hashi. Before I wrote a single line of code for CACFPLink, I worked in food service
-            and saw up close what CACFP programs go through every single day.
+            Hi, I'm Hashi. Before building CACFPLink, I worked in food service and experienced many of
+            the day-to-day challenges firsthand. I saw meal counts tracked in spreadsheets, compliance
+            paperwork chased through email chains, and coordinators calling sites just to confirm deliveries.
           </p>
           <p>
-            Meal counts tracked in spreadsheets. Compliance paperwork chased through email chains.
-            Coordinators calling sites to confirm delivery. Sponsors manually reviewing stacks of documents
-            to stay audit-ready. Every piece of this process was fragmented, manual, and stressful —
-            especially for the kitchens and sites who are just trying to feed kids.
-          </p>
-          <p>
-            I built CACFPLink because I couldn't find software that actually understood how CACFP programs work.
-            Generic form builders. Outdated portals. Tools designed for other industries and adapted poorly.
-            None of them were built around the real operational workflows that sponsors, coordinators,
-            kitchens, and sites actually follow.
-          </p>
-          <p>
-            So I built it from scratch — designed specifically for CACFP, with every feature shaped by
-            real program experience. Meal count submission that matches how kitchens actually log data.
-            Document compliance tracking built around real audit requirements. Role-based dashboards that
-            give each person exactly what they need and nothing they don't.
+            Every piece of this process was fragmented, manual, and stressful — especially for the kitchens
+            and sites who are just trying to feed kids. I couldn't find software that actually understood
+            how CACFP programs work. Generic tools, outdated portals, systems designed for other industries
+            and adapted poorly.
           </p>
           <p className="font-semibold text-gray-900">
-            CACFPLink isn't a side project or a generic template. It's a purpose-built platform for the
-            people doing the hardest work in child nutrition programs — and I'm committed to making it
-            the best tool in this space.
+            I started CACFPLink to create software that feels modern, intuitive, and built specifically
+            for the way CACFP programs actually operate.
+          </p>
+        </div>
+
+        {/* Pilot partners */}
+        <div className="bg-brand-50 border border-brand-100 rounded-2xl p-8 mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
+            <span className="text-xs font-bold text-brand-700 uppercase tracking-wide">Currently welcoming pilot partners</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Shape the future of CACFPLink.</h2>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            We're working closely with early sponsors and CACFP professionals to shape the future of CACFPLink.
+            Early partners help guide development and receive hands-on support as new features are released.
+          </p>
+          <a
+            href="mailto:cacfplink@gmail.com"
+            className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl transition-colors"
+          >
+            Become a pilot partner →
+          </a>
+        </div>
+
+        {/* Built with the community */}
+        <div className="border border-gray-200 rounded-2xl p-8 mb-14">
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Built with the CACFP community.</h2>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Every feature in CACFPLink is shaped by conversations with sponsors, coordinators, kitchens,
+            sites, and CACFP professionals. We believe the best software is built by listening to the
+            people who use it every day.
           </p>
         </div>
 
