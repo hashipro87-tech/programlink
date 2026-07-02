@@ -1397,6 +1397,75 @@ function FinalCTA() {
   );
 }
 
+// ─── Pilot Section ────────────────────────────────────────────────────────────
+
+function PilotSection() {
+  return (
+    <section className="py-16 px-6 bg-white border-t border-gray-100">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-brand-600 rounded-3xl px-8 py-12 sm:px-14 sm:py-14 flex flex-col sm:flex-row items-center gap-10">
+          {/* Left */}
+          <div className="flex-1 text-center sm:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-full mb-5">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs font-bold text-white uppercase tracking-wide">Pilot Program — Now Open</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3 leading-tight">
+              Be one of the first sponsors on CACFPLink.
+            </h2>
+            <p className="text-brand-200 text-sm leading-relaxed mb-6 max-w-md">
+              We're working closely with early sponsors across Iowa, Ohio, Virginia, Colorado, and beyond.
+              Pilot partners help shape features and get hands-on support from day one.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start mb-6">
+              {['Iowa', 'Ohio', 'Virginia', 'Colorado'].map((state) => (
+                <span key={state} className="px-3 py-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full">
+                  {state}
+                </span>
+              ))}
+              <span className="px-3 py-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full">
+                + more states
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+              <Link
+                to="/register"
+                onClick={() => trackCTAClick('pilot_get_started')}
+                className="px-6 py-3 bg-white hover:bg-gray-50 text-brand-700 font-bold text-sm rounded-xl transition-colors shadow-sm"
+              >
+                Join as a Pilot Sponsor →
+              </Link>
+              <a
+                href="mailto:cacfplink@gmail.com"
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold text-sm rounded-xl transition-colors"
+              >
+                Ask a question
+              </a>
+            </div>
+          </div>
+
+          {/* Right — what you get */}
+          <div className="w-full sm:w-64 flex-shrink-0 bg-white/10 border border-white/20 rounded-2xl p-6 text-sm text-white space-y-3">
+            <p className="font-bold text-white mb-4">What pilot partners get:</p>
+            {[
+              'Direct access to the founder',
+              'Influence over new features',
+              'Hands-on onboarding support',
+              'Free during the pilot period',
+              'First access to every new release',
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                <span className="text-brand-100 text-xs leading-snug">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 function Footer() {
@@ -1489,6 +1558,7 @@ export default function HomePage() {
       <HowItWorks />
       <MobileSection />
       <Impact />
+      <PilotSection />
       <ContactSection />
       <FinalCTA />
       <Footer />
