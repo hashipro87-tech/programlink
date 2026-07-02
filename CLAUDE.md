@@ -7,6 +7,37 @@
 
 ---
 
+## Product Philosophy ⭐
+
+> **Build effortless features that make CACFP simple for every user.**
+
+- Build effortless features that solve real problems.
+- Build effortless workflows that users love.
+- Build effortless experiences for sponsors, kitchens, coordinators, and sites.
+- Build features so intuitive they require almost no training.
+- Build the easiest CACFP platform to use.
+- Build features that save users time every single day.
+
+Every feature decision should be measured against these principles.
+
+---
+
+## Roadmap
+
+| Priority | Task | Status |
+|----------|------|--------|
+| 🔥 Now | Trust signals — Privacy Policy, ToS, Security, About | ⏳ |
+| 🔥 Now | Filter own IP from Google Analytics | ⏳ |
+| 🔥 Now | Research + outreach — Virginia, Colorado, orgs like Charles's | ⏳ |
+| ⬆️ Next | About page | 🔄 |
+| ⬆️ Next | Social proof + pilot program badge | ⏳ |
+| 📈 Growth | Stress test with a large sponsor | ⏳ |
+| 📈 Growth | Optimize workflows that don't scale | ⏳ |
+| 🔁 Ongoing | Continue sponsor outreach (more states) | ⏳ |
+| 🔁 Ongoing | Build features based on sponsor feedback | ⏳ |
+
+---
+
 ## Architecture
 
 ### Frontend (Vercel)
