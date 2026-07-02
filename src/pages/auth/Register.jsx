@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ShieldCheck, Lock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { trackRoleSelect, trackSignUp, trackRegisterField, trackRegisterAbort, trackRegisterSubmit } from '../../utils/analytics';
@@ -339,10 +340,31 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-5">
+          <p className="text-center text-xs text-gray-400 mt-4">
+            By creating an account you agree to our{' '}
+            <Link to="/terms" className="text-brand-600 hover:underline">Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="text-brand-600 hover:underline">Privacy Policy</Link>.
+          </p>
+
+          <p className="text-center text-sm text-gray-500 mt-3">
             Already have an account?{' '}
             <Link to="/login" className="text-brand-600 hover:underline font-medium">Sign in</Link>
           </p>
+
+          {/* Trust badges */}
+          <div className="flex justify-center gap-4 mt-5 pt-5 border-t border-gray-100">
+            {[
+              { icon: Lock,        label: 'SSL Encrypted' },
+              { icon: ShieldCheck, label: 'Secure Storage' },
+              { icon: CheckCircle, label: 'CACFP-Ready' },
+            ].map(({ icon: Icon, label }) => (
+              <span key={label} className="flex items-center gap-1.5 text-xs text-gray-400">
+                <Icon className="w-3.5 h-3.5 text-green-500" />
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

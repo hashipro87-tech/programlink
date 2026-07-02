@@ -249,7 +249,7 @@ function Hero() {
             </div>
 
             {/* Social proof chips */}
-            <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+            <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-6">
               {[
                 'Built specifically for CACFP sponsors, kitchens, and meal sites',
                 'Designed around real compliance and reporting workflows',
@@ -258,6 +258,21 @@ function Hero() {
                 <span key={item} className="flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   {item}
+                </span>
+              ))}
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { icon: ShieldCheck, label: 'SSL Encrypted' },
+                { icon: Shield,      label: 'Role-Based Access' },
+                { icon: CheckCircle, label: 'CACFP-Ready' },
+                { icon: RefreshCw,   label: '99.9% Uptime' },
+              ].map(({ icon: Icon, label }) => (
+                <span key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-600">
+                  <Icon className="w-3.5 h-3.5 text-brand-500" />
+                  {label}
                 </span>
               ))}
             </div>
