@@ -55,6 +55,47 @@ exports.verifyMealCount = async (req, res) => {
   }
 };
 
+// GET /meal-counts/trend — last 6 months of program-wide totals for the trend chart
+exports.getTrend = async (req, res) => {
+  try {
+    const sponsorId = req.user.organizationId ?? req.user.sponsorId;
+
+    // Pull monthly totals for the last 6 months (including current month)
+    const { rows } = await pool.query(
+      `SELECT
+         TO_CHAR(DATE_TRUNC('month', mc.date), 'YYYY-MM')  AS month,
+         TO_CHAR(DATE_TRUNC('month', mc.date), 'Mon YYYY') AS label,
+         COALESCE(SUM(mc.count_submitted), 0)::int          AS total_submitted,
+         COALESCE(SUM(mc.count_verified),  0)::int          AS total_verified,
+         COUNT(DISTINCT mc.date)::int                       AS days_with_counts
+       FROM meal_counts mc
+       JOIN organizations o ON o.id = mc.site_id
+       WHERE o.sponsor_id = $1
+         AND mc.date >= DATE_TRUNC('month', NOW()) - INTERVAL '5 months'
+       GROUP BY DATE_TRUNC('month', mc.date)
+       ORDER BY DATE_TRUNC('month', mc.date)`,
+      [sponsorId]
+    );
+
+    // Fill in any months that had zero counts so the chart always shows 6 bars
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d     = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const found = rows.find((r) => r.month === key);
+      months.push(found ?? { month: key, label, total_submitted: 0, total_verified: 0, days_with_counts: 0 });
+    }
+
+    res.json({ trend: months });
+  } catch (err) {
+    console.error('getTrend error:', err);
+    res.status(500).json({ error: 'Failed to fetch trend data.' });
+  }
+};
+
 exports.getMonthlySummary = async (req, res) => {
   try {
     const { month, year } = req.query;

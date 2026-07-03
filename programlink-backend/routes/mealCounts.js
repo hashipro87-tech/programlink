@@ -8,6 +8,7 @@ const {
   submitMealCount,
   verifyMealCount,
   getMonthlySummary,
+  getTrend,
 } = require('../controllers/mealCountsController');
 const { scanMealSlip } = require('../controllers/mealScanController');
 
@@ -27,6 +28,7 @@ router.use(authenticate);
 
 router.get('/',         listMealCounts);
 router.get('/summary',  getMonthlySummary);
+router.get('/trend',    getTrend);
 
 // POST /api/meal-counts/scan — upload a slip photo, get back extracted counts
 // Kitchen and site staff can both use this

@@ -128,6 +128,140 @@ function exportCsv(month, sites) {
   URL.revokeObjectURL(url);
 }
 
+// ─── Trend Chart ─────────────────────────────────────────────────────────────
+// Pure SVG bar chart — no dependencies needed.
+// Shows verified (brand) + unverified (gray) stacked bars for last 6 months.
+
+function TrendChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const W = 560, H = 160, PAD_L = 48, PAD_B = 28, PAD_T = 12, PAD_R = 16;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+
+  const maxVal = Math.max(...data.map((d) => Number(d.total_submitted ?? 0)), 1);
+  // Round up to a clean ceiling
+  const ceil = Math.ceil(maxVal / 100) * 100 || 100;
+
+  const barW   = Math.floor(chartW / data.length) - 8;
+  const barGap = (chartW - barW * data.length) / (data.length + 1);
+
+  const yTick = (v) => PAD_T + chartH - (v / ceil) * chartH;
+  const ticks  = [0, Math.round(ceil / 2), ceil];
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-bold text-gray-900">6-Month Meal Count Trend</p>
+          <p className="text-xs text-gray-400 mt-0.5">Verified meals per month across all sites</p>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-brand-500 inline-block" /> Verified
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-gray-200 inline-block" /> Submitted
+          </span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 180 }}>
+        {/* Y-axis ticks + gridlines */}
+        {ticks.map((v) => (
+          <g key={v}>
+            <line
+              x1={PAD_L} y1={yTick(v)}
+              x2={W - PAD_R} y2={yTick(v)}
+              stroke="#f3f4f6" strokeWidth="1"
+            />
+            <text
+              x={PAD_L - 6} y={yTick(v) + 4}
+              textAnchor="end"
+              fontSize="9"
+              fill="#9ca3af"
+            >
+              {v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v}
+            </text>
+          </g>
+        ))}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const submitted = Number(d.total_submitted ?? 0);
+          const verified  = Number(d.total_verified  ?? 0);
+          const x         = PAD_L + barGap + i * (barW + barGap);
+          const subH      = (submitted / ceil) * chartH;
+          const verH      = (verified  / ceil) * chartH;
+          const subY      = PAD_T + chartH - subH;
+          const verY      = PAD_T + chartH - verH;
+          const hasData   = submitted > 0;
+
+          return (
+            <g key={d.month}>
+              {/* Submitted bar (background) */}
+              {hasData && (
+                <rect
+                  x={x} y={subY}
+                  width={barW} height={subH}
+                  rx="3" fill="#e5e7eb"
+                />
+              )}
+              {/* Verified bar (foreground) */}
+              {verified > 0 && (
+                <rect
+                  x={x} y={verY}
+                  width={barW} height={verH}
+                  rx="3" fill="#4f46e5"
+                />
+              )}
+              {/* Empty state bar */}
+              {!hasData && (
+                <rect
+                  x={x} y={PAD_T + chartH - 4}
+                  width={barW} height={4}
+                  rx="2" fill="#f3f4f6"
+                />
+              )}
+              {/* Month label */}
+              <text
+                x={x + barW / 2} y={H - 8}
+                textAnchor="middle"
+                fontSize="9"
+                fill={hasData ? '#6b7280' : '#d1d5db'}
+                fontWeight={i === data.length - 1 ? '700' : '400'}
+              >
+                {d.label?.replace(' 20', " '")}
+              </text>
+              {/* Value label on top of bar */}
+              {verified > 0 && (
+                <text
+                  x={x + barW / 2} y={verY - 3}
+                  textAnchor="middle"
+                  fontSize="8"
+                  fill="#4f46e5"
+                  fontWeight="600"
+                >
+                  {verified >= 1000
+                    ? `${(verified / 1000).toFixed(1)}k`
+                    : verified.toLocaleString()}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Y-axis line */}
+        <line
+          x1={PAD_L} y1={PAD_T}
+          x2={PAD_L} y2={PAD_T + chartH}
+          stroke="#e5e7eb" strokeWidth="1"
+        />
+      </svg>
+    </div>
+  );
+}
+
 // ─── Site Summary Row ─────────────────────────────────────────────────────────
 
 function SiteRow({ site }) {
@@ -186,9 +320,17 @@ export default function ReportsPage() {
   const [month, setMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   );
-  const [summary,  setSummary]  = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState(null);
+  const [summary,    setSummary]    = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [trendData,  setTrendData]  = useState(null);
+
+  // Fetch 6-month trend once on mount
+  useEffect(() => {
+    api.get('/meal-counts/trend')
+      .then(({ data }) => setTrendData(data.trend ?? []))
+      .catch(() => {});
+  }, []);
 
   const fetchSummary = () => {
     setLoading(true);
@@ -241,6 +383,9 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* 6-month trend chart */}
+      {trendData && <TrendChart data={trendData} />}
 
       {/* Month picker */}
       <div className="card mb-6">
