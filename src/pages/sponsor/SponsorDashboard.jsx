@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
   { label: 'Reports',        path: '/dashboard/sponsor/reports',      icon: ClipboardList },
+  { label: 'Messages',       path: '/dashboard/sponsor/messages',     icon: MessageSquare },
   { label: 'Settings',       path: '/dashboard/sponsor/settings',     icon: Settings },
 ];
 

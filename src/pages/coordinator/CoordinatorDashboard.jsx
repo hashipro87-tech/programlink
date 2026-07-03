@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, Routes, Route } from 'react-router-dom';
 import {
   Building2, MessageSquare, FileText,
-  CheckCircle, Settings, ClipboardList, AlertTriangle, UtensilsCrossed,
+  CheckCircle, Settings, ClipboardList, AlertTriangle, UtensilsCrossed, ClipboardCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
@@ -23,15 +23,17 @@ import CoordinatorSitesPage       from './CoordinatorSitesPage';
 import CoordinatorMealCountsPage  from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage    from './CoordinatorKitchensPage';
 import ActionCenter               from '../../components/common/ActionCenter';
+import ApplicationsPage           from '../sponsor/ApplicationsPage';
 
 const NAV_ITEMS = [
-  { label: 'Overview',     path: '/dashboard/coordinator',               icon: CheckCircle  },
-  { label: 'My Sites',     path: '/dashboard/coordinator/sites',         icon: Building2    },
-  { label: 'My Kitchens', path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
-  { label: 'Meal Counts',  path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList },
-  { label: 'Documents',    path: '/dashboard/coordinator/documents',     icon: FileText     },
-  { label: 'Messages',     path: '/dashboard/coordinator/messages',      icon: MessageSquare },
-  { label: 'Settings',     path: '/dashboard/coordinator/settings',      icon: Settings     },
+  { label: 'Overview',      path: '/dashboard/coordinator',               icon: CheckCircle    },
+  { label: 'Applications',  path: '/dashboard/coordinator/applications',  icon: ClipboardList  },
+  { label: 'My Sites',      path: '/dashboard/coordinator/sites',         icon: Building2      },
+  { label: 'My Kitchens',   path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
+  { label: 'Meal Counts',   path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList  },
+  { label: 'Documents',     path: '/dashboard/coordinator/documents',     icon: FileText       },
+  { label: 'Messages',      path: '/dashboard/coordinator/messages',      icon: MessageSquare  },
+  { label: 'Settings',      path: '/dashboard/coordinator/settings',      icon: Settings       },
 ];
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
@@ -220,6 +222,7 @@ export default function CoordinatorDashboard() {
             <Overview />
           ) : (
             <Routes>
+              <Route path="applications" element={<ApplicationsPage />} />
               <Route path="sites"        element={<CoordinatorSitesPage />} />
               <Route path="kitchens"     element={<CoordinatorKitchensPage />} />
               <Route path="meal-counts"  element={<CoordinatorMealCountsPage />} />
