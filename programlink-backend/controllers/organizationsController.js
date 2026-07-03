@@ -19,6 +19,19 @@ exports.listOrganizations = async (req, res) => {
       where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
     }
 
+    // Coordinators with assignments only see assigned orgs
+    // (coordinators with NO assignments yet see everything in their program — safe fallback)
+    if (req.user.role === 'coordinator') {
+      const { rows: asgn } = await pool.query(
+        'SELECT org_id FROM coordinator_assignments WHERE coordinator_id = $1',
+        [req.user.id]
+      );
+      if (asgn.length > 0) {
+        filterParams.push(asgn.map((a) => a.org_id));
+        where += ` AND id = ANY($${filterParams.length})`;
+      }
+    }
+
     // Total count (same filters, no pagination)
     const { rows: countRows } = await pool.query(
       `SELECT COUNT(*) FROM organizations ${where}`,

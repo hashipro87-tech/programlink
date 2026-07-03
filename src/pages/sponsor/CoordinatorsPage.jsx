@@ -48,6 +48,66 @@ function DetailPanel({ user, onClose, onStatusChange, onRemoved }) {
   const [removeError,   setRemoveError]   = useState('');
   const isSelf = false; // sponsor can never deactivate themselves (enforced server-side too)
 
+  // ── Assignment state (coordinator panel only) ─────────────────────────────
+  const [assignments,    setAssignments]    = useState([]);
+  const [loadingAsgn,    setLoadingAsgn]    = useState(false);
+  const [showPicker,     setShowPicker]     = useState(false);
+  const [pickerOrgs,     setPickerOrgs]     = useState([]);
+  const [loadingPicker,  setLoadingPicker]  = useState(false);
+  const [adding,         setAdding]         = useState(false);
+  const [pickerSearch,   setPickerSearch]   = useState('');
+
+  useEffect(() => {
+    if (user.role !== 'coordinator') return;
+    setLoadingAsgn(true);
+    api.get(`/coordinator-assignments?coordinator_id=${user.id}`)
+      .then(({ data }) => setAssignments(data.assignments ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingAsgn(false));
+  }, [user.id, user.role]);
+
+  const openPicker = async () => {
+    setShowPicker(true);
+    setPickerSearch('');
+    setLoadingPicker(true);
+    try {
+      const [sitesRes, kitchensRes] = await Promise.all([
+        api.get('/organizations?type=site&limit=500'),
+        api.get('/organizations?type=kitchen&limit=500'),
+      ]);
+      const all = [
+        ...(sitesRes.data.organizations ?? []),
+        ...(kitchensRes.data.organizations ?? []),
+      ];
+      const assignedIds = new Set(assignments.map((a) => a.org_id));
+      setPickerOrgs(all.filter((o) => !assignedIds.has(o.id)));
+    } catch {}
+    setLoadingPicker(false);
+  };
+
+  const addAssignment = async (orgId) => {
+    setAdding(true);
+    try {
+      await api.post('/coordinator-assignments', { coordinator_id: user.id, org_id: orgId });
+      const { data } = await api.get(`/coordinator-assignments?coordinator_id=${user.id}`);
+      setAssignments(data.assignments ?? []);
+      setShowPicker(false);
+    } catch (err) {
+      alert(err?.response?.data?.error ?? 'Failed to add assignment.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const removeAssignment = async (orgId) => {
+    try {
+      await api.delete(`/coordinator-assignments/${user.id}/${orgId}`);
+      setAssignments((prev) => prev.filter((a) => a.org_id !== orgId));
+    } catch (err) {
+      alert(err?.response?.data?.error ?? 'Failed to remove assignment.');
+    }
+  };
+
   const handleToggle = async () => {
     setSaving(true);
     try {
@@ -134,6 +194,103 @@ function DetailPanel({ user, onClose, onStatusChange, onRemoved }) {
               </div>
             </div>
           </div>
+
+          {/* Assigned Sites & Kitchens — coordinator only */}
+          {user.role === 'coordinator' && (
+            <div className="px-6 py-5 border-b border-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Assigned Sites &amp; Kitchens
+                </p>
+                <button
+                  onClick={openPicker}
+                  className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Assign
+                </button>
+              </div>
+
+              {loadingAsgn ? (
+                <p className="text-xs text-gray-400">Loading…</p>
+              ) : assignments.length === 0 && !showPicker ? (
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  No assignments yet — this coordinator sees all sites and kitchens.
+                  Use <strong>Assign</strong> to restrict their view.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {assignments.map((a) => (
+                    <div
+                      key={a.org_id}
+                      className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{a.org_name}</p>
+                        <p className="text-[10px] text-gray-400 capitalize">{a.org_type}</p>
+                      </div>
+                      <button
+                        onClick={() => removeAssignment(a.org_id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+                        title="Remove assignment"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Org picker */}
+              {showPicker && (
+                <div className="mt-3 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                  <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      placeholder="Search sites & kitchens…"
+                      className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => setShowPicker(false)}
+                      className="text-gray-300 hover:text-gray-500 flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {loadingPicker ? (
+                    <p className="text-xs text-gray-400 px-3 py-3">Loading…</p>
+                  ) : pickerOrgs.filter((o) =>
+                      !pickerSearch || o.name.toLowerCase().includes(pickerSearch.toLowerCase())
+                    ).length === 0 ? (
+                    <p className="text-xs text-gray-400 px-3 py-3">
+                      {pickerSearch ? 'No matches.' : 'All sites and kitchens are already assigned.'}
+                    </p>
+                  ) : (
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                      {pickerOrgs
+                        .filter((o) =>
+                          !pickerSearch || o.name.toLowerCase().includes(pickerSearch.toLowerCase())
+                        )
+                        .map((o) => (
+                          <button
+                            key={o.id}
+                            onClick={() => addAssignment(o.id)}
+                            disabled={adding}
+                            className="w-full px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            <p className="text-xs font-semibold text-gray-800">{o.name}</p>
+                            <p className="text-[10px] text-gray-400 capitalize">{o.type}</p>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Account management — sponsor only action */}
           {user.role !== 'sponsor' && (
