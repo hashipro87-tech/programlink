@@ -51,16 +51,16 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | Priority | Task | Status |
 |----------|------|--------|
 | 1 | Trust signals — Privacy Policy, ToS, Security, About | ✅ |
-| 2 | Add Messages to sponsor sidebar nav (Task #50) | ⏳ |
-| 3 | Add Applications to coordinator nav (Task #51) | ⏳ |
-| 4 | Approval/rejection emails when application status changes (Task #46) | ⏳ |
+| 2 | Add Messages to sponsor sidebar nav (Task #50) | ✅ |
+| 3 | Add Applications to coordinator nav (Task #51) | ✅ |
+| 4 | Approval/rejection emails when application status changes (Task #46) | ✅ |
 | 5 | Coordinator → site/kitchen assignment system (Task #47) | ✅ |
 | 6 | Bulk compliance actions — remind all, request from all missing (Task #44) | ✅ |
 | 7 | Auto document expiry reminders — email 30 days before (Task #45) | ✅ |
 | 8 | Stress test with a large sponsor (Task #28) | ⏳ waiting on sponsor |
 | 9 | Sponsor-driven features from feedback (Task #31) | ⏳ waiting on sponsor |
 | 10 | Meal count trend chart — 6-month view (Task #48) | ✅ |
-| 11 | Broadcast messaging (Task #49) | ⏳ |
+| 11 | Broadcast messaging (Task #49) | ✅ |
 
 ---
 
@@ -339,7 +339,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 45 | Auto document expiry reminders — email 30 days before expiry | ✅ |
 | 47 | Coordinator → site/kitchen assignment system | ✅ |
 | 48 | Meal count trend chart — 6-month SVG bar chart on Reports page | ✅ |
-| 49 | Broadcast messaging — sponsor sends message to all sites/kitchens | ⏳ in progress |
+| 49 | Broadcast messaging — sponsor sends message to all sites/kitchens | ✅ |
 
 ---
 
