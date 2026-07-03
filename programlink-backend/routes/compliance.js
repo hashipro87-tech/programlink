@@ -195,4 +195,106 @@ router.post('/:orgId/remind', authenticate, authorizeRoles('sponsor', 'coordinat
   }
 });
 
+// ── POST /compliance/remind-bulk ─────────────────────────────────────────────
+// Body: { org_ids: [uuid, ...], message? }
+// Sends a compliance reminder to all active users across multiple orgs at once.
+router.post('/remind-bulk', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), async (req, res) => {
+  try {
+    const { org_ids, message } = req.body;
+    if (!Array.isArray(org_ids) || !org_ids.length) {
+      return res.status(400).json({ error: 'org_ids array is required.' });
+    }
+
+    const sponsorId = req.user.organizationId;
+
+    // Only allow orgs that belong to this sponsor
+    const { rows: orgs } = await pool.query(
+      `SELECT id FROM organizations WHERE id = ANY($1) AND sponsor_id = $2`,
+      [org_ids, sponsorId]
+    );
+    const validIds = orgs.map((o) => o.id);
+    if (!validIds.length) return res.json({ success: true, notified: 0, orgs_reached: 0 });
+
+    // Collect all active users in those orgs
+    const { rows: users } = await pool.query(
+      'SELECT id, org_id FROM users WHERE org_id = ANY($1) AND is_active = TRUE',
+      [validIds]
+    );
+    if (!users.length) return res.json({ success: true, notified: 0, orgs_reached: validIds.length });
+
+    await createNotification(
+      users.map((u) => ({
+        userId:    u.id,
+        type:      'compliance_reminder',
+        title:     'Compliance Reminder',
+        body:      message || 'Your program coordinator has sent a compliance reminder. Please review your outstanding requirements.',
+        actionUrl: '/dashboard/kitchen/documents',
+      }))
+    );
+
+    const orgsReached = new Set(users.map((u) => u.org_id)).size;
+    res.json({ success: true, notified: users.length, orgs_reached: orgsReached });
+  } catch (err) {
+    console.error('remind-bulk error:', err);
+    res.status(500).json({ error: 'Failed to send bulk reminders.' });
+  }
+});
+
+// ── POST /compliance/request-bulk ────────────────────────────────────────────
+// Body: { org_ids: [uuid, ...], doc_type, label, due_date?, message? }
+// Creates a 'requested' document placeholder + notification for each org.
+router.post('/request-bulk', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), async (req, res) => {
+  try {
+    const { org_ids, doc_type, label, due_date, message } = req.body;
+    if (!Array.isArray(org_ids) || !org_ids.length) {
+      return res.status(400).json({ error: 'org_ids array is required.' });
+    }
+    if (!label) return res.status(400).json({ error: 'Document label is required.' });
+
+    const sponsorId = req.user.organizationId;
+
+    // Only allow orgs that belong to this sponsor
+    const { rows: orgs } = await pool.query(
+      `SELECT id FROM organizations WHERE id = ANY($1) AND sponsor_id = $2`,
+      [org_ids, sponsorId]
+    );
+    const validIds = orgs.map((o) => o.id);
+    if (!validIds.length) return res.json({ success: true, created: 0 });
+
+    let created = 0;
+    for (const orgId of validIds) {
+      // Insert a 'requested' doc placeholder (same pattern as single requestDocument)
+      await pool.query(
+        `INSERT INTO documents
+           (org_id, doc_type, label, file_url, file_name, uploaded_by, expires_at, status, rejection_note)
+         VALUES ($1, $2, $3, '', '', $4, $5, 'requested', $6)`,
+        [orgId, doc_type || 'general', label, req.user.id, due_date || null, message || '']
+      );
+
+      // Notify active users in this org
+      const { rows: users } = await pool.query(
+        'SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE',
+        [orgId]
+      );
+      if (users.length) {
+        await createNotification(
+          users.map((u) => ({
+            userId:    u.id,
+            type:      'document_missing',
+            title:     'Document Requested',
+            body:      `A document has been requested: ${label}. Please upload it as soon as possible.`,
+            actionUrl: '/dashboard/kitchen/documents',
+          }))
+        );
+      }
+      created++;
+    }
+
+    res.json({ success: true, created });
+  } catch (err) {
+    console.error('request-bulk error:', err);
+    res.status(500).json({ error: 'Failed to send bulk document requests.' });
+  }
+});
+
 module.exports = router;

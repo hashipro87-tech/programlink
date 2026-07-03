@@ -619,6 +619,56 @@ export default function CompliancePage() {
     }
   }
 
+  // ── Bulk state ──────────────────────────────────────────────────────────────
+  const [bulkReminding,  setBulkReminding]  = useState(false);
+  const [bulkDocType,    setBulkDocType]    = useState('');
+  const [bulkRequesting, setBulkRequesting] = useState(false);
+  const [showBulkReq,    setShowBulkReq]   = useState(false);
+
+  // Non-compliant visible orgs (for Remind All)
+  const nonCompliantOrgs = orgs.filter((o) => o.tier !== 'compliant');
+
+  // Orgs missing the selected bulk doc type (for Request from All)
+  const orgsMissingDoc = bulkDocType
+    ? orgs.filter((o) => (o.missing_docs ?? []).includes(bulkDocType))
+    : [];
+
+  async function handleBulkRemind() {
+    if (!nonCompliantOrgs.length) return;
+    setBulkReminding(true);
+    try {
+      const ids = nonCompliantOrgs.map((o) => o.id);
+      const { data: r } = await api.post('/compliance/remind-bulk', { org_ids: ids });
+      showToast(`Reminder sent to ${r.orgs_reached} org${r.orgs_reached !== 1 ? 's' : ''}`);
+    } catch {
+      showToast('Failed to send bulk reminders', 'error');
+    } finally {
+      setBulkReminding(false);
+    }
+  }
+
+  async function handleBulkRequest() {
+    if (!bulkDocType || !orgsMissingDoc.length) return;
+    const docLabel = ALL_DOC_OPTIONS.find((d) => d.value === bulkDocType)?.label ?? bulkDocType;
+    setBulkRequesting(true);
+    try {
+      const ids = orgsMissingDoc.map((o) => o.id);
+      const { data: r } = await api.post('/compliance/request-bulk', {
+        org_ids:  ids,
+        doc_type: bulkDocType,
+        label:    docLabel,
+      });
+      showToast(`Requested ${docLabel} from ${r.created} org${r.created !== 1 ? 's' : ''}`);
+      setShowBulkReq(false);
+      setBulkDocType('');
+      load();
+    } catch {
+      showToast('Failed to send bulk requests', 'error');
+    } finally {
+      setBulkRequesting(false);
+    }
+  }
+
   function handleAction(type, org, docType) {
     if (type === 'view')    { navigate(`/dashboard/sponsor/documents?org_id=${org.id}`); return; }
     if (type === 'review')  { navigate('/dashboard/sponsor/applications');                return; }
@@ -780,6 +830,81 @@ export default function CompliancePage() {
           </button>
         </div>
       </div>
+
+      {/* ── Bulk Actions bar ── */}
+      {!loading && orgs.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl px-5 py-3 mb-4 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-gray-500 flex-shrink-0">
+            Bulk actions — {orgs.length} org{orgs.length !== 1 ? 's' : ''} visible
+          </span>
+
+          {/* Remind All Non-Compliant */}
+          <button
+            onClick={handleBulkRemind}
+            disabled={bulkReminding || nonCompliantOrgs.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+          >
+            <Bell className="w-3.5 h-3.5 text-yellow-500" />
+            {bulkReminding
+              ? 'Sending…'
+              : `Remind Non-Compliant (${nonCompliantOrgs.length})`}
+          </button>
+
+          {/* Request Doc from All Missing */}
+          <div className="relative">
+            <button
+              onClick={() => setShowBulkReq((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-xl transition-colors
+                ${showBulkReq
+                  ? 'border-brand-400 bg-brand-50 text-brand-700'
+                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <Plus className="w-3.5 h-3.5 text-brand-500" />
+              Request Doc from All Missing
+            </button>
+
+            {showBulkReq && (
+              <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-2xl shadow-lg p-4 w-72">
+                <p className="text-xs font-bold text-gray-700 mb-2">Select document type</p>
+                <select
+                  value={bulkDocType}
+                  onChange={(e) => setBulkDocType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs mb-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">Choose a doc type…</option>
+                  {ALL_DOC_OPTIONS.filter((d) => d.value !== 'general').map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+
+                {bulkDocType && (
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    {orgsMissingDoc.length === 0
+                      ? 'No visible orgs are missing this document.'
+                      : `${orgsMissingDoc.length} org${orgsMissingDoc.length !== 1 ? 's' : ''} missing this — a request will be sent to each.`}
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowBulkReq(false); setBulkDocType(''); }}
+                    className="flex-1 py-1.5 text-xs border border-gray-200 rounded-xl hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkRequest}
+                    disabled={bulkRequesting || !bulkDocType || orgsMissingDoc.length === 0}
+                    className="flex-1 py-1.5 text-xs bg-brand-600 text-white rounded-xl font-semibold disabled:opacity-40 hover:bg-brand-700 transition-colors"
+                  >
+                    {bulkRequesting ? 'Sending…' : `Send to ${orgsMissingDoc.length}`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Results count */}
       {!loading && (
