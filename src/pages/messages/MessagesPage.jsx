@@ -3,7 +3,7 @@
 // Coordinators get a "New Message" button with broadcast option.
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, Plus, X, Users, Search } from 'lucide-react';
+import { MessageSquare, Send, Plus, X, Users, Search, Megaphone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useThreads, useThread } from '../../hooks/useMessages';
 import api from '../../services/api';
@@ -345,11 +345,143 @@ function NewThreadModal({ onClose, onCreate }) {
   );
 }
 
+// ── Broadcast modal ───────────────────────────────────────────────────────
+const GROUPS = [
+  { value: 'all_sites',    label: 'All Sites',     description: 'Every active site in your program' },
+  { value: 'all_kitchens', label: 'All Kitchens',  description: 'Every active kitchen in your program' },
+  { value: 'coordinators', label: 'Coordinators',  description: 'All coordinators in your program' },
+  { value: 'everyone',     label: 'Everyone',      description: 'All sites, kitchens, and coordinators' },
+];
+
+function BroadcastModal({ onClose, onSent }) {
+  const [group,    setGroup]    = useState('all_sites');
+  const [subject,  setSubject]  = useState('');
+  const [body,     setBody]     = useState('');
+  const [sending,  setSending]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [sent,     setSent]     = useState(null); // { sent: N } on success
+
+  const handleSend = async () => {
+    if (!body.trim()) { setError('Message body is required.'); return; }
+    setSending(true);
+    setError('');
+    try {
+      const { data } = await api.post('/messages/broadcast', { group, subject: subject.trim() || undefined, body: body.trim() });
+      setSent(data);
+      setTimeout(() => { onSent?.(); onClose(); }, 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to send broadcast.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+              <Megaphone className="w-4 h-4 text-purple-600" />
+            </div>
+            <h2 className="text-base font-semibold text-gray-900">Broadcast Message</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 p-3 rounded-lg">{error}</p>}
+          {sent  && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-100 p-3 rounded-lg font-medium">
+              ✓ Broadcast sent to {sent.sent} recipient{sent.sent !== 1 ? 's' : ''}!
+            </p>
+          )}
+
+          {/* Group selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Send to <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {GROUPS.map((g) => (
+                <button
+                  key={g.value}
+                  onClick={() => setGroup(g.value)}
+                  className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors
+                    ${group === g.value
+                      ? 'border-brand-500 bg-brand-50 text-brand-700'
+                      : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}
+                >
+                  <p className="font-medium">{g.label}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{g.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Important CACFP Update"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Body */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Message <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={5}
+              placeholder="Write your broadcast message…"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2 justify-between items-center">
+          <p className="text-xs text-gray-400 flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" />
+            Sends to all active users in the selected group
+          </p>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">
+              Cancel
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={!body.trim() || sending || !!sent}
+              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              <Megaphone className="w-4 h-4" />
+              {sending ? 'Sending…' : 'Send Broadcast'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function MessagesPage() {
+  const { user } = useAuth();
   const { threads, loading, error, createThread } = useThreads();
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [showCompose,    setShowCompose]    = useState(false);
+  const [showBroadcast,  setShowBroadcast]  = useState(false);
+
+  const canBroadcast = ['sponsor', 'coordinator', 'admin'].includes(user?.role);
 
   // Auto-open first thread if any exist
   useEffect(() => {
@@ -374,13 +506,24 @@ export default function MessagesPage() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => setShowCompose(true)}
-            className="p-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-            title="New message"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {canBroadcast && (
+              <button
+                onClick={() => setShowBroadcast(true)}
+                className="p-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                title="Broadcast message"
+              >
+                <Megaphone className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => setShowCompose(true)}
+              className="p-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+              title="New message"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Thread list */}
@@ -444,6 +587,14 @@ export default function MessagesPage() {
         <NewThreadModal
           onClose={() => setShowCompose(false)}
           onCreate={createThread}
+        />
+      )}
+
+      {/* Broadcast modal */}
+      {showBroadcast && (
+        <BroadcastModal
+          onClose={() => setShowBroadcast(false)}
+          onSent={() => { /* threads will reload on next visit */ }}
         />
       )}
     </div>

@@ -78,6 +78,81 @@ exports.createThread = async (req, res) => {
   }
 };
 
+// POST /api/messages/broadcast
+// group: 'all_sites' | 'all_kitchens' | 'everyone' | 'coordinators'
+exports.broadcastMessage = async (req, res) => {
+  try {
+    const { subject, body, group } = req.body;
+    if (!body?.trim()) return res.status(400).json({ error: 'Body is required.' });
+    if (!['all_sites', 'all_kitchens', 'everyone', 'coordinators'].includes(group)) {
+      return res.status(400).json({ error: 'Invalid group.' });
+    }
+
+    const sponsorId = req.user.organizationId ?? req.user.sponsorId;
+
+    // Determine which org types to target
+    let orgTypeFilter = '';
+    if (group === 'all_sites')      orgTypeFilter = `AND o.type = 'site'`;
+    else if (group === 'all_kitchens') orgTypeFilter = `AND o.type = 'kitchen'`;
+    else if (group === 'coordinators') orgTypeFilter = `AND u.role = 'coordinator'`;
+    // 'everyone' — no filter, include all roles
+
+    // Get all active users in the sponsor's program
+    const { rows: recipients } = await pool.query(
+      `SELECT DISTINCT u.id, u.name, u.email
+       FROM users u
+       JOIN organizations o ON o.id = u.organization_id
+       WHERE o.sponsor_id = $1
+         AND u.status = 'active'
+         AND u.id != $2
+         ${orgTypeFilter}`,
+      [sponsorId, req.user.id]
+    );
+
+    if (!recipients.length) {
+      return res.status(200).json({ sent: 0, message: 'No recipients found for this group.' });
+    }
+
+    // Create thread
+    const thread = await pool.query(
+      `INSERT INTO message_threads (subject, created_by) VALUES ($1, $2) RETURNING *`,
+      [subject || 'Broadcast Message', req.user.id]
+    );
+    const threadId = thread.rows[0].id;
+
+    // Insert broadcast message
+    const msg = await pool.query(
+      `INSERT INTO messages (thread_id, sender_id, body, is_broadcast) VALUES ($1, $2, $3, true) RETURNING *`,
+      [threadId, req.user.id, body]
+    );
+    const msgId = msg.rows[0].id;
+
+    // Add all recipients
+    for (const r of recipients) {
+      await pool.query(
+        'INSERT INTO message_recipients (message_id, recipient_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [msgId, r.id]
+      );
+    }
+
+    // Send notifications (non-blocking)
+    createNotification(
+      recipients.map((r) => ({
+        userId:    r.id,
+        type:      'new_message',
+        title:     'New broadcast message',
+        body:      subject ? `${subject}` : body.length > 80 ? body.slice(0, 80) + '…' : body,
+        actionUrl: '/dashboard/messages',
+      }))
+    ).catch(() => {});
+
+    res.status(201).json({ thread: thread.rows[0], message: msg.rows[0], sent: recipients.length });
+  } catch (err) {
+    console.error('broadcastMessage error:', err);
+    res.status(500).json({ error: 'Failed to send broadcast.' });
+  }
+};
+
 exports.replyToThread = async (req, res) => {
   try {
     const { body, recipient_ids } = req.body;

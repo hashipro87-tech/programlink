@@ -17,8 +17,32 @@
 - Build features so intuitive they require almost no training.
 - Build the easiest CACFP platform to use.
 - Build features that save users time every single day.
+- Ship improvements in days, not months.
+- Build with users, not assumptions — every sponsor conversation should make CACFPLink better.
+- Win by solving real workflow problems, not by matching feature lists.
+
+> **Don't compete by saying "We have more features."**
+> **Compete by making people say "CACFPLink understands how I actually work."**
+
+**Underdog Feedback Loop:** Listen → Build → Release → Gather Feedback → Improve → Repeat
 
 Every feature decision should be measured against these principles.
+
+---
+
+## Industry Differentiators (Build after first sponsors) 🚀
+
+These are features no other CACFP platform has. Build them once real sponsor feedback confirms the pain.
+
+1. **One-Click Legacy Migrator** — Import data from legacy CACFP software (MINUTE MENU, etc.) with minimal manual work. Removes the #1 switching barrier.
+
+2. **Point-of-Service (POS) Sync** — Touch-screen meal count mode for fast, real-time service entry at the site level. Works like a restaurant POS.
+
+3. **AI Menu Scanner** — Upload a menu photo and automatically detect missing CACFP meal components before submission. Prevents reimbursement denials before they happen.
+
+4. **One-Click State Audit Mode** — Generate a secure, read-only portal for auditors with only the requested month's claims, documents, and signatures. Turns a stressful audit into a 2-minute task.
+
+5. **Public API & Integrations** — Connect with childcare platforms (Brightwheel, Procare) and automation tools (Zapier). Makes CACFPLink the hub, not a silo.
 
 ---
 
@@ -26,8 +50,85 @@ Every feature decision should be measured against these principles.
 
 | Priority | Task | Status |
 |----------|------|--------|
-| 🔥 Now | Trust signals — Privacy Policy, ToS, Security, About | ⏳ |
-| 🔥 Now | Filter own IP from Google Analytics | ⏳ |
+| 1 | Trust signals — Privacy Policy, ToS, Security, About | ✅ |
+| 2 | Add Messages to sponsor sidebar nav (Task #50) | ⏳ |
+| 3 | Add Applications to coordinator nav (Task #51) | ⏳ |
+| 4 | Approval/rejection emails when application status changes (Task #46) | ⏳ |
+| 5 | Coordinator → site/kitchen assignment system (Task #47) | ✅ |
+| 6 | Bulk compliance actions — remind all, request from all missing (Task #44) | ✅ |
+| 7 | Auto document expiry reminders — email 30 days before (Task #45) | ✅ |
+| 8 | Stress test with a large sponsor (Task #28) | ⏳ waiting on sponsor |
+| 9 | Sponsor-driven features from feedback (Task #31) | ⏳ waiting on sponsor |
+| 10 | Meal count trend chart — 6-month view (Task #48) | ✅ |
+| 11 | Broadcast messaging (Task #49) | ⏳ |
+
+---
+
+## Future Roadmap — After First Sponsors ⭐
+
+> Work on these after landing a few paying/pilot sponsors. Build based on their feedback.
+
+### Sponsor
+- Activity Feed
+- Notification Center
+- Audit Log
+- Dashboard customization (drag-and-drop widgets)
+- Bulk actions (invite, assign, reminders, exports)
+- Global search
+
+### Coordinator
+- Applications page in navigation ← already built, just needs nav link (Task #51)
+- Notification Center
+- Activity Feed
+
+### Kitchen
+- Production Schedule (tomorrow's meals)
+- Meal history
+- Notification Center
+
+### Site
+- Meal history
+- Notification Center
+
+### Documents
+- Document Requests (bulk)
+- Version history
+- Activity timeline
+- Expiration reminders (auto-email)
+- Bulk document requests
+
+### Messaging
+- @Mentions
+- File attachments
+- Read receipts
+- Message search
+
+### Reports
+- PDF export
+- Excel export
+- Scheduled reports
+- Custom report builder
+
+### Organization Management
+- Bulk imports (CSV)
+- Bulk invitations
+- Bulk assignments
+- Organization branding / logo
+
+### Performance
+- Server-side pagination ← done (Task #39–43)
+- Query optimization ← done (CTE rewrite, indexes)
+- Large sponsor stress testing
+- Caching layer
+
+### Nice-to-Have
+- Mobile app
+- USDA / state-specific exports
+- Calendar view (document expiry)
+- Dashboard widgets
+- Dark / light theme
+
+---
 | 🔥 Now | Research + outreach — Virginia, Colorado, orgs like Charles's | ⏳ |
 | ⬆️ Next | About page | 🔄 |
 | ⬆️ Next | Social proof + pilot program badge | ⏳ |
@@ -64,7 +165,19 @@ req.user.id             // user UUID
 
 ## Database (PostgreSQL on Railway)
 
-Key tables: `organizations`, `users`, `applications`, `documents`, `notifications`, `meal_counts`, `routes`, `kitchen_site_connections`, `message_threads`, `messages`
+Key tables: `organizations`, `users`, `applications`, `documents`, `notifications`, `meal_counts`, `routes`, `kitchen_site_connections`, `message_threads`, `messages`, `message_recipients`, `coordinator_assignments`
+
+### coordinator_assignments table (added Task #47)
+```sql
+CREATE TABLE coordinator_assignments (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  coordinator_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  org_id         UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(coordinator_id, org_id)
+);
+```
+Already deployed to Railway (confirmed empty table with correct columns).
 
 ### documents.status CHECK constraint (updated 2025-06-30)
 ```sql
@@ -124,6 +237,64 @@ CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_revi
     - 4 org rows with shield icons, score bars, doc fractions, tier badges
   - "Today's Meal Orders" → "Today's Deliveries", modal title updated
 
+### Coordinator Assignment System (Task #47, 2026-07-03)
+- `coordinator_assignments.sql` (Desktop/outputs) — SQL to run once in Railway:
+  ```sql
+  CREATE TABLE coordinator_assignments (id UUID PRIMARY KEY, coordinator_id UUID REFERENCES users, org_id UUID REFERENCES organizations, UNIQUE(coordinator_id, org_id));
+  CREATE INDEX idx_ca_coordinator ON coordinator_assignments(coordinator_id);
+  CREATE INDEX idx_ca_org ON coordinator_assignments(org_id);
+  ```
+- `programlink-backend/routes/coordinatorAssignments.js` — new file:
+  - GET `/coordinator-assignments` — list assignments for a coordinator
+  - POST `/coordinator-assignments` — assign coordinator to org (sponsor only)
+  - DELETE `/coordinator-assignments/:coordinator_id/:org_id` — remove assignment
+- `programlink-backend/routes/index.js` — added `router.use('/coordinator-assignments', require('./coordinatorAssignments'));`
+- `programlink-backend/controllers/organizationsController.js` — coordinator scoping: if coordinator has assignments, filter to only those orgs; fallback shows all (safe for new coordinators with no assignments yet)
+- `src/pages/sponsor/CoordinatorsPage.jsx` — added "Assigned Sites & Kitchens" section in detail panel:
+  - Lists assigned orgs with X to remove
+  - "Assign" button opens inline searchable picker of unassigned sites/kitchens
+
+### Bulk Compliance Actions (Task #44, 2026-07-03)
+- `programlink-backend/routes/compliance.js` — added two endpoints:
+  - `POST /compliance/remind-bulk` — `{ org_ids, message? }` — verifies orgs belong to sponsor, sends notification to all active users in each org
+  - `POST /compliance/request-bulk` — `{ org_ids, doc_type, label, due_date?, message? }` — inserts 'requested' doc placeholder + notification for each org
+- `src/pages/sponsor/CompliancePage.jsx` — added BulkActions bar:
+  - "Remind Non-Compliant (N)" button → calls `/compliance/remind-bulk`
+  - "Request Doc from All Missing" → dropdown with doc type selector, shows count, "Send to N" button
+  - `nonCompliantOrgs` + `orgsMissingDoc` computed values
+
+### Auto Document Expiry Reminders (Task #45, 2026-07-03)
+- `programlink-backend/services/emailService.js` — added `sendDocumentExpiryEmail(to, name, orgName, docLabel, daysLeft, expiryDate)`:
+  - Sends branded HTML email with colored urgency indicator (🟠 30d, 🟡 14d, 🔴 7d)
+  - Gracefully no-ops if `RESEND_API_KEY` not set
+- `programlink-backend/services/scheduledJobs.js` — added email loop to existing cron job:
+  - Fixed bug: `d.name` → `d.label` (documents table uses `label` column)
+  - Fixed bug: `'document_expiry'` → `'document_expiring'` (matches DB CHECK constraint)
+  - Added `name, email` to orgUsers query for email sending
+
+### Meal Count Trend Chart (Task #48, 2026-07-03)
+- `programlink-backend/controllers/mealCountsController.js` — added `getTrend`:
+  - Queries 6-month rolling totals (submitted vs verified) grouped by month
+  - Fills missing months with zeros in JS so chart always renders 6 bars
+- `programlink-backend/routes/mealCounts.js` — added `router.get('/trend', getTrend);`
+- `src/pages/sponsor/ReportsPage.jsx` — added `TrendChart` SVG component:
+  - Pure SVG, no dependencies — gray bars = submitted, brand purple = verified
+  - Y-axis gridlines, month labels, value labels above bars
+
+### Scalability (2026-07-02)
+- `programlink-backend/routes/compliance.js` — rewrote GET query:
+  - Added CTE `latest_apps` using `DISTINCT ON (org_id)` to get latest app status per org in one pass
+  - Replaced 4 correlated subqueries (2 on applications, 2 on documents) with CTE join + FILTER aggregations
+  - GROUP BY now includes `la.status, la.updated_at`
+  - Result: query cost drops from O(n × subqueries) to O(n) — handles 300+ orgs cleanly
+- `programlink-backend/controllers/organizationsController.js` — added pagination:
+  - Reads `limit` (default 100, max 500) and `offset` (default 0) from query params
+  - Runs COUNT query first, then paginated SELECT
+  - Response now: `{ organizations, total, limit, offset, has_more }`
+  - Fully backward-compatible (callers using `.organizations` still work)
+- `add_indexes.sql` (Desktop/outputs) — 5 indexes to run in Railway query editor:
+  - `idx_orgs_sponsor_id`, `idx_docs_org_id`, `idx_docs_org_status`, `idx_apps_org_created`, `idx_users_org_id`
+
 ---
 
 ## Recurring Issues
@@ -164,6 +335,11 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 25 | Compliance page → full action center (5-tier) | ✅ |
 | 26 | Update SponsorDemo with 5-tier compliance + Deliveries | ✅ |
 | 27 | Update KitchenDemo/SiteDemo deliveries refs | ✅ |
+| 44 | Bulk compliance actions — remind all, request from all missing | ✅ |
+| 45 | Auto document expiry reminders — email 30 days before expiry | ✅ |
+| 47 | Coordinator → site/kitchen assignment system | ✅ |
+| 48 | Meal count trend chart — 6-month SVG bar chart on Reports page | ✅ |
+| 49 | Broadcast messaging — sponsor sends message to all sites/kitchens | ⏳ in progress |
 
 ---
 
