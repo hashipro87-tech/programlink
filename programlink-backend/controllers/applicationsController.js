@@ -82,7 +82,10 @@ exports.updateStatus = async (req, res) => {
     params.push(req.params.id);
 
     const { rows } = await pool.query(
-      `UPDATE applications SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      `UPDATE applications SET ${updates.join(', ')} WHERE id = $${params.length}
+       RETURNING *,
+         (SELECT name FROM organizations WHERE id = org_id) AS org_name,
+         (SELECT type FROM organizations WHERE id = org_id) AS org_type`,
       params
     );
     if (!rows.length) return res.status(404).json({ error: 'Application not found.' });
