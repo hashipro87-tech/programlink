@@ -14,6 +14,7 @@
 const cron = require('node-cron');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
+const { sendDocumentExpiryEmail } = require('./emailService');
 
 // ─── Job 1: Document expiry alerts ───────────────────────────────────────────
 // Runs every day at 8:00am UTC.
@@ -24,10 +25,11 @@ async function checkDocumentExpiry() {
   console.log('[cron] Running document expiry check…');
   try {
     // Find documents expiring in 30, 14, or 7 days (not already expired)
+    // Uses d.label (not d.name — documents table uses label column)
     const result = await pool.query(`
       SELECT
         d.id,
-        d.name          AS doc_name,
+        d.label         AS doc_name,
         d.expires_at,
         d.org_id,
         o.name          AS org_name,
@@ -37,7 +39,7 @@ async function checkDocumentExpiry() {
       JOIN organizations o ON d.org_id = o.id
       WHERE d.expires_at IS NOT NULL
         AND d.expires_at > NOW()
-        AND d.status != 'expired'
+        AND d.status NOT IN ('expired', 'superseded', 'requested')
         AND DATE_PART('day', d.expires_at - NOW()) IN (30, 14, 7)
     `);
 
@@ -53,26 +55,34 @@ async function checkDocumentExpiry() {
       const body    = `"${doc.doc_name}" for ${doc.org_name} expires in ${days} days. Upload a renewed copy to stay compliant.`;
       const actionUrl = '/dashboard/sponsor/documents';
 
-      // Notify all active users in the org
+      // Notify all active users in the org (in-app + email)
       const orgUsers = await pool.query(
-        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`,
+        `SELECT id, name, email FROM users WHERE org_id = $1 AND is_active = TRUE`,
         [doc.org_id]
       );
 
       if (orgUsers.rows.length) {
+        // In-app notification
         await createNotification(orgUsers.rows.map((u) => ({
-          userId: u.id,
-          type: 'document_expiry',
+          userId:    u.id,
+          type:      'document_expiring',  // matches DB CHECK constraint
           title,
           body,
           actionUrl,
         })));
+
+        // Email each user
+        for (const u of orgUsers.rows) {
+          sendDocumentExpiryEmail(
+            u.email, u.name, doc.org_name, doc.doc_name, days, doc.expires_at
+          ).catch((err) => console.error(`[cron] Email failed for ${u.email}:`, err.message));
+        }
       }
 
       // Also notify coordinators and sponsors so nothing slips through
       if (doc.sponsor_id) {
         await notifyCoordinators(doc.sponsor_id, {
-          type: 'document_expiry',
+          type:      'document_expiring',
           title,
           body,
           actionUrl,

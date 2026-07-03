@@ -190,6 +190,55 @@ async function sendInviteEmail(to, contactName, orgName, roleLabel, inviteUrl) {
   });
 }
 
+// ── Document expiry reminder ──────────────────────────────────────────────────
+async function sendDocumentExpiryEmail(to, name, orgName, docLabel, daysLeft, expiryDate) {
+  const urgency  = daysLeft <= 7 ? '🔴' : daysLeft <= 14 ? '🟡' : '🟠';
+  const headerBg = daysLeft <= 7 ? '#dc2626' : '#f97316';
+  const fmtDate  = new Date(expiryDate).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  });
+
+  if (!RESEND_API_KEY) {
+    console.log(`📧 [email not configured] Doc expiry for ${to}: ${docLabel} expires in ${daysLeft}d`);
+    return;
+  }
+
+  return sendEmail({
+    to,
+    subject: `${urgency} Action required: "${docLabel}" expires in ${daysLeft} days`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#111;">
+        <div style="background:${headerBg};padding:24px 32px;border-radius:12px 12px 0 0;">
+          <h1 style="color:white;margin:0;font-size:20px;">CACFPLink</h1>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-top:none;padding:32px;border-radius:0 0 12px 12px;">
+          <p style="font-size:16px;margin-top:0;">Hi ${name},</p>
+          <p>A document for <strong>${orgName}</strong> is expiring soon and needs to be renewed to stay CACFP compliant.</p>
+          <div style="background:#fef9f0;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin:20px 0;">
+            <p style="margin:0 0 6px;font-size:12px;color:#9a3412;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">
+              ${urgency} Expiring in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}
+            </p>
+            <p style="margin:0;font-size:16px;font-weight:700;color:#111;">${docLabel}</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">Expires: ${fmtDate}</p>
+          </div>
+          <p style="font-size:14px;color:#374151;">
+            Please upload a renewed copy as soon as possible to avoid any disruption to your CACFP reimbursements.
+          </p>
+          <a href="${FRONTEND_URL}/login"
+             style="display:inline-block;background:#4f46e5;color:white;padding:12px 24px;
+                    border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0;">
+            Upload Renewed Document
+          </a>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+          <p style="color:#9ca3af;font-size:12px;margin:0;">
+            This reminder was sent automatically by CACFPLink. You will receive reminders at 30, 14, and 7 days before expiry.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 // Backwards-compatible alias
 const sendKitchenInviteEmail = (to, contactName, orgName, inviteUrl) =>
   sendInviteEmail(to, contactName, orgName, 'kitchen manager', inviteUrl);
@@ -198,6 +247,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendVerificationEmail,
   sendApplicationStatusEmail,
+  sendDocumentExpiryEmail,
   sendInviteEmail,
   sendKitchenInviteEmail,
 };
