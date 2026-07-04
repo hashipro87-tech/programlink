@@ -332,8 +332,9 @@ async function seed() {
         const mid    = uuid();
         const body   = m === 0
           ? `Please review your pending compliance items before the end of the month.`
-          : `Thank you for your response. We'll follow up shortly.`;
-        msgRows.push(`('${mid}','${tid}','${sponsorUserId}','${body}',${isBcast && m === 0 ? 'TRUE' : 'FALSE'})`);
+          : `Thank you for your response. We will follow up shortly.`;
+        const safeBody = body.replace(/'/g, "''");
+        msgRows.push(`('${mid}','${tid}','${sponsorUserId}','${safeBody}',${isBcast && m === 0 ? 'TRUE' : 'FALSE'})`);
 
         // Recipients: 5–10 random site/kitchen users (by adding them to message_recipients)
         const recipientOrgIds = siteIds.slice(t * 5 % siteIds.length, t * 5 % siteIds.length + 5);

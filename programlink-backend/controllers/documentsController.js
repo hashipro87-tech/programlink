@@ -35,7 +35,7 @@ exports.listDocuments = async (req, res) => {
       const baseQuery = `
         SELECT d.*,
                o.name     AS org_name,
-               o.org_type AS org_type,
+               o.type     AS org_type,
                u.name     AS uploaded_by_name,
                u.role     AS uploaded_by_role
         FROM documents d
@@ -191,7 +191,7 @@ exports.requestDocument = async (req, res) => {
       await createNotification(
         orgUsersResult.rows.map((u) => ({
           userId:    u.id,
-          type:      'document_requested',
+          type:      'document_missing',
           title:     `Document Requested: ${label}`,
           body:      message || `Please upload your ${label} by ${dueStr}.`,
           actionUrl: '/dashboard/kitchen/documents',
@@ -248,7 +248,7 @@ exports.updateDocumentStatus = async (req, res) => {
     if ((status === 'valid' || status === 'approved') && doc.uploaded_by) {
       createNotification({
         userId:    doc.uploaded_by,
-        type:      'document_approved',
+        type:      'document_uploaded',
         title:     `Document Approved: ${doc.label || doc.doc_type}`,
         body:      'Your document has been reviewed and approved.',
         actionUrl: '/dashboard/kitchen/documents',
