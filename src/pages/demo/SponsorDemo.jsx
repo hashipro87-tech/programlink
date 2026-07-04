@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed, FileText, Settings, Truck, ChefHat, Clock, Plus, X, ShieldCheck, ShieldAlert, ShieldX, Shield } from 'lucide-react';
+import {
+  CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed,
+  FileText, Settings, Truck, ChefHat, Plus, X,
+  ShieldCheck, ShieldAlert, ShieldX, Shield,
+  MessageSquare, Megaphone, Bell, TrendingUp,
+} from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
@@ -12,6 +17,7 @@ const NAV = [
   { label: 'Kitchens',     path: '/demo/sponsor/kitchens',     icon: Building2 },
   { label: 'Deliveries',   path: '/demo/sponsor/deliveries',   icon: Truck },
   { label: 'Coordinators', path: '/demo/sponsor/coordinators', icon: Users },
+  { label: 'Messages',     path: '/demo/sponsor/messages',     icon: MessageSquare },
   { label: 'Meal Counts',  path: '/demo/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',    path: '/demo/sponsor/documents',    icon: FileText },
   { label: 'Settings',     path: '/demo/sponsor/settings',     icon: Settings },
@@ -42,6 +48,81 @@ const STATUS_PILL = {
   pending:   'bg-yellow-50 text-yellow-700 border-yellow-200',
 };
 
+// 6-month trend chart data (submitted vs verified)
+const TREND_DATA = [
+  { month: 'Feb', submitted: 1840, verified: 1720 },
+  { month: 'Mar', submitted: 2100, verified: 1950 },
+  { month: 'Apr', submitted: 1980, verified: 1860 },
+  { month: 'May', submitted: 2380, verified: 2210 },
+  { month: 'Jun', submitted: 2650, verified: 2490 },
+  { month: 'Jul', submitted: 2420, verified: 2310 },
+];
+
+function TrendChart() {
+  const maxVal = Math.max(...TREND_DATA.map(d => d.submitted));
+  const W = 480, H = 140, PAD = { top: 20, bottom: 28, left: 40, right: 10 };
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+  const barW  = Math.floor(plotW / TREND_DATA.length);
+  const pairW = barW * 0.72;
+  const singleW = pairW / 2 - 2;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(f * maxVal));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 140 }}>
+      {/* grid lines */}
+      {gridLines.map((v, i) => {
+        const y = PAD.top + plotH - (v / maxVal) * plotH;
+        return (
+          <g key={i}>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y}
+              stroke="#f1f5f9" strokeWidth="1" />
+            {i % 2 === 0 && (
+              <text x={PAD.left - 4} y={y + 4} textAnchor="end"
+                fill="#94a3b8" fontSize="8">
+                {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+              </text>
+            )}
+          </g>
+        );
+      })}
+
+      {/* bars */}
+      {TREND_DATA.map((d, i) => {
+        const cx = PAD.left + i * barW + barW / 2;
+        const offset = pairW / 2;
+
+        const subH = (d.submitted / maxVal) * plotH;
+        const verH = (d.verified  / maxVal) * plotH;
+        const subY = PAD.top + plotH - subH;
+        const verY = PAD.top + plotH - verH;
+
+        return (
+          <g key={d.month}>
+            {/* submitted (gray) */}
+            <rect x={cx - offset} y={subY} width={singleW} height={subH}
+              rx="2" fill="#e2e8f0" />
+            {/* verified (brand purple) */}
+            <rect x={cx - offset + singleW + 2} y={verY} width={singleW} height={verH}
+              rx="2" fill="#4f46e5" opacity="0.85" />
+            {/* month label */}
+            <text x={cx} y={H - 4} textAnchor="middle" fill="#94a3b8" fontSize="9">
+              {d.month}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* legend */}
+      <rect x={PAD.left} y={2} width={8} height={8} rx="1" fill="#e2e8f0" />
+      <text x={PAD.left + 11} y={10} fill="#64748b" fontSize="8">Submitted</text>
+      <rect x={PAD.left + 68} y={2} width={8} height={8} rx="1" fill="#4f46e5" opacity="0.85" />
+      <text x={PAD.left + 81} y={10} fill="#64748b" fontSize="8">Verified</text>
+    </svg>
+  );
+}
+
 function DemoOrderModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -55,9 +136,6 @@ function DemoOrderModal({ onClose }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
-          {[
-            { label: 'Delivery Date', type: 'date', value: new Date().toISOString().split('T')[0], icon: null },
-          ].map(() => null)}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Delivery Date</label>
             <input type="date" defaultValue={new Date().toISOString().split('T')[0]}
@@ -107,14 +185,99 @@ function DemoOrderModal({ onClose }) {
   );
 }
 
+function BroadcastModal({ onClose }) {
+  const GROUPS = [
+    { key: 'all_sites',    label: 'All Sites',    count: 18, color: 'blue' },
+    { key: 'all_kitchens', label: 'All Kitchens', count: 6,  color: 'green' },
+    { key: 'coordinators', label: 'Coordinators', count: 3,  color: 'purple' },
+    { key: 'everyone',     label: 'Everyone',     count: 27, color: 'gray' },
+  ];
+  const [group, setGroup] = useState('all_sites');
+
+  const COLOR = {
+    blue:   { sel: 'border-blue-400 bg-blue-50',   dot: 'bg-blue-400',   text: 'text-blue-700' },
+    green:  { sel: 'border-green-400 bg-green-50', dot: 'bg-green-400',  text: 'text-green-700' },
+    purple: { sel: 'border-brand-400 bg-brand-50', dot: 'bg-brand-400',  text: 'text-brand-700' },
+    gray:   { sel: 'border-gray-400 bg-gray-100',  dot: 'bg-gray-400',   text: 'text-gray-700' },
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Megaphone className="w-4 h-4 text-brand-600" />
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Broadcast Message</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Send one message to a group all at once.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Send to</label>
+            <div className="grid grid-cols-2 gap-2">
+              {GROUPS.map(g => {
+                const c = COLOR[g.color];
+                const active = group === g.key;
+                return (
+                  <button key={g.key} onClick={() => setGroup(g.key)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+                      active ? c.sel : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}>
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${active ? c.dot : 'bg-gray-300'}`} />
+                    <div>
+                      <p className={`text-sm font-semibold ${active ? c.text : 'text-gray-700'}`}>{g.label}</p>
+                      <p className="text-xs text-gray-400">{g.count} recipients</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Subject</label>
+            <input type="text" placeholder="e.g. July meal count reminder"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-gray-50" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Message</label>
+            <textarea rows={3} placeholder="Type your message..."
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-gray-50 resize-none" />
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600">
+              Cancel
+            </button>
+            <Link to="/register"
+              className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold text-center">
+              Sign Up to Send →
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SponsorDemo() {
-  const [copied,    setCopied]    = useState(false);
-  const [showOrder, setShowOrder] = useState(false);
+  const [copied,         setCopied]         = useState(false);
+  const [showOrder,      setShowOrder]      = useState(false);
+  const [showBroadcast,  setShowBroadcast]  = useState(false);
+  const [remindSent,     setRemindSent]     = useState(false);
 
   const copy = () => {
     navigator.clipboard.writeText('DEMO-SP-4829');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRemindAll = () => {
+    setRemindSent(true);
+    setTimeout(() => setRemindSent(false), 3000);
   };
 
   return (
@@ -143,6 +306,11 @@ export default function SponsorDemo() {
                 <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
                 <span className="text-sm text-red-800 font-medium">2 orgs missing required documents · 1 expiring soon</span>
                 <Link to="/register" className="ml-auto text-xs font-semibold text-brand-600 hover:underline">Sign up to action →</Link>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-xl">
+                <Bell className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                <span className="text-sm text-purple-800 font-medium">Auto-expiry reminders active — 1 doc expiring in 14 days</span>
+                <span className="ml-auto text-xs font-semibold text-purple-400">Email sent ✓</span>
               </div>
               <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
                 <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
@@ -175,10 +343,8 @@ export default function SponsorDemo() {
             <p className="text-xs text-gray-400 mb-3">Share this with kitchens, sites, and delivery providers so they can join your program.</p>
             <div className="flex items-center gap-2">
               <code className="text-sm font-mono bg-gray-100 text-gray-800 px-3 py-1.5 rounded-lg">DEMO-SP-4829</code>
-              <button
-                onClick={copy}
-                className="px-3 py-1.5 text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors"
-              >
+              <button onClick={copy}
+                className="px-3 py-1.5 text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors">
                 {copied ? '✓ Copied!' : 'Copy'}
               </button>
             </div>
@@ -233,6 +399,27 @@ export default function SponsorDemo() {
               ))}
             </div>
 
+            {/* Bulk actions bar */}
+            <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bulk Actions</span>
+              <button
+                onClick={handleRemindAll}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  remindSent
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <Bell className="w-3 h-3" />
+                {remindSent ? '✓ Reminders Sent!' : 'Remind Non-Compliant (2)'}
+              </button>
+              <Link to="/register"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-gray-700 border-gray-200 hover:bg-gray-100 transition-all">
+                <FileText className="w-3 h-3" />
+                Request Doc from All Missing →
+              </Link>
+            </div>
+
             {/* Org rows */}
             {[
               {
@@ -244,7 +431,7 @@ export default function SponsorDemo() {
               {
                 name: 'Sunshine Daycare', type: 'Site',
                 tier: 'Expiring Soon', tierBg: 'bg-orange-50', tierText: 'text-orange-700', tierBorder: 'border-orange-100',
-                score: 78, docs: '8/10', missing: 0, expiring: 2,
+                score: 78, docs: '8/10', missing: 0, expiring: 2, autoRemind: true,
                 Icon: ShieldAlert, iconColor: 'text-orange-400',
               },
               {
@@ -266,8 +453,12 @@ export default function SponsorDemo() {
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-sm font-semibold text-gray-900">{org.name}</p>
                     <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{org.type}</span>
+                    {org.autoRemind && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-100">
+                        auto-remind on
+                      </span>
+                    )}
                   </div>
-                  {/* score bar */}
                   <div className="flex items-center gap-2">
                     <div className="flex-1 max-w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
@@ -295,6 +486,35 @@ export default function SponsorDemo() {
               <Link to="/register" className="text-xs font-semibold text-brand-600 hover:underline">
                 Sign up to manage full compliance center →
               </Link>
+            </div>
+          </div>
+
+          {/* Meal Count Trend Chart */}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-brand-500" />
+                <div>
+                  <h2 className="font-semibold text-gray-900">Meal Count Trend</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">6-month submitted vs. verified overview</p>
+                </div>
+              </div>
+              <Link to="/register" className="text-xs font-semibold text-brand-600 hover:underline">Sign up to view full reports →</Link>
+            </div>
+            <div className="px-6 py-4">
+              <TrendChart />
+              <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                {[
+                  { label: 'This Month Submitted', value: '2,420' },
+                  { label: 'This Month Verified',  value: '2,310' },
+                  { label: 'Verification Rate',    value: '95.5%' },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 rounded-xl px-3 py-2.5">
+                    <p className="text-base font-bold text-gray-900">{s.value}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -338,6 +558,50 @@ export default function SponsorDemo() {
             </div>
           </div>
 
+          {/* Broadcast Messaging */}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-brand-500" />
+                <div>
+                  <h2 className="font-semibold text-gray-900">Broadcast Messaging</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Send one message to all sites, kitchens, or coordinators at once</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBroadcast(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700
+                           text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                <Megaphone className="w-3.5 h-3.5" /> New Broadcast
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: 'All Sites',    count: 18, color: 'blue'   },
+                  { label: 'All Kitchens', count: 6,  color: 'green'  },
+                  { label: 'Coordinators', count: 3,  color: 'purple' },
+                  { label: 'Everyone',     count: 27, color: 'gray'   },
+                ].map(g => (
+                  <div key={g.label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-center">
+                    <p className="text-lg font-bold text-gray-900">{g.count}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{g.label}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Recent broadcast */}
+              <div className="flex items-start gap-3 p-3 bg-brand-50 border border-brand-100 rounded-xl">
+                <Megaphone className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">July meal count reminder</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Sent to All Sites · 18 recipients · 2 hours ago</p>
+                </div>
+                <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Delivered</span>
+              </div>
+            </div>
+          </div>
+
           {/* CTA */}
           <div className="mt-8 bg-brand-600 rounded-2xl p-6 text-center text-white">
             <h3 className="text-lg font-bold mb-1">Ready to manage your real program?</h3>
@@ -350,7 +614,8 @@ export default function SponsorDemo() {
         </div>
       </main>
 
-      {showOrder && <DemoOrderModal onClose={() => setShowOrder(false)} />}
+      {showOrder     && <DemoOrderModal    onClose={() => setShowOrder(false)}     />}
+      {showBroadcast && <BroadcastModal    onClose={() => setShowBroadcast(false)} />}
     </div>
   );
 }

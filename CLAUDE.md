@@ -57,7 +57,7 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | 5 | Coordinator → site/kitchen assignment system (Task #47) | ✅ |
 | 6 | Bulk compliance actions — remind all, request from all missing (Task #44) | ✅ |
 | 7 | Auto document expiry reminders — email 30 days before (Task #45) | ✅ |
-| 8 | Stress test with a large sponsor (Task #28) | ⏳ waiting on sponsor |
+| 8 | Stress test with a large sponsor (Task #28) | ✅ |
 | 9 | Sponsor-driven features from feedback (Task #31) | ⏳ waiting on sponsor |
 | 10 | Meal count trend chart — 6-month view (Task #48) | ✅ |
 | 11 | Broadcast messaging (Task #49) | ✅ |
@@ -118,7 +118,7 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 ### Performance
 - Server-side pagination ← done (Task #39–43)
 - Query optimization ← done (CTE rewrite, indexes)
-- Large sponsor stress testing
+- Large sponsor stress testing ← done (Task #28)
 - Caching layer
 
 ### Nice-to-Have
@@ -132,8 +132,8 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | 🔥 Now | Research + outreach — Virginia, Colorado, orgs like Charles's | ⏳ |
 | ⬆️ Next | About page | 🔄 |
 | ⬆️ Next | Social proof + pilot program badge | ⏳ |
-| 📈 Growth | Stress test with a large sponsor | ⏳ |
-| 📈 Growth | Optimize workflows that don't scale | ⏳ |
+| 📈 Growth | Stress test with a large sponsor | ✅ |
+| 📈 Growth | Optimize workflows that don't scale | ✅ |
 | 🔁 Ongoing | Continue sponsor outreach (more states) | ⏳ |
 | 🔁 Ongoing | Build features based on sponsor feedback | ⏳ |
 
@@ -295,6 +295,20 @@ CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_revi
 - `add_indexes.sql` (Desktop/outputs) — 5 indexes to run in Railway query editor:
   - `idx_orgs_sponsor_id`, `idx_docs_org_id`, `idx_docs_org_status`, `idx_apps_org_created`, `idx_users_org_id`
 
+### Documents Pagination (Task #28 fix, 2026-07-03)
+- `programlink-backend/controllers/documentsController.js` — `listDocuments` now respects `limit`/`offset`:
+  - Was: ignored query params, returned ALL docs for sponsor (1300 rows in stress test → p99=2775ms)
+  - Fix: `LIMIT $2 OFFSET $3` applied to all three query branches (sponsor, sponsor+filter, kitchen/site)
+  - Default: limit=100, max=500
+
+### Stress Test Tools (Task #28, 2026-07-03)
+- `tools/stress-test/package.json` — `{"type":"commonjs"}` overrides frontend ESM mode
+- `tools/stress-test/seed.js` — seeds 300 orgs, 1 sponsor, 3 coordinators, 1300 docs, 8900+ meal counts, 30 message threads, 10 routes, 300 coordinator assignments. TAG stored in `organizations.region` (e.g. `ST_1783123044715`) for cleanup identification. PW_HASH for "StressTest123!". Usage: `DATABASE_URL="..." node tools/stress-test/seed.js`
+- `tools/stress-test/load-test.js` — 50 concurrent, 9 pages / 14 endpoints, live ANSI display. Usage: `BASE_URL="https://..." AUTH_TOKEN="Bearer ..." node tools/stress-test/load-test.js`
+- `tools/stress-test/cleanup.js` — removes all data by TAG. Usage: `DATABASE_URL="..." TAG="ST_..." node tools/stress-test/cleanup.js`
+- **Results:** 159,761 requests, 0.09% error rate, all 14 endpoints PASS after pagination fix. p99 <200ms on 13/14 endpoints; compliance (most complex CTE query) p99 ~900ms.
+- **Marketing copy earned:** "Performance Tested: 300 organizations · 3,000+ meal counts · 1,500 documents · Designed to scale as your program grows."
+
 ---
 
 ## Recurring Issues
@@ -340,6 +354,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 47 | Coordinator → site/kitchen assignment system | ✅ |
 | 48 | Meal count trend chart — 6-month SVG bar chart on Reports page | ✅ |
 | 49 | Broadcast messaging — sponsor sends message to all sites/kitchens | ✅ |
+| 28 | Stress test — 300 orgs, 1300 docs, 8900+ meal counts, 14 endpoints benchmarked | ✅ |
 
 ---
 
