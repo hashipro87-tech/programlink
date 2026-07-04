@@ -24,14 +24,14 @@ function applyExpiryStatus(doc) {
 exports.listDocuments = async (req, res) => {
   try {
     const { role, organizationId } = req.user;
-    const filterOrgId = req.query.org_id || null;
+    const filterOrgId = req.query.org_id  || null;
+    const limit       = Math.min(parseInt(req.query.limit  || '100', 10), 500);
+    const offset      = parseInt(req.query.offset || '0', 10);
 
     let rows;
 
     if (['sponsor', 'coordinator', 'admin'].includes(role)) {
       // Sponsors / coordinators see ALL documents from orgs in their program.
-      // coordinator.org_id = sponsor org id (set during invite).
-      // sponsor.org_id = their own org id.
       const baseQuery = `
         SELECT d.*,
                o.name     AS org_name,
@@ -46,22 +46,22 @@ exports.listDocuments = async (req, res) => {
       const params = [organizationId];
 
       if (filterOrgId) {
-        params.push(filterOrgId);
+        params.push(filterOrgId, limit, offset);
         const { rows: r } = await pool.query(
-          baseQuery + ` AND d.org_id = $2 ORDER BY d.uploaded_at DESC`,
+          baseQuery + ` AND d.org_id = $2 ORDER BY d.uploaded_at DESC LIMIT $3 OFFSET $4`,
           params
         );
         rows = r;
       } else {
+        params.push(limit, offset);
         const { rows: r } = await pool.query(
-          baseQuery + ` ORDER BY d.uploaded_at DESC`,
+          baseQuery + ` ORDER BY d.uploaded_at DESC LIMIT $2 OFFSET $3`,
           params
         );
         rows = r;
       }
     } else {
       // Kitchen / site / delivery — own org only.
-      // Also includes docs sent TO them by a sponsor (org_id matches).
       const { rows: r } = await pool.query(
         `SELECT d.*,
                 u.name  AS uploaded_by_name,
@@ -69,8 +69,9 @@ exports.listDocuments = async (req, res) => {
          FROM documents d
          LEFT JOIN users u ON u.id = d.uploaded_by
          WHERE d.org_id = $1
-         ORDER BY d.uploaded_at DESC`,
-        [organizationId]
+         ORDER BY d.uploaded_at DESC
+         LIMIT $2 OFFSET $3`,
+        [organizationId, limit, offset]
       );
       rows = r;
     }
