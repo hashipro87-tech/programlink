@@ -652,6 +652,81 @@ function WorkflowDiagram() {
   );
 }
 
+// ─── Why CACFPLink Comparison ────────────────────────────────────────────────
+
+function WhyCACFPLink() {
+  const rows = [
+    { before: 'Paper forms and spreadsheets',         after: 'Fully digital workflows' },
+    { before: 'Email reminders that get ignored',     after: 'Automatic alerts before deadlines' },
+    { before: 'Chasing sites for meal count updates', after: 'Real-time submission tracking' },
+    { before: 'Documents expire without warning',     after: '30-day expiry reminders, automatically' },
+    { before: 'Generic software you had to adapt',    after: 'Built only for CACFP programs' },
+    { before: 'Complicated demos and long sales calls',after: 'Try it instantly — no account needed' },
+    { before: 'No visibility across sites',           after: 'Full compliance dashboard, one screen' },
+    { before: 'Coordinators manage via email threads', after: 'Coordinator assignment + broadcast messaging' },
+  ];
+
+  return (
+    <section className="py-20 px-6 bg-white border-t border-gray-100">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+            <span className="text-xs font-semibold text-brand-700">Why CACFPLink?</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
+            The way CACFP gets done today vs. how it should work
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto">
+            No competitor names. Just a clear look at what most programs are still dealing with — and what CACFPLink replaces.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+          {/* Header */}
+          <div className="grid grid-cols-2 bg-gray-50 border-b border-gray-200">
+            <div className="px-6 py-3.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-400" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">The old way</span>
+            </div>
+            <div className="px-6 py-3.5 flex items-center gap-2 bg-brand-600">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              <span className="text-xs font-bold text-white uppercase tracking-wider">CACFPLink</span>
+            </div>
+          </div>
+
+          {/* Rows */}
+          {rows.map((row, i) => (
+            <div
+              key={i}
+              className={`grid grid-cols-2 ${i < rows.length - 1 ? 'border-b border-gray-100' : ''}`}
+            >
+              <div className="px-6 py-4 flex items-center gap-3 bg-white">
+                <X className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                <span className="text-sm text-gray-500">{row.before}</span>
+              </div>
+              <div className="px-6 py-4 flex items-center gap-3 bg-brand-50 border-l border-brand-100">
+                <CheckCircle className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-800">{row.after}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center mt-8">
+          <Link
+            to="/register"
+            onClick={() => trackCTAClick('why_cacfplink_cta')}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors"
+          >
+            Get Started Free <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Problem / Solution ───────────────────────────────────────────────────────
 
 function ProblemSolution() {
@@ -1604,6 +1679,7 @@ export default function HomePage() {
       <ProblemSolution />
       <Features />
       <ScreenshotsSection />
+      <WhyCACFPLink />
       <TrustSection />
       <SecuritySection />
       <HowItWorks />
