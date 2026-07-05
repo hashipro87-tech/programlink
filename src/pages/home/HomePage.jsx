@@ -1386,6 +1386,102 @@ function SecuritySection() {
   );
 }
 
+// ─── Pricing Section ─────────────────────────────────────────────────────────
+
+function PricingSection() {
+  return (
+    <section className="py-20 px-6 bg-white border-t border-gray-100">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+            <span className="text-xs font-semibold text-brand-700">Pricing</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
+            Simple pricing. Built for sponsors of every size.
+          </h2>
+          <p className="text-gray-500 max-w-lg mx-auto">
+            No per-site fees that punish growth. No setup costs. No hidden charges.
+            During our pilot period, early sponsors get full access free.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-10">
+          {/* Pilot tier */}
+          <div className="relative bg-brand-600 rounded-2xl p-8 text-white overflow-hidden">
+            <div className="absolute top-5 right-5">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-400/20 border border-green-400/30 rounded-full text-xs font-bold text-green-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                Now Open
+              </span>
+            </div>
+            <p className="text-xs font-bold text-brand-300 uppercase tracking-widest mb-2">Pilot Program</p>
+            <p className="text-5xl font-black text-white mb-1">Free</p>
+            <p className="text-brand-200 text-sm mb-6">During the pilot period</p>
+            <ul className="space-y-3 mb-8">
+              {[
+                'Full platform access — every feature',
+                'Direct access to the founder',
+                'Influence over the roadmap',
+                'Hands-on onboarding support',
+                'First access to every new release',
+                'No credit card required',
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2.5 text-sm text-brand-100">
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/register"
+              onClick={() => trackCTAClick('pricing_pilot_cta')}
+              className="block text-center py-3 bg-white hover:bg-gray-50 text-brand-700 font-bold rounded-xl transition-colors"
+            >
+              Join as a Pilot Sponsor →
+            </Link>
+          </div>
+
+          {/* Paid tier coming soon */}
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">After Pilot</p>
+            <p className="text-3xl font-black text-gray-900 mb-1">Early Access Pricing</p>
+            <p className="text-gray-400 text-sm mb-6">Locked in for pilot sponsors forever</p>
+            <ul className="space-y-3 mb-8 flex-1">
+              {[
+                'Flat monthly rate — not per site',
+                'Scales with your program, not against it',
+                'Everything included, no add-on fees',
+                'Priority support for early partners',
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
+                  <CheckCircle className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="mailto:cacfplink@gmail.com"
+              onClick={() => trackCTAClick('pricing_contact_cta')}
+              className="block text-center py-3 border-2 border-gray-200 hover:border-brand-300 text-gray-700 hover:text-brand-700 font-bold rounded-xl transition-colors"
+            >
+              Contact us for pricing details →
+            </a>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-400">
+          Questions? Email us at{' '}
+          <a href="mailto:cacfplink@gmail.com" className="text-brand-600 hover:underline font-medium">
+            cacfplink@gmail.com
+          </a>
+          {' '}— we typically reply within a few hours.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Final CTA ────────────────────────────────────────────────────────────────
 
 // ─── Contact Section ──────────────────────────────────────────────────────────
@@ -1686,6 +1782,7 @@ export default function HomePage() {
       <MobileSection />
       <Impact />
       <PilotSection />
+      <PricingSection />
       <ContactSection />
       <FinalCTA />
       <Footer />
