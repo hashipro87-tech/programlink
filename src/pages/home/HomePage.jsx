@@ -289,6 +289,56 @@ function Hero() {
   );
 }
 
+// ─── Performance Section ──────────────────────────────────────────────────────
+
+function PerformanceSection() {
+  return (
+    <section className="py-16 px-6 bg-gray-900 border-t border-gray-800">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-xs font-semibold text-green-400">Performance Tested</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+            Can it handle your program? We tested it.
+          </h2>
+          <p className="text-gray-400 max-w-xl mx-auto text-sm">
+            Before any sponsor went live, we stress-tested CACFPLink with real concurrent load across every major workflow.
+          </p>
+        </div>
+
+        {/* Big stat grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { value: '300+',   label: 'Organizations',      sub: 'kitchens & sites' },
+            { value: '600+',   label: 'Active Users',        sub: 'concurrent sessions' },
+            { value: '9,000+', label: 'Meal Records',        sub: '6 months of data' },
+            { value: '1,300+', label: 'Documents',           sub: 'all statuses tested' },
+          ].map((s) => (
+            <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl px-5 py-5 text-center">
+              <p className="text-3xl font-black text-white mb-1">{s.value}</p>
+              <p className="text-sm font-semibold text-gray-300">{s.label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Error rate hero */}
+        <div className="bg-green-500/10 border border-green-500/20 rounded-2xl px-8 py-6 text-center">
+          <p className="text-5xl sm:text-6xl font-black text-green-400 mb-2">0.09%</p>
+          <p className="text-white font-semibold text-lg mb-1">Error rate under sustained concurrent load</p>
+          <p className="text-gray-400 text-sm">159,761 requests benchmarked · 14 endpoints · Sub-200ms p99 latency</p>
+        </div>
+
+        <p className="text-center text-xs text-gray-600 mt-6">
+          Designed to scale as your program grows.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Try Demo Roles Section ───────────────────────────────────────────────────
 
 function TryDemoSection() {
@@ -1547,6 +1597,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <PerformanceSection />
       <TryDemoSection />
       <DemoSection />
       <WorkflowDiagram />
