@@ -1386,6 +1386,98 @@ function SecuritySection() {
   );
 }
 
+// ─── Founder Story ────────────────────────────────────────────────────────────
+
+function FounderStory() {
+  return (
+    <section className="py-20 px-6 bg-gray-50 border-t border-gray-100">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+            <span className="text-xs font-semibold text-brand-700">Why I built this</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900">
+            A word from the founder
+          </h2>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 sm:p-12 shadow-sm">
+          <div className="prose prose-gray max-w-none">
+            <p className="text-lg text-gray-700 leading-relaxed font-medium mb-6">
+              I didn't build CACFPLink because I wanted to start a software company.
+              I built it because I kept seeing people in CACFP doing incredibly important work
+              with tools that felt stuck in another era.
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              The more I learned about the sponsor, kitchen, and site relationship, the more I realized
+              everyone was juggling spreadsheets, emails, phone calls, paper documents, and software
+              that wasn't built around how they actually work. What surprised me most was that
+              everyone had accepted it as normal.
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              I didn't.
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              When I started talking to people in the community, I wasn't trying to prove I had
+              the answers. I was trying to understand why things were so difficult. Every conversation
+              taught me something. A sponsor would mention missing documents. A kitchen would talk about
+              submitting meal counts. Someone would tell me how stressful audits were. Someone else
+              would explain how hard it was to know which sites actually needed attention.
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              Instead of thinking, "How can I build more features?" I started asking,
+              "Why does this have to be this hard?"
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              That's when CACFPLink started taking shape. I wanted one place where sponsors,
+              coordinators, kitchens, and sites could all work together without jumping between
+              different systems or chasing paperwork. I wanted compliance to be visible instead of
+              hidden. I wanted people to spend less time managing software and more time serving meals.
+            </p>
+
+            <p className="text-gray-500 leading-relaxed mb-5">
+              I'm not coming from 30 years in the CACFP industry. In some ways, that became an
+              advantage. I wasn't attached to "the way it's always been done." I could ask simple
+              questions, challenge assumptions, and build around the workflows people wished they had
+              instead of the ones they'd learned to live with.
+            </p>
+
+            <p className="text-gray-700 leading-relaxed font-medium">
+              I don't think software should get in the way of people doing meaningful work.
+              It should quietly make their day easier. That's what I'm building —
+              a platform that listens to the people who use it and gets better because of them.
+              Because every conversation should make CACFPLink better.
+            </p>
+          </div>
+
+          {/* Signature */}
+          <div className="mt-8 pt-8 border-t border-gray-100 flex items-center gap-4">
+            <div className="w-12 h-12 bg-brand-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-lg">H</span>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Hashi</p>
+              <p className="text-sm text-gray-400">Founder, CACFPLink</p>
+            </div>
+            <a
+              href="mailto:cacfplink@gmail.com"
+              className="ml-auto text-sm font-semibold text-brand-600 hover:underline"
+            >
+              cacfplink@gmail.com
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Pricing Section ─────────────────────────────────────────────────────────
 
 function PricingSection() {
@@ -1782,6 +1874,7 @@ export default function HomePage() {
       <MobileSection />
       <Impact />
       <PilotSection />
+      <FounderStory />
       <PricingSection />
       <ContactSection />
       <FinalCTA />
