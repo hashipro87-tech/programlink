@@ -61,6 +61,7 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | 9 | Sponsor-driven features from feedback (Task #31) | ⏳ waiting on sponsor |
 | 10 | Meal count trend chart — 6-month view (Task #48) | ✅ |
 | 11 | Broadcast messaging (Task #49) | ✅ |
+| 12 | Homepage: performance stats, comparison table, pricing, founder story, testimonials (Tasks #70–74) | ✅ |
 
 ---
 
@@ -355,6 +356,11 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 48 | Meal count trend chart — 6-month SVG bar chart on Reports page | ✅ |
 | 49 | Broadcast messaging — sponsor sends message to all sites/kitchens | ✅ |
 | 28 | Stress test — 300 orgs, 1300 docs, 8900+ meal counts, 14 endpoints benchmarked | ✅ |
+| 70 | Move performance stats section higher on homepage | ✅ |
+| 71 | Add testimonials section to homepage (3 placeholder cards, swap in real quotes) | ✅ |
+| 72 | Add "Why CACFPLink?" comparison table to homepage | ✅ |
+| 73 | Add founder story section to homepage (Hashi's words verbatim) | ✅ |
+| 74 | Add pricing section to homepage (Pilot free + contact us) | ✅ |
 
 ---
 
