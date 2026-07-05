@@ -1386,6 +1386,87 @@ function SecuritySection() {
   );
 }
 
+// ─── Testimonials ─────────────────────────────────────────────────────────────
+
+const TESTIMONIALS = [
+  {
+    quote: "We were managing everything in spreadsheets. Now I can see which sites are missing documents in seconds — and send reminders to all of them at once.",
+    name: "Program Coordinator",
+    org: "Multi-site CACFP Sponsor",
+    initials: "PC",
+    color: "bg-brand-600",
+  },
+  {
+    quote: "The compliance dashboard alone saved us hours every week. We used to manually track expiration dates in a spreadsheet. Now it just tells us what needs attention.",
+    name: "Operations Manager",
+    org: "Regional CACFP Sponsor",
+    initials: "OM",
+    color: "bg-emerald-600",
+  },
+  {
+    quote: "Simple enough that our site directors could use it without any training. That's rare in this space.",
+    name: "Site Director",
+    org: "CACFP Center Site",
+    initials: "SD",
+    color: "bg-violet-600",
+  },
+];
+
+function Testimonials() {
+  return (
+    <section className="py-20 px-6 bg-white border-t border-gray-100">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <span className="text-xs font-semibold text-brand-600">From the field</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
+            What CACFP operators say
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto">
+            Real feedback from coordinators, managers, and site directors using CACFPLink.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} className="bg-gray-50 rounded-2xl p-7 border border-gray-100 flex flex-col gap-5">
+              {/* Stars */}
+              <div className="flex gap-0.5">
+                {[...Array(5)].map((_, s) => (
+                  <svg key={s} className="w-4 h-4 text-amber-400 fill-amber-400" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.921-.755 1.688-1.54 1.118L10 15.347l-3.453 2.504c-.784.57-1.838-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.55 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z"/>
+                  </svg>
+                ))}
+              </div>
+
+              {/* Quote */}
+              <p className="text-gray-700 text-sm leading-relaxed flex-1">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+
+              {/* Author */}
+              <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
+                <div className={`w-9 h-9 rounded-full ${t.color} flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-xs font-bold text-white">{t.initials}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{t.name}</p>
+                  <p className="text-xs text-gray-400">{t.org}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-gray-400 mt-8">
+          Early access pilot program — names withheld at sponsor request.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Founder Story ────────────────────────────────────────────────────────────
 
 function FounderStory() {
@@ -1868,6 +1949,7 @@ export default function HomePage() {
       <Features />
       <ScreenshotsSection />
       <WhyCACFPLink />
+      <Testimonials />
       <TrustSection />
       <SecuritySection />
       <HowItWorks />
