@@ -30,6 +30,92 @@ Every feature decision should be measured against these principles.
 
 ---
 
+## The Great Shift — From Website to Machine 🧠
+
+> **CACFPLink is not a compliance tool. It is a financial guardian that runs 24/7, protecting every dollar sponsors are owed.**
+
+This is the core vision. Everything else is a feature. This is the machine.
+
+### The Key Insight
+Don't think about reimbursement as something sponsors start at the end of the month.
+Think about it as something CACFPLink is **always preparing**.
+
+- Every meal count entered → claim updates instantly
+- Every document uploaded → readiness updates instantly
+- Every application approved → eligibility updates instantly
+- Every correction made → reimbursement updates instantly
+
+Sponsors should never wait until the last day of the month in a panic. They should know **every single day** exactly where their claim stands and exactly how much money is at risk.
+
+### The Dashboard That Changes Everything
+```
+Today's Claim Status
+96% Ready
+Estimated Reimbursement: $186,440
+Potential Loss: $1,820
+3 issues preventing full submission
+```
+
+That number — **Potential Loss** — is what makes this product unkillable.
+It reframes CACFPLink from a cost to a return on investment.
+A sponsor paying $200/month who recovers $4,128 in prevented disallowances gets a 20x return.
+You are not selling software. You are selling recovered money.
+
+### Claim Intelligence (The End Goal)
+```
+Claim Intelligence — July 2026
+Estimated Reimbursement:     $214,873
+Reimbursement at Risk:         $4,128
+Fix these 5 issues before July 31 to recover all $4,128.
+```
+
+Each issue has a dollar value. Each fix recovers money. The system runs constantly.
+
+### Why This Cannot Be Copied
+The intelligence only works if ALL data lives in one place:
+meal counts + documents + enrollment + income eligibility + menus + attendance.
+
+A legacy system like KidKare cannot bolt this on.
+A new competitor cannot build it without the full data layer.
+CACFPLink owns the data layer. That is the moat.
+
+### The Claims Center (Build First)
+Before Claim Intelligence, build the Claims Center:
+- Progress bar: `██████████░░░░░░░ 82% — 92 Sites Ready, 7 Need Attention`
+- Estimated reimbursement shown at all times
+- Per-site status: 🟢 Ready / 🟡 Needs Review / 🔴 Cannot Submit
+- Per-site checklist: Meal Counts, Attendance, Enrollment, Income Eligibility, Documents, Menus
+- Anomaly detection: "Lunch count exceeds attendance" before submission
+- Breakdown: Breakfast $23,921 / Lunch $88,341 / Snack $32,400 / Supper $4,201
+
+### State Engine (What Makes It Scale)
+When a sponsor signs up, they choose their state once.
+Everything changes automatically:
+- State-specific reimbursement rates
+- State-required documents
+- State validation rules
+- State claim deadlines
+- State export/submission format
+- State email wording and reports
+
+One product. One codebase. Different engine per state.
+Build it for one state first. Prove it. Expand state by state.
+
+### Build Sequence
+1. Capture missing data inputs: enrollment, income eligibility, menus
+2. Build state configuration engine (rates, rules, deadlines per state)
+3. Build the Claims Center UI (progress, per-site status, estimated reimbursement)
+4. Add live reimbursement calculation — updates on every change, not month-end
+5. Build the rules engine — each known disallowance type becomes a rule with a dollar value
+6. Surface as Claim Intelligence on the main dashboard
+
+### The Pitch When This Is Built
+> "Every day you log in, CACFPLink tells you exactly how much money you're about to receive and exactly how much you're at risk of losing. Fix the issues it flags, and you keep every dollar."
+
+No sponsor who has seen that goes back to KidKare.
+
+---
+
 ## Industry Differentiators (Build after first sponsors) 🚀
 
 These are features no other CACFP platform has. Build them once real sponsor feedback confirms the pain.
@@ -62,6 +148,7 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | 10 | Meal count trend chart — 6-month view (Task #48) | ✅ |
 | 11 | Broadcast messaging (Task #49) | ✅ |
 | 12 | Homepage: performance stats, comparison table, pricing, founder story, testimonials (Tasks #70–74) | ✅ |
+| 13 | Fix demo navigation — all nav items now render unique content (Task #75) | ✅ |
 
 ---
 
@@ -230,8 +317,27 @@ CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_revi
   - Was: `api.get('/kitchen-directory?kitchen_id=...')` returning `{ kitchens: [...] }` (not array)
   - Fixed: `Promise.all([api.get('/organizations?type=site&limit=100'), api.get('/meal-counts/summary?month=...')])` with `sitesRes.data?.organizations ?? sitesRes.data ?? []`
 
-### Demo Pages
-- `src/pages/demo/SponsorDemo.jsx` — updated 2025-06-30:
+### Demo Pages (Task #75, 2026-07-06)
+- **Root fix:** Both SponsorDemo and SiteDemo previously rendered only their overview regardless of URL. Fixed by adding `useLocation` from react-router-dom and switching on `pathname` to render different content per section.
+- `src/pages/demo/SiteDemo.jsx` — full rewrite:
+  - Overview: stats, task checklist, headcount form
+  - Meal Counts (`/demo/site/meal-counts`): headcount form + full history table
+  - Documents (`/demo/site/documents`): valid/expiring/missing doc list with upload simulation
+  - Messages (`/demo/site/messages`): message thread with sponsor, live reply input
+  - Settings (`/demo/site/settings`): site profile form
+- `src/pages/demo/SponsorDemo.jsx` — full rewrite, all 11 sections:
+  - Overview: action center, stat cards (link to sub-pages), recent apps, trend chart preview
+  - Applications (`/applications`): approve/reject buttons with live state, pending/approved/rejected counts
+  - Compliance (`/compliance`): full 5-tier compliance center with bulk remind button
+  - Sites (`/sites`): site list with enrollment, meal days, compliance status
+  - Kitchens (`/kitchens`): kitchen list with capacity and sites served
+  - Deliveries (`/deliveries`): today's deliveries + Schedule Delivery modal
+  - Coordinators (`/coordinators`): coordinator list with assigned sites
+  - Messages (`/messages`): multi-thread message panel with Broadcast button
+  - Meal Counts (`/meal-counts`): TrendChart + monthly breakdown table
+  - Documents (`/documents`): cross-org document list with status badges
+  - Settings (`/settings`): program profile + notification toggles
+- `src/pages/demo/SponsorDemo.jsx` — updated 2025-06-30 (previous notes):
   - NAV: "Meal Orders" → "Deliveries" (`/demo/sponsor/deliveries`)
   - Compliance section: old yellow alert → full 5-tier Compliance Action Center preview
     - Summary row: Total Kitchens, Total Sites, Missing Docs, Expiring Soon
@@ -361,6 +467,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 72 | Add "Why CACFPLink?" comparison table to homepage | ✅ |
 | 73 | Add founder story section to homepage (Hashi's words verbatim) | ✅ |
 | 74 | Add pricing section to homepage (Pilot free + contact us) | ✅ |
+| 75 | Fix demo navigation — SiteDemo + SponsorDemo use useLocation, all nav items show unique content | ✅ |
 
 ---
 

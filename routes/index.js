@@ -15,5 +15,6 @@ router.use('/stats',              require('./stats'));
 router.use('/settings',           require('./settings'));
 router.use('/users',              require('./users'));
 router.use('/contact',            require('./contact'));
+router.use('/claims',             require('./claims'));
 
 module.exports = router;
