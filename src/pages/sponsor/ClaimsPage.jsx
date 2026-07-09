@@ -58,6 +58,63 @@ function collectLossReasons(items) {
   return [...reasons];
 }
 
+// Aggregate per-category blocker counts across all sites
+function aggregateBlockers(items) {
+  const counts = {
+    mealCounts:        0,
+    attendance:        0,
+    enrollment:        0,
+    incomeEligibility: 0,
+    documents:         0,
+    menus:             0,
+  };
+  for (const item of items || []) {
+    const cl = item.checklist || {};
+    if (cl.mealCounts        === false) counts.mealCounts++;
+    if (cl.attendance        === false) counts.attendance++;
+    if (cl.enrollment        === false) counts.enrollment++;
+    if (cl.incomeEligibility === false) counts.incomeEligibility++;
+    if (cl.documents         === false) counts.documents++;
+    if (cl.menus             === false) counts.menus++;
+  }
+  const lines = [];
+  if (counts.mealCounts        > 0) lines.push(`${counts.mealCounts} ${counts.mealCounts === 1 ? 'site' : 'sites'} missing meal counts`);
+  if (counts.attendance        > 0) lines.push(`${counts.attendance} ${counts.attendance === 1 ? 'site' : 'sites'} missing attendance`);
+  if (counts.enrollment        > 0) lines.push(`${counts.enrollment} ${counts.enrollment === 1 ? 'site' : 'sites'} missing enrollment`);
+  if (counts.incomeEligibility > 0) lines.push(`${counts.incomeEligibility} ${counts.incomeEligibility === 1 ? 'site' : 'sites'} missing income eligibility`);
+  if (counts.documents         > 0) lines.push(`${counts.documents} ${counts.documents === 1 ? 'site has' : 'sites have'} missing or expired documents`);
+  if (counts.menus             > 0) lines.push(`${counts.menus} ${counts.menus === 1 ? 'site' : 'sites'} missing menus`);
+  return lines;
+}
+
+// Compute timeline steps from aggregated site data
+function buildTimeline(items, overallStatus) {
+  const total = items?.length || 0;
+  if (total === 0) return [];
+
+  const count = (key) => (items || []).filter(i => i.checklist?.[key] === false).length;
+  const na    = (key) => (items || []).every(i => i.checklist?.[key] === null);
+
+  const steps = [
+    { key: 'mealCounts',        label: 'Meal counts',          bad: count('mealCounts') },
+    { key: 'attendance',        label: 'Attendance',           bad: count('attendance') },
+    { key: 'enrollment',        label: 'Enrollment',           bad: count('enrollment'),        skip: na('enrollment') },
+    { key: 'incomeEligibility', label: 'Income eligibility',   bad: count('incomeEligibility'), skip: na('incomeEligibility') },
+    { key: 'documents',         label: 'Documents & compliance',bad: count('documents') },
+    { key: 'menus',             label: 'Menus',                bad: count('menus'),             skip: na('menus') },
+  ].filter(s => !s.skip);
+
+  // Final "submit" step
+  steps.push({
+    key: '__submit__',
+    label: 'Ready for submission',
+    bad: overallStatus !== 'ready' ? 1 : 0,
+    isFinal: true,
+  });
+
+  return steps;
+}
+
 // Total meals for a site
 function totalMealsForSite(mealTotals) {
   if (!mealTotals) return 0;
@@ -65,56 +122,83 @@ function totalMealsForSite(mealTotals) {
 }
 
 // ─── Claim Health Score ───────────────────────────────────────────────────────
-function HealthScore({ claim }) {
-  const score  = claim.readinessScore || 0;
-  const ready  = claim.sitesReady         || 0;
-  const review = claim.sitesNeedsReview   || 0;
-  const blocked= claim.sitesCannotSubmit  || 0;
-  const total  = claim.totalSites         || 0;
+function HealthScore({ claim, onFixBlockers }) {
+  const score   = claim.readinessScore  || 0;
+  const blocked = claim.sitesCannotSubmit || 0;
+  const review  = claim.sitesNeedsReview  || 0;
+  const total   = claim.totalSites        || 0;
+  const blockerLines = aggregateBlockers(claim.items);
+  const totalBlockers = blockerLines.length;
 
-  let statusColor, statusBg, statusBorder, emoji, statusText;
-  if (score >= 90 && blocked === 0) {
-    statusColor  = '#065f46'; statusBg = '#ecfdf5'; statusBorder = '#6ee7b7';
-    emoji = '🟢'; statusText = 'Claim Ready';
-  } else if (score >= 60) {
-    statusColor  = '#92400e'; statusBg = '#fffbeb'; statusBorder = '#fcd34d';
-    emoji = '🟡'; statusText = 'Getting Close';
-  } else {
-    statusColor  = '#991b1b'; statusBg = '#fef2f2'; statusBorder = '#fca5a5';
-    emoji = '🔴'; statusText = 'Needs Attention';
-  }
+  const isReady   = score >= 90 && blocked === 0;
+  const isClose   = score >= 60 && !isReady;
 
-  const filled = Math.round(score / 5);
-  const empty  = 20 - filled;
-  const barColor = score >= 90 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+  const cfg = isReady
+    ? { emoji: '🟢', title: 'Ready to Submit', color: '#065f46', bg: '#ecfdf5', border: '#6ee7b7' }
+    : isClose
+    ? { emoji: '🟡', title: 'Getting Close',   color: '#92400e', bg: '#fffbeb', border: '#fcd34d' }
+    : { emoji: '🔴', title: 'Not Ready to Submit', color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' };
 
   return (
     <div style={{
-      background: statusBg, border: `1px solid ${statusBorder}`,
+      background: cfg.bg, border: `1px solid ${cfg.border}`,
       borderRadius: 14, padding: '24px 28px', marginBottom: 24
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-        Can I submit my claim today?
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+        Claim Status
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 30, fontWeight: 800, color: statusColor }}>
-          {emoji} {statusText} · {score}%
+      {/* Status line */}
+      <div style={{ fontSize: 24, fontWeight: 800, color: cfg.color, marginBottom: 12 }}>
+        {cfg.emoji} {cfg.title}
+      </div>
+
+      {/* Blockers or all-clear */}
+      {isReady ? (
+        <div style={{ fontSize: 14, color: '#059669', fontWeight: 600, marginBottom: 16 }}>
+          ✓ All {total} sites are ready — nothing blocking submission.
         </div>
-      </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, fontWeight: 700, color: cfg.color, marginBottom: 10 }}>
+            {totalBlockers} {totalBlockers === 1 ? 'blocker' : 'blockers'} preventing submission
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            {blockerLines.map((line, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginBottom: 5 }}>
+                <span style={{ color: isClose ? '#d97706' : '#dc2626', flexShrink: 0 }}>•</span>
+                {line}
+              </div>
+            ))}
+            {review > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginTop: 5 }}>
+                <span style={{ color: '#d97706', flexShrink: 0 }}>•</span>
+                {review} {review === 1 ? 'site needs' : 'sites need'} review
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
-      {/* Progress bar (monospace) */}
-      <div style={{ fontFamily: 'monospace', fontSize: 17, letterSpacing: 1, color: barColor, margin: '10px 0 14px' }}>
-        {'█'.repeat(filled)}{'░'.repeat(empty)}
-      </div>
-
-      {/* Site status pills */}
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#059669' }}>✅ {ready} {ready === 1 ? 'site' : 'sites'} ready</span>
-        {review > 0 && <span style={{ fontSize: 14, fontWeight: 600, color: '#d97706' }}>🟡 {review} {review === 1 ? 'site' : 'sites'} need review</span>}
-        {blocked > 0 && <span style={{ fontSize: 14, fontWeight: 600, color: '#dc2626' }}>🔴 {blocked} {blocked === 1 ? 'site' : 'sites'} blocked</span>}
-        {total > 0 && ready === total && (
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#059669' }}>— All {total} sites ready to submit</span>
+      {/* Estimated reimbursement + CTA */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ fontSize: 13, color: '#6b7280' }}>
+          Estimated reimbursement:{' '}
+          <span style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>
+            {formatCurrency(claim.estimatedReimbursement)}
+          </span>
+        </div>
+        {!isReady && (
+          <button
+            onClick={onFixBlockers}
+            style={{
+              fontSize: 13, fontWeight: 700, color: cfg.color,
+              background: 'none', border: `1px solid ${cfg.border}`,
+              borderRadius: 8, padding: '6px 16px', cursor: 'pointer'
+            }}
+          >
+            Fix blockers →
+          </button>
         )}
       </div>
     </div>
@@ -387,15 +471,106 @@ function SiteTableRow({ item, expanded, onToggle, month, stateName }) {
   );
 }
 
+// ─── Claim Timeline ───────────────────────────────────────────────────────────
+function ClaimTimeline({ claim }) {
+  const steps = buildTimeline(claim.items, claim.overallStatus);
+  const score = claim.readinessScore || 0;
+  const monthLabel = formatMonth(claim.claimMonth);
+
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #e5e7eb',
+      borderRadius: 14, padding: '22px 28px', marginBottom: 24
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
+            {monthLabel} Claim
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+            Claim Readiness
+          </div>
+        </div>
+        <div style={{
+          fontSize: 22, fontWeight: 800,
+          color: score >= 90 ? '#059669' : score >= 60 ? '#d97706' : '#dc2626'
+        }}>
+          {score}% Ready
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {steps.map((step, i) => {
+          const done     = step.bad === 0;
+          const isFinal  = !!step.isFinal;
+          const isLast   = i === steps.length - 1;
+
+          const iconBg    = done ? '#d1fae5' : isFinal ? '#f3f4f6' : '#fee2e2';
+          const iconColor = done ? '#059669' : isFinal ? '#9ca3af' : '#dc2626';
+          const icon      = done ? '✓' : isFinal ? '⏳' : '✗';
+
+          const labelColor  = done ? '#111827' : isFinal ? '#6b7280' : '#374151';
+          const detailColor = done ? '#059669' : isFinal ? '#9ca3af' : '#dc2626';
+          const detail      = done
+            ? (isFinal ? 'All checks passed' : 'Complete')
+            : isFinal
+            ? 'Waiting on items above'
+            : `${step.bad} ${step.bad === 1 ? 'site' : 'sites'} incomplete`;
+
+          return (
+            <div key={step.key} style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+              {/* Icon + connector line */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 36, flexShrink: 0 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: iconBg, color: iconColor,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700, flexShrink: 0,
+                  zIndex: 1
+                }}>
+                  {icon}
+                </div>
+                {!isLast && (
+                  <div style={{
+                    width: 2, flex: 1, minHeight: 16,
+                    background: done ? '#d1fae5' : '#f3f4f6',
+                    margin: '2px 0'
+                  }} />
+                )}
+              </div>
+
+              {/* Label + detail */}
+              <div style={{ paddingBottom: isLast ? 0 : 14, paddingLeft: 12, paddingTop: 4 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: labelColor }}>
+                  {step.label}
+                </div>
+                <div style={{ fontSize: 12, color: detailColor, marginTop: 1 }}>
+                  {detail}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Generate Claim CTA ───────────────────────────────────────────────────────
 function GenerateClaim({ claim, month }) {
   const [showExport, setShowExport] = useState(false);
-  const isReady = claim.overallStatus === 'ready';
   const monthLabel = formatMonth(month);
 
-  const handleGenerate = () => {
-    setShowExport(true);
-  };
+  const isReady   = claim.overallStatus === 'ready';
+  const isReview  = claim.overallStatus === 'needs_review';
+  const isBlocked = claim.overallStatus === 'cannot_submit';
+
+  // Button label changes based on readiness
+  const btnLabel = isReady
+    ? `Generate ${monthLabel} Claim`
+    : `Prepare ${monthLabel} Claim`;
+
+  const btnBg = isReady ? '#10b981' : isReview ? '#f59e0b' : '#4f46e5';
 
   return (
     <div style={{
@@ -403,61 +578,76 @@ function GenerateClaim({ claim, month }) {
       border: `1px solid ${isReady ? '#6ee7b7' : '#e5e7eb'}`,
       borderRadius: 14, padding: '28px 32px', marginTop: 32, textAlign: 'center'
     }}>
-      <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 600, marginBottom: 6 }}>
-        {isReady
-          ? `✓ All ${claim.totalSites} sites are ready`
-          : `${claim.sitesReady} of ${claim.totalSites} sites ready`}
+      {/* Ready badge */}
+      {isReady && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: '#d1fae5', color: '#065f46', borderRadius: 20,
+          padding: '4px 14px', fontSize: 12, fontWeight: 700, marginBottom: 12
+        }}>
+          ✅ Ready
+        </div>
+      )}
+
+      <div style={{ fontSize: 26, fontWeight: 800, color: '#111827', marginBottom: 4 }}>
+        {btnLabel}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: '#111827', marginBottom: 4 }}>
-        Generate {monthLabel} Claim
-      </div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#4f46e5', marginBottom: 20 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#4f46e5', marginBottom: 20 }}>
         Estimated: {formatCurrency(claim.estimatedReimbursement)}
       </div>
 
+      {!isReady && (
+        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
+          {claim.sitesReady} of {claim.totalSites} sites ready
+          {claim.sitesCannotSubmit > 0 && ` · ${claim.sitesCannotSubmit} blocked`}
+        </div>
+      )}
+
       {!showExport ? (
         <button
-          onClick={handleGenerate}
+          onClick={() => setShowExport(true)}
           style={{
-            background: isReady ? '#10b981' : '#4f46e5',
-            color: '#fff', border: 'none', borderRadius: 10,
-            padding: '14px 40px', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            background: btnBg, color: '#fff', border: 'none',
+            borderRadius: 10, padding: '14px 40px',
+            fontSize: 16, fontWeight: 700, cursor: 'pointer',
             boxShadow: '0 4px 14px rgba(0,0,0,0.12)'
           }}
         >
-          {isReady ? `✓ Generate ${monthLabel} Claim ↓` : `Generate ${monthLabel} Claim ↓`}
+          {btnLabel} ↓
         </button>
       ) : (
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
-            Choose your export format:
+            Export for your state:
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['Ohio', 'Texas', 'Georgia', 'Florida'].map(state => (
-              <button
-                key={state}
-                disabled={claim.stateName !== state}
-                style={{
-                  padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  border: `1px solid ${claim.stateName === state ? '#4f46e5' : '#d1d5db'}`,
-                  background: claim.stateName === state ? '#4f46e5' : '#f9fafb',
-                  color: claim.stateName === state ? '#fff' : '#9ca3af',
-                  cursor: claim.stateName === state ? 'pointer' : 'not-allowed',
-                  opacity: claim.stateName === state ? 1 : 0.5
-                }}
-              >
-                Export for {state}
-              </button>
-            ))}
+            {['Ohio', 'Texas', 'Georgia', 'Florida'].map(state => {
+              const active = claim.stateName === state;
+              return (
+                <button
+                  key={state}
+                  disabled={!active}
+                  style={{
+                    padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                    border: `1px solid ${active ? '#4f46e5' : '#e5e7eb'}`,
+                    background: active ? '#4f46e5' : '#f9fafb',
+                    color: active ? '#fff' : '#d1d5db',
+                    cursor: active ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Export for {state}
+                </button>
+              );
+            })}
           </div>
-          {!isReady && (
+          {isBlocked && (
             <div style={{ marginTop: 14, fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>
-              ⚠ {claim.sitesCannotSubmit} site{claim.sitesCannotSubmit !== 1 ? 's are' : ' is'} blocked — fix issues above to include them in the claim.
+              ⚠ {claim.sitesCannotSubmit} {claim.sitesCannotSubmit === 1 ? 'site is' : 'sites are'} blocked and will be excluded from this export.
             </div>
           )}
           <button
             onClick={() => setShowExport(false)}
-            style={{ marginTop: 12, fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            style={{ marginTop: 12, fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
           >
             Cancel
           </button>
@@ -476,6 +666,7 @@ export default function ClaimsPage() {
   const [error,       setError]       = useState(null);
   const [expanded,    setExpanded]    = useState({});
   const [filter,      setFilter]      = useState('all');
+  const sitesRef = { current: null };
 
   useEffect(() => {
     loadClaim();
@@ -574,7 +765,13 @@ export default function ClaimsPage() {
       {!loading && !error && claim && (
         <>
           {/* 1. Health Score */}
-          <HealthScore claim={claim} />
+          <HealthScore
+            claim={claim}
+            onFixBlockers={() => {
+              setFilter('cannot_submit');
+              document.getElementById('sites-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
 
           {/* 2. Cards row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -585,8 +782,11 @@ export default function ClaimsPage() {
           {/* 3. Breakdown */}
           <BreakdownRow breakdown={claim.breakdown} total={claim.estimatedReimbursement} />
 
-          {/* 4. Sites table */}
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 8 }}>
+          {/* 4. Claim Timeline */}
+          <ClaimTimeline claim={claim} />
+
+          {/* 5. Sites table */}
+          <div id="sites-section" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 8 }}>
             {/* Table header */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -651,7 +851,7 @@ export default function ClaimsPage() {
             )}
           </div>
 
-          {/* 5. Generate Claim CTA */}
+          {/* 6. Generate Claim CTA */}
           <GenerateClaim claim={claim} month={month} />
         </>
       )}
