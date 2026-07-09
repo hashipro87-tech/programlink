@@ -17,5 +17,6 @@ router.use('/users',              require('./users'));
 router.use('/audit-log',          require('./auditLog'));
 router.use('/compliance',              require('./compliance'));
 router.use('/coordinator-assignments', require('./coordinatorAssignments'));
+router.use('/claims',                  require('./claims'));
 
 module.exports = router;
