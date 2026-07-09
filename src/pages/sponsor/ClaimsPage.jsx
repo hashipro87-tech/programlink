@@ -31,6 +31,35 @@ function prevMonthStr(monthStr) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Compute claim deadline from state config + claim month
+function getDeadlineInfo(submissionDeadline, claimMonth) {
+  if (!submissionDeadline || !claimMonth) return null;
+  const [y, m] = claimMonth.split('-').map(Number);
+
+  let deadline;
+  if (submissionDeadline.dayOfMonth === 'last') {
+    deadline = new Date(y, m, 0); // last day of claim month
+  } else {
+    const day = parseInt(submissionDeadline.dayOfMonth, 10);
+    // Numeric day = day of the following month
+    deadline = new Date(y, m, day);
+  }
+  if (submissionDeadline.graceDays) {
+    deadline.setDate(deadline.getDate() + (submissionDeadline.graceDays || 0));
+  }
+
+  const today     = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadline.setHours(0, 0, 0, 0);
+  const daysLeft  = Math.round((deadline - today) / (1000 * 60 * 60 * 24));
+  const isPast    = daysLeft < 0;
+  const isUrgent  = daysLeft >= 0 && daysLeft <= 5;
+
+  const label = deadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+
+  return { deadline, daysLeft, isPast, isUrgent, label };
+}
+
 // Error code → human-readable reason
 const ERROR_LABELS = {
   MEAL_COUNT_EXCEEDS_ENROLLMENT: 'Meal counts may exceed enrollment',
@@ -123,21 +152,27 @@ function totalMealsForSite(mealTotals) {
 
 // ─── Claim Health Score ───────────────────────────────────────────────────────
 function HealthScore({ claim, onFixBlockers }) {
-  const score   = claim.readinessScore  || 0;
+  const score   = claim.readinessScore    || 0;
   const blocked = claim.sitesCannotSubmit || 0;
   const review  = claim.sitesNeedsReview  || 0;
+  const ready   = claim.sitesReady        || 0;
   const total   = claim.totalSites        || 0;
-  const blockerLines = aggregateBlockers(claim.items);
-  const totalBlockers = blockerLines.length;
+  const remaining = total - ready;
 
-  const isReady   = score >= 90 && blocked === 0;
-  const isClose   = score >= 60 && !isReady;
+  const blockerLines  = aggregateBlockers(claim.items);
+  const hasBlockers   = blockerLines.length > 0 || review > 0;
+
+  const isReady = score >= 90 && blocked === 0;
+  const isClose = score >= 60 && !isReady;
 
   const cfg = isReady
-    ? { emoji: '🟢', title: 'Ready to Submit', color: '#065f46', bg: '#ecfdf5', border: '#6ee7b7' }
+    ? { emoji: '🟢', title: 'Ready to Submit',     color: '#065f46', bg: '#ecfdf5', border: '#6ee7b7', bar: '#10b981' }
     : isClose
-    ? { emoji: '🟡', title: 'Getting Close',   color: '#92400e', bg: '#fffbeb', border: '#fcd34d' }
-    : { emoji: '🔴', title: 'Not Ready to Submit', color: '#991b1b', bg: '#fef2f2', border: '#fca5a5' };
+    ? { emoji: '🟡', title: 'Getting Close',        color: '#92400e', bg: '#fffbeb', border: '#fcd34d', bar: '#f59e0b' }
+    : { emoji: '🔴', title: 'Not Ready to Submit',  color: '#991b1b', bg: '#fef2f2', border: '#fca5a5', bar: '#ef4444' };
+
+  // Progress bar (visual, not monospace)
+  const pct = Math.min(Math.max(score, 0), 100);
 
   return (
     <div style={{
@@ -149,46 +184,64 @@ function HealthScore({ claim, onFixBlockers }) {
       </div>
 
       {/* Status line */}
-      <div style={{ fontSize: 24, fontWeight: 800, color: cfg.color, marginBottom: 12 }}>
+      <div style={{ fontSize: 24, fontWeight: 800, color: cfg.color, marginBottom: 16 }}>
         {cfg.emoji} {cfg.title}
+      </div>
+
+      {/* Visual progress bar */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>Claim Readiness</span>
+          <span style={{ fontSize: 20, fontWeight: 800, color: cfg.color }}>{pct}%</span>
+        </div>
+        <div style={{ background: '#e5e7eb', borderRadius: 999, height: 10, overflow: 'hidden' }}>
+          <div style={{
+            width: `${pct}%`, height: '100%',
+            background: cfg.bar, borderRadius: 999,
+            transition: 'width 0.6s ease'
+          }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12, color: '#6b7280' }}>
+          <span>{ready} of {total} sites complete</span>
+          {remaining > 0 && <span>{remaining} {remaining === 1 ? 'site' : 'sites'} remaining</span>}
+        </div>
       </div>
 
       {/* Blockers or all-clear */}
       {isReady ? (
-        <div style={{ fontSize: 14, color: '#059669', fontWeight: 600, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, color: '#059669', fontWeight: 600, marginTop: 12 }}>
           ✓ All {total} sites are ready — nothing blocking submission.
         </div>
+      ) : hasBlockers ? (
+        <div style={{ marginTop: 12 }}>
+          {blockerLines.map((line, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginBottom: 5 }}>
+              <span style={{ color: isClose ? '#d97706' : '#dc2626', flexShrink: 0 }}>•</span>
+              {line}
+            </div>
+          ))}
+          {review > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginTop: blockerLines.length > 0 ? 5 : 0 }}>
+              <span style={{ color: '#d97706', flexShrink: 0 }}>•</span>
+              {review} {review === 1 ? 'site needs' : 'sites need'} review
+            </div>
+          )}
+        </div>
       ) : (
-        <>
-          <div style={{ fontSize: 13, fontWeight: 700, color: cfg.color, marginBottom: 10 }}>
-            {totalBlockers} {totalBlockers === 1 ? 'blocker' : 'blockers'} preventing submission
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            {blockerLines.map((line, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginBottom: 5 }}>
-                <span style={{ color: isClose ? '#d97706' : '#dc2626', flexShrink: 0 }}>•</span>
-                {line}
-              </div>
-            ))}
-            {review > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginTop: 5 }}>
-                <span style={{ color: '#d97706', flexShrink: 0 }}>•</span>
-                {review} {review === 1 ? 'site needs' : 'sites need'} review
-              </div>
-            )}
-          </div>
-        </>
+        <div style={{ marginTop: 12, fontSize: 13, color: '#6b7280' }}>
+          Claim period still active — meal counts being entered.
+        </div>
       )}
 
       {/* Estimated reimbursement + CTA */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${cfg.border}` }}>
         <div style={{ fontSize: 13, color: '#6b7280' }}>
           Estimated reimbursement:{' '}
           <span style={{ fontWeight: 800, fontSize: 16, color: '#10b981' }}>
             {formatCurrency(claim.estimatedReimbursement)}
           </span>
         </div>
-        {!isReady && (
+        {!isReady && hasBlockers && (
           <button
             onClick={onFixBlockers}
             style={{
@@ -269,6 +322,43 @@ function PotentialLossCard({ amount, reasons }) {
           ✓ No issues — every dollar is protected
         </div>
       ) : null}
+    </div>
+  );
+}
+
+// ─── Deadline Card ────────────────────────────────────────────────────────────
+function DeadlineCard({ submissionDeadline, claimMonth }) {
+  const info = getDeadlineInfo(submissionDeadline, claimMonth);
+  if (!info) return null;
+
+  const { daysLeft, isPast, isUrgent, label } = info;
+
+  const color  = isPast ? '#6b7280' : isUrgent ? '#dc2626' : '#374151';
+  const bg     = isPast ? '#f9fafb' : isUrgent ? '#fef2f2' : '#fff';
+  const border = isPast ? '#e5e7eb' : isUrgent ? '#fca5a5' : '#e5e7eb';
+
+  const subLabel = isPast
+    ? 'Deadline has passed'
+    : daysLeft === 0
+    ? '⚠ Due today'
+    : isUrgent
+    ? `⚠ ${daysLeft} days remaining — act now`
+    : `${daysLeft} days remaining`;
+
+  return (
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 14, padding: '22px 24px' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
+        Claim Deadline
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 800, color, lineHeight: 1.1 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: isPast ? '#9ca3af' : isUrgent ? '#dc2626' : '#6b7280', marginTop: 8 }}>
+        {subLabel}
+      </div>
+      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+        Submit by end of day to receive full reimbursement
+      </div>
     </div>
   );
 }
@@ -721,7 +811,7 @@ export default function ClaimsPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 }}>Claims Center</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 }}>Claim Command Center</h1>
           <p style={{ color: '#6b7280', margin: '4px 0 0', fontSize: 14 }}>
             {claim?.stateName ? `${claim.stateName} CACFP · ` : ''}{formatMonth(month)}
           </p>
@@ -786,9 +876,10 @@ export default function ClaimsPage() {
           )}
 
           {/* 2. Cards row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
             <ReimbursementCard amount={claim.estimatedReimbursement} prevAmount={prevAmount} />
             <PotentialLossCard amount={claim.potentialLoss} reasons={lossReasons} />
+            <DeadlineCard submissionDeadline={claim.submissionDeadline} claimMonth={claim.claimMonth} />
           </div>
 
           {/* 3. Breakdown */}
