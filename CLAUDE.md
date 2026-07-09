@@ -418,6 +418,101 @@ CHECK (status IN ('valid', 'expiring_soon', 'expired', 'rejected', 'pending_revi
 
 ---
 
+## Repo Structure (CRITICAL — don't get this wrong again)
+
+The git repo root (`~/Desktop/outputs/programlink-backend/`) contains TWO layers:
+
+```
+programlink-backend/          ← git repo root (also frontend)
+  package.json                ← "programlink-frontend", type: module, Vite/React
+  src/                        ← React frontend → deployed to Vercel
+  server.js / app.js          ← NOT used by Railway (wrong layer)
+  routes/                     ← NOT used by Railway (wrong layer)
+  controllers/                ← NOT used by Railway (wrong layer)
+  programlink-backend/        ← THE REAL BACKEND → Railway deploys from here
+    package.json              ← "programlink-backend", CommonJS, node server.js
+    server.js / app.js        ← Railway entry point
+    routes/index.js           ← master router
+    controllers/              ← all real controllers
+    services/                 ← claimsEngine, notificationService, etc.
+    config/database.js        ← DB pool (use require('../config/database'))
+```
+
+**Railway runs `node server.js` from `programlink-backend/programlink-backend/`.**
+
+When adding backend files, ALWAYS put them in `programlink-backend/programlink-backend/` — NOT the repo root.
+When adding frontend files, put them in `src/`.
+
+DB pool import: `require('../config/database')` — NOT `require('../db')`.
+
+---
+
+## Claims Engine (Task #80–83, 2026-07-09) ✅ LIVE
+
+### What was built
+- **Universal Claims Engine** (`programlink-backend/services/claimsEngine.js`) — state-agnostic engine that takes sites + stateConfig + claimMonth → returns full claim with reimbursement, per-site status, validation errors, potential loss
+- **State configs** (`programlink-backend/services/stateConfigs/OH.json`, TX.json, GA.json, FL.json) — JSON-only, no state logic in code. OH rates: breakfast tier1 $1.70 / lunch tier1 $3.22 / snack tier1 $0.96
+- **Claims controller** (`programlink-backend/controllers/claimsController.js`) — loads state from org's `region` column, runs engine, upserts to `claims` table
+- **Claims route** (`programlink-backend/routes/claims.js`) — GET `/claims?month=YYYY-MM`, `/claims/history`, `/claims/states`. Requires `authorizeRoles('sponsor', 'admin')`
+- **Claims Center UI** (`src/pages/sponsor/ClaimsPage.jsx`) — "Claim Command Center" title + month picker, HealthScore (CSS progress bar, specific blocker counts, "Claim period still active" fallback), 3 cards (Estimated Reimbursement / Reimbursement at Risk / Claim Deadline), meal type breakdown row, SiteStatusGrid (X/Y Sites Ready + per-site cards), ClaimTimeline (vertical checklist), sites detail table with expandable checklist + Send Reminder, GenerateClaim CTA (label changes based on readiness)
+- **Claims DB tables** — `state_configs`, `claims`, `claim_items` (run `migrations/claims_tables.sql` in Railway)
+
+### Claims Center is LIVE at cacfplink.com/dashboard/sponsor/claims
+
+### State setup (how it works)
+- Sponsor's org must have `region` column set to a 2-letter state code ('OH', 'TX', 'GA', 'FL')
+- Engine loads the matching JSON config from `stateConfigs/`
+- State is now set during registration (Task #83 ✅) — sponsors pick state on the registration form
+- Existing sponsors with no state: go to Settings → Organization → pick CACFP Program State → Save → log out → log back in
+
+### Existing users with null org_id (Charles, Deborah)
+These users registered before Task #83. Fix:
+1. They go to Settings → Organization → fill in org name + pick state → Save Organization
+2. The backend auto-creates their org and links it (no manual DB work needed)
+3. They log out and log back in → Claims Center works
+
+### Railway watched files issue
+Railway's "watch paths" filter causes some pushes to be SKIPPED ("No changes to watched files"). Fix: manually click ⋮ → Redeploy on the SKIPPED deployment in Railway.
+
+### Railway query editor LIMIT injection
+Railway wraps subqueries in UPDATE statements with a LIMIT, causing syntax errors. Use two-step workaround: SELECT to get UUID, then UPDATE with literal UUID. Example:
+```sql
+-- Step 1: get the id
+SELECT org_id FROM users WHERE email = 'hashipro87@gmail.com';
+-- Step 2: update directly
+UPDATE organizations SET region = 'OH' WHERE id = 'paste-uuid-here';
+```
+
+---
+
+## Real Signups (2026-07-09) 🔥
+
+**Charles@cacfpsolutions.com** — role: sponsor — signed up 2026-06-29, `is_verified = true` ✅
+- Last login: 2026-06-29 19:41:54 (hasn't logged back in since losing the link)
+- Outreach email sent 2026-07-09, replied "Yeah, still here. Still interested. Can you give me that login link again?"
+- Sent login link (https://cacfplink.com/login) + instructions to set state in Settings
+- Still needs: Settings → Organization → pick state → Save → re-login for Claims Center to work
+
+**deborah.wilson@gansi.org** — role: sponsor (Deborah Gillison-Wilson, GANSI) — signed up 2026-07-09, `is_verified = true` ✅ (manually verified via Railway)
+- Last login: NULL — has never logged in
+- Outreach email sent 2026-07-09, no reply yet
+- Still needs: first login + Settings → Organization → pick state → re-login for Claims Center to work
+
+### How to check login status
+```sql
+SELECT email, last_login_at FROM users 
+WHERE email ILIKE '%charles%' OR email ILIKE '%deborah%';
+```
+Note: `users` table has `last_login_at TIMESTAMPTZ` column (already exists — do NOT run ALTER TABLE again).
+
+### Railway UPDATE quirk
+Direct `UPDATE users SET is_verified = true WHERE email = '...'` returns "0 rows" in Railway UI even when it succeeds. Verify with a follow-up SELECT to confirm.
+
+### audit_log table
+The `audit_log` table does NOT have a `user_id` column — querying it by user_id will error.
+
+---
+
 ## Recurring Issues
 
 ### Git lock files (sandbox can't remove)
@@ -468,6 +563,14 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 73 | Add founder story section to homepage (Hashi's words verbatim) | ✅ |
 | 74 | Add pricing section to homepage (Pilot free + contact us) | ✅ |
 | 75 | Fix demo navigation — SiteDemo + SponsorDemo use useLocation, all nav items show unique content | ✅ |
+| 80 | Universal Claims Engine — state-agnostic, JSON state configs (OH/TX/GA/FL) | ✅ |
+| 81 | Claims Center UI — progress bar, per-site status, reimbursement breakdown | ✅ |
+| 82 | Claims DB tables — claims, claim_items, state_configs | ✅ |
+| 83 | Add state picker to registration + Settings page (so sponsors self-configure state) | ✅ |
+| 84 | Claims Center redesign — Claim Health Score, Reimbursement at Risk, sites table, Generate Claim CTA | ✅ |
+| 85 | Claims Center — specific blocker counts, smart CTA label, Claim Timeline | ✅ |
+| 86 | Claim Command Center polish — CSS progress bar, Claim Deadline card, "0 blockers" fallback fix | ✅ |
+| 87 | Site Status Grid (X/Y Sites Ready + per-site status cards) + rename "Potential Loss" → "Reimbursement at Risk" | ✅ |
 
 ---
 
