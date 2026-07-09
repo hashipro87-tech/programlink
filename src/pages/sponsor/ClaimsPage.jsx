@@ -303,7 +303,7 @@ function PotentialLossCard({ amount, reasons }) {
       borderRadius: 14, padding: '22px 24px'
     }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-        Potential Loss
+        Reimbursement at Risk
       </div>
       <div style={{ fontSize: 36, fontWeight: 800, color: hasLoss ? '#ea580c' : '#10b981', lineHeight: 1.1 }}>
         {hasLoss ? formatCurrency(amount) : '$0'}
@@ -747,6 +747,90 @@ function GenerateClaim({ claim, month }) {
   );
 }
 
+// ─── Site Status Grid ─────────────────────────────────────────────────────────
+function getSiteStatusDetail(item) {
+  if (item.status === 'ready') return { text: 'All items complete', color: '#059669' };
+  const cl = item.checklist || {};
+  if (cl.mealCounts        === false) return { text: 'Waiting on meal counts',        color: '#d97706' };
+  if (cl.attendance        === false) return { text: 'Missing attendance records',     color: '#dc2626' };
+  if (cl.enrollment        === false) return { text: 'Missing enrollment',             color: '#dc2626' };
+  if (cl.incomeEligibility === false) return { text: 'Missing income eligibility',     color: '#dc2626' };
+  if (cl.documents         === false) return { text: 'Documents missing or expired',   color: '#dc2626' };
+  if (cl.menus             === false) return { text: 'Menus not submitted',            color: '#dc2626' };
+  if (item.status === 'needs_review')  return { text: 'Needs review',                 color: '#d97706' };
+  return { text: 'Issues detected', color: '#dc2626' };
+}
+
+function SiteStatusGrid({ items, onSiteClick }) {
+  if (!items || items.length === 0) return null;
+
+  const total = items.length;
+  const ready = items.filter(i => i.status === 'ready').length;
+  const pct   = Math.round((ready / total) * 100);
+
+  const barColor = pct === 100 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
+  const pctColor = pct === 100 ? '#059669' : pct >= 60 ? '#d97706' : '#dc2626';
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '22px 24px', marginBottom: 24 }}>
+      {/* Summary bar */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+            {ready} / {total} Sites Ready
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: pctColor }}>{pct}%</div>
+        </div>
+        <div style={{ background: '#f3f4f6', borderRadius: 999, height: 8, overflow: 'hidden' }}>
+          <div style={{
+            width: `${pct}%`, height: '100%', borderRadius: 999,
+            background: barColor, transition: 'width 0.6s ease'
+          }} />
+        </div>
+      </div>
+
+      {/* Site cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 10 }}>
+        {items.map(item => {
+          const detail   = getSiteStatusDetail(item);
+          const isReady  = item.status === 'ready';
+          const isReview = item.status === 'needs_review';
+          const icon     = isReady ? '🟢' : isReview ? '🟡' : '🔴';
+          const cardBg   = isReady ? '#f0fdf4' : isReview ? '#fffbeb' : '#fef2f2';
+          const cardBdr  = isReady ? '#bbf7d0' : isReview ? '#fde68a' : '#fecaca';
+
+          return (
+            <div
+              key={item.siteId}
+              onClick={() => onSiteClick && onSiteClick(item.siteId)}
+              style={{
+                background: cardBg, border: `1px solid ${cardBdr}`,
+                borderRadius: 10, padding: '12px 14px', cursor: 'pointer',
+                transition: 'box-shadow 0.15s'
+              }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{
+                  fontSize: 13, fontWeight: 700, color: '#111827',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                }}>
+                  {item.siteName}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: detail.color, fontWeight: 500 }}>
+                {detail.text}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClaimsPage() {
   const [month,       setMonth]       = useState(currentMonthStr());
@@ -885,10 +969,24 @@ export default function ClaimsPage() {
           {/* 3. Breakdown */}
           <BreakdownRow breakdown={claim.breakdown} total={claim.estimatedReimbursement} />
 
-          {/* 4. Claim Timeline */}
+          {/* 4. Site Status Grid */}
+          {claim.totalSites > 0 && (
+            <SiteStatusGrid
+              items={claim.items || []}
+              onSiteClick={(siteId) => {
+                setExpanded(prev => ({ ...prev, [siteId]: true }));
+                setFilter('all');
+                setTimeout(() => {
+                  document.getElementById('sites-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 50);
+              }}
+            />
+          )}
+
+          {/* 5. Claim Timeline */}
           {claim.totalSites > 0 && <ClaimTimeline claim={claim} />}
 
-          {/* 5. Sites table */}
+          {/* 6. Sites table */}
           <div id="sites-section" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 8 }}>
             {/* Table header */}
             <div style={{
@@ -954,7 +1052,7 @@ export default function ClaimsPage() {
             )}
           </div>
 
-          {/* 6. Generate Claim CTA */}
+          {/* 7. Generate Claim CTA */}
           <GenerateClaim claim={claim} month={month} />
         </>
       )}
