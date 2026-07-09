@@ -98,17 +98,35 @@ exports.getTrend = async (req, res) => {
 
 exports.getMonthlySummary = async (req, res) => {
   try {
-    const { month, year } = req.query;
-    const m = month || new Date().getMonth() + 1;
-    const y = year  || new Date().getFullYear();
+    // Accept month as 'YYYY-MM' (sent by frontend) or separate month/year params
+    let y, m;
+    if (req.query.month && req.query.month.includes('-')) {
+      [y, m] = req.query.month.split('-').map(Number);
+    } else {
+      m = parseInt(req.query.month, 10) || (new Date().getMonth() + 1);
+      y = parseInt(req.query.year,  10) || new Date().getFullYear();
+    }
+
+    const sponsorId = req.user.organizationId ?? req.user.sponsorId;
+
     const { rows } = await pool.query(
-      `SELECT site_id, SUM(count_submitted) AS total_submitted, SUM(count_verified) AS total_verified, COUNT(*) AS days
-       FROM meal_counts
-       WHERE EXTRACT(MONTH FROM date) = $1 AND EXTRACT(YEAR FROM date) = $2
-       GROUP BY site_id`,
-      [m, y]
+      `SELECT
+         mc.site_id,
+         o.name                                                          AS site_name,
+         COUNT(mc.id)::int                                               AS days_reported,
+         COUNT(mc.id) FILTER (WHERE mc.count_verified IS NULL)::int      AS days_unverified,
+         COALESCE(SUM(mc.count_submitted), 0)::int                       AS total_submitted,
+         COALESCE(SUM(mc.count_verified),  0)::int                       AS total_verified
+       FROM meal_counts mc
+       JOIN organizations o ON o.id = mc.site_id
+       WHERE EXTRACT(MONTH FROM mc.date) = $1
+         AND EXTRACT(YEAR  FROM mc.date) = $2
+         AND o.sponsor_id = $3
+       GROUP BY mc.site_id, o.name
+       ORDER BY o.name`,
+      [m, y, sponsorId]
     );
-    res.json({ summary: rows });
+    res.json({ sites: rows });
   } catch (err) {
     console.error('getMonthlySummary error:', err);
     res.status(500).json({ error: 'Failed to fetch summary.' });

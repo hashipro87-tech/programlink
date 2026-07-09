@@ -596,10 +596,10 @@ function GenerateClaim({ claim, month }) {
         Estimated: {formatCurrency(claim.estimatedReimbursement)}
       </div>
 
-      {!isReady && (
+      {!isReady && (claim.totalSites ?? 0) > 0 && (
         <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
-          {claim.sitesReady} of {claim.totalSites} sites ready
-          {claim.sitesCannotSubmit > 0 && ` · ${claim.sitesCannotSubmit} blocked`}
+          {claim.sitesReady ?? 0} of {claim.totalSites} sites ready
+          {(claim.sitesCannotSubmit ?? 0) > 0 && ` · ${claim.sitesCannotSubmit} blocked`}
         </div>
       )}
 
@@ -765,13 +765,25 @@ export default function ClaimsPage() {
       {!loading && !error && claim && (
         <>
           {/* 1. Health Score */}
-          <HealthScore
-            claim={claim}
-            onFixBlockers={() => {
-              setFilter('cannot_submit');
-              document.getElementById('sites-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          />
+          {claim.totalSites > 0 ? (
+            <HealthScore
+              claim={claim}
+              onFixBlockers={() => {
+                setFilter('cannot_submit');
+                document.getElementById('sites-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
+          ) : (
+            <div style={{
+              background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: 14, padding: '24px 28px', marginBottom: 24,
+              textAlign: 'center', color: '#6b7280'
+            }}>
+              <div style={{ fontSize: 20, marginBottom: 8 }}>📋</div>
+              <div style={{ fontWeight: 700, color: '#374151', marginBottom: 4 }}>No active sites yet</div>
+              <div style={{ fontSize: 13 }}>Add sites to your program and enter meal counts to see your claim estimate.</div>
+            </div>
+          )}
 
           {/* 2. Cards row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -783,7 +795,7 @@ export default function ClaimsPage() {
           <BreakdownRow breakdown={claim.breakdown} total={claim.estimatedReimbursement} />
 
           {/* 4. Claim Timeline */}
-          <ClaimTimeline claim={claim} />
+          {claim.totalSites > 0 && <ClaimTimeline claim={claim} />}
 
           {/* 5. Sites table */}
           <div id="sites-section" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 8 }}>
