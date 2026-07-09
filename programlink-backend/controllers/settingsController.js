@@ -49,22 +49,57 @@ exports.updatePassword = async (req, res) => {
 };
 
 exports.updateOrganization = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { name, address, phone, region } = req.body;
-    const { rows } = await pool.query(
+    const orgId = req.user.organizationId;
+
+    await client.query('BEGIN');
+
+    // No org yet — sponsor signed up before org-creation was wired up. Create one now.
+    if (!orgId) {
+      if (req.user.role !== 'sponsor' && req.user.role !== 'admin') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No organization linked to your account.' });
+      }
+      const orgRes = await client.query(
+        `INSERT INTO organizations (name, type, status, address, phone, region)
+         VALUES ($1, 'sponsor', 'active', $2, $3, $4)
+         RETURNING *`,
+        [
+          name    || 'My Organization',
+          address || null,
+          phone   || null,
+          region  ? region.toUpperCase() : null,
+        ]
+      );
+      const newOrg = orgRes.rows[0];
+      await client.query('UPDATE users SET org_id = $1 WHERE id = $2', [newOrg.id, req.user.id]);
+      await client.query('COMMIT');
+      return res.json({
+        organization: newOrg,
+        message: 'Organization created. Log out and back in to activate the Claims Center.',
+      });
+    }
+
+    const { rows } = await client.query(
       `UPDATE organizations SET
-         name = COALESCE($1, name),
+         name    = COALESCE($1, name),
          address = COALESCE($2, address),
-         phone = COALESCE($3, phone),
-         region = COALESCE($4, region),
+         phone   = COALESCE($3, phone),
+         region  = COALESCE($4, region),
          updated_at = NOW()
        WHERE id = $5 RETURNING *`,
-      [name, address, phone, region, req.user.organizationId]
+      [name, address, phone, region ? region.toUpperCase() : null, orgId]
     );
+    await client.query('COMMIT');
     if (!rows.length) return res.status(404).json({ error: 'Organization not found.' });
     res.json({ organization: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('updateOrganization error:', err);
     res.status(500).json({ error: 'Failed to update organization.' });
+  } finally {
+    client.release();
   }
 };

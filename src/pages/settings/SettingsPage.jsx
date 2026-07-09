@@ -5,6 +5,14 @@
 import { useState, useEffect } from 'react';
 import { User, Lock, Building2, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+
+const PROGRAM_STATES = [
+  { value: 'OH', label: 'Ohio' },
+  { value: 'TX', label: 'Texas' },
+  { value: 'GA', label: 'Georgia' },
+  { value: 'FL', label: 'Florida' },
+];
 
 // A small reusable success/error message component
 function Message({ msg }) {
@@ -16,6 +24,8 @@ function Message({ msg }) {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const isSponsor = user?.role === 'sponsor' || user?.role === 'admin';
   const [loading, setLoading] = useState(true);
 
   // Profile section state
@@ -29,7 +39,7 @@ export default function SettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   // Organization section state
-  const [org, setOrg]               = useState({ name: '', address: '', phone: '' });
+  const [org, setOrg]               = useState({ name: '', address: '', phone: '', region: '' });
   const [orgMsg, setOrgMsg]         = useState('');
   const [savingOrg, setSavingOrg]   = useState(false);
 
@@ -42,6 +52,7 @@ export default function SettingsPage() {
           name:    data.settings?.org_name ?? '',
           address: data.settings?.address ?? '',
           phone:   data.settings?.phone ?? '',
+          region:  data.settings?.region ?? '',
         });
       })
       .catch(() => {})
@@ -96,8 +107,8 @@ export default function SettingsPage() {
     setSavingOrg(true);
     setOrgMsg('');
     try {
-      await api.patch('/settings/organization', { name: org.name, address: org.address, phone: org.phone });
-      setOrgMsg('✓ Organization updated.');
+      const { data } = await api.patch('/settings/organization', { name: org.name, address: org.address, phone: org.phone, region: org.region });
+      setOrgMsg(data.message ? `✓ ${data.message}` : '✓ Organization updated.');
     } catch (err) {
       setOrgMsg(err.response?.data?.error ?? 'Failed to save organization info.');
     } finally {
@@ -240,6 +251,29 @@ export default function SettingsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
+
+          {/* CACFP Program State — sponsors only */}
+          {isSponsor && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                CACFP Program State
+              </label>
+              <select
+                value={org.region}
+                onChange={(e) => setOrg((o) => ({ ...o, region: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="">Select your state…</option>
+                {PROGRAM_STATES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Sets your state's CACFP reimbursement rates for the Claims Center. Log out and back in after changing.
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               type="submit"

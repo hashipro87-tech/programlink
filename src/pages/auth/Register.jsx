@@ -8,6 +8,13 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { trackRoleSelect, trackSignUp, trackRegisterField, trackRegisterAbort, trackRegisterSubmit } from '../../utils/analytics';
 
+const PROGRAM_STATES = [
+  { value: 'OH', label: 'Ohio' },
+  { value: 'TX', label: 'Texas' },
+  { value: 'GA', label: 'Georgia' },
+  { value: 'FL', label: 'Florida' },
+];
+
 const ROLE_OPTIONS = [
   {
     value: 'sponsor',
@@ -49,13 +56,14 @@ export default function Register() {
   const [error, setError]     = useState('');
 
   const [form, setForm] = useState({
-    name:       '',
-    email:      '',
-    password:   '',
-    orgName:    '',
-    orgAddress: '',
-    orgPhone:   '',
-    sponsorId:  '',
+    name:         '',
+    email:        '',
+    password:     '',
+    orgName:      '',
+    orgAddress:   '',
+    orgPhone:     '',
+    sponsorId:    '',
+    programState: '',
   });
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -86,18 +94,23 @@ export default function Register() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (role === 'sponsor' && !form.programState) {
+      setError('Please select your CACFP program state.');
+      return;
+    }
 
     setLoading(true);
     try {
       const { data } = await api.post('/auth/register', {
-        name:       form.name,
-        email:      form.email,
-        password:   form.password,
+        name:         form.name,
+        email:        form.email,
+        password:     form.password,
         role,
-        orgName:    form.orgName,
-        orgAddress: form.orgAddress || undefined,
-        orgPhone:   form.orgPhone   || undefined,
-        sponsorId:  form.sponsorId  || undefined,
+        orgName:      form.orgName,
+        orgAddress:   form.orgAddress    || undefined,
+        orgPhone:     form.orgPhone      || undefined,
+        sponsorId:    form.sponsorId     || undefined,
+        programState: form.programState  || undefined,
       });
 
       // Registration now requires email verification — show confirmation screen
@@ -263,6 +276,31 @@ export default function Register() {
                     />
                   </div>
                 </div>
+
+                {/* CACFP Program State — sponsors only */}
+                {role === 'sponsor' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CACFP Program State <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={form.programState}
+                      onChange={set('programState')}
+                      onFocus={() => trackField('program_state')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white
+                                 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    >
+                      <option value="">Select your state…</option>
+                      {PROGRAM_STATES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">
+                      This sets your state's CACFP reimbursement rates for the Claims Center.
+                    </p>
+                  </div>
+                )}
 
                 {/* Sponsor ID field — only for non-sponsor roles */}
                 {role !== 'sponsor' && (

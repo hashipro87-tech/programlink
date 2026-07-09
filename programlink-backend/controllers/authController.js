@@ -21,24 +21,49 @@ function randomToken() {
 }
 
 exports.register = async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { name, email, password, role, orgId } = req.body;
+    const { name, email, password, role, orgId, orgName, orgAddress, orgPhone, programState } = req.body;
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: 'name, email, password, and role are required.' });
     }
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ error: 'An account with that email already exists.' });
     }
+
+    await client.query('BEGIN');
+
     const password_hash      = await bcrypt.hash(password, 12);
     const verification_token = randomToken();
-    const result = await pool.query(
+
+    // For sponsors: create an organization automatically
+    let resolvedOrgId = orgId || null;
+    if (role === 'sponsor' && !resolvedOrgId) {
+      const orgRes = await client.query(
+        `INSERT INTO organizations (name, type, status, address, phone, region)
+         VALUES ($1, 'sponsor', 'active', $2, $3, $4)
+         RETURNING id`,
+        [
+          orgName    || name + '\'s Program',
+          orgAddress || null,
+          orgPhone   || null,
+          programState ? programState.toUpperCase() : null,
+        ]
+      );
+      resolvedOrgId = orgRes.rows[0].id;
+    }
+
+    const result = await client.query(
       `INSERT INTO users (name, email, password_hash, role, org_id, is_verified, verification_token)
        VALUES ($1, $2, $3, $4, $5, FALSE, $6)
        RETURNING id, name, email, role, org_id`,
-      [name, email, password_hash, role, orgId || null, verification_token]
+      [name, email, password_hash, role, resolvedOrgId, verification_token]
     );
     const user = result.rows[0];
+
+    await client.query('COMMIT');
+
     sendVerificationEmail(email, verification_token, name).catch((err) =>
       console.error('Failed to send verification email:', err.message)
     );
@@ -47,8 +72,11 @@ exports.register = async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('register error:', err);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
+  } finally {
+    client.release();
   }
 };
 
