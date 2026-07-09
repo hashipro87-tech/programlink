@@ -5,7 +5,7 @@ const { getClaim, getClaimHistory, getStates } = require('../controllers/claimsC
 
 // All claim routes require sponsor auth
 router.use(authenticate);
-router.use(authorizeRoles('sponsor'));
+router.use(authorizeRoles('sponsor', 'admin'));
 
 router.get('/',        getClaim);          // GET /claims?month=2026-07
 router.get('/history', getClaimHistory);   // GET /claims/history
