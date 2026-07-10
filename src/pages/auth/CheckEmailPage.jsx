@@ -41,12 +41,20 @@ export default function CheckEmailPage() {
             We sent a verification link to
           </p>
           <p className="text-sm font-semibold text-gray-800 mb-5">{email || 'your email'}</p>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-gray-500 mb-5">
             Click the link in the email to activate your account. Once verified you can sign in.
           </p>
-          <p className="text-xs text-gray-400 mb-4">
-            Don't see it? Check your spam folder.
-          </p>
+
+          {/* Spam warning — prominent so users don't miss it */}
+          <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 text-left">
+            <span className="text-base leading-none mt-0.5 flex-shrink-0">📂</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 mb-0.5">Don't see it? Check your spam folder.</p>
+              <p className="text-xs text-amber-700">
+                Verification emails sometimes land in spam or promotions. If it's there, mark it as "Not Spam" so future emails reach you.
+              </p>
+            </div>
+          </div>
 
           {email && (
             <div className="mb-6">
