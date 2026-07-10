@@ -31,6 +31,14 @@ export default function OnboardingPage({ onDismiss }) {
     },
     {
       num: 4,
+      icon: '👤',
+      title: 'Invite a coordinator',
+      desc: 'Coordinators help manage your sites and kitchens. Invite them from your dashboard — they do not need to register a separate account.',
+      cta: 'Go to Coordinators',
+      path: '/dashboard/sponsor/coordinators',
+    },
+    {
+      num: 5,
       icon: '🔗',
       title: 'Share your Sponsor ID',
       desc: 'Sites and kitchens can use your Sponsor ID to register and join your program automatically — no manual linking needed.',
@@ -50,6 +58,24 @@ export default function OnboardingPage({ onDismiss }) {
         <p style={{ fontSize: 15, color: '#6b7280', margin: 0 }}>
           Here's how to set up your CACFP program. Complete these in any order.
         </p>
+      </div>
+
+      {/* Key insight callout */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 12,
+        background: '#eff6ff', border: '1px solid #bfdbfe',
+        borderRadius: 12, padding: '14px 18px', marginBottom: 28,
+      }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>💡</span>
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 700, color: '#1e40af', margin: '0 0 4px' }}>
+            Everything is managed from your dashboard
+          </p>
+          <p style={{ fontSize: 13, color: '#1d4ed8', margin: 0, lineHeight: 1.5 }}>
+            You don't need to register separate accounts for coordinators, sites, or kitchens.
+            Invite them directly from here — they'll receive an email and join your program automatically.
+          </p>
+        </div>
       </div>
 
       {/* Steps */}
