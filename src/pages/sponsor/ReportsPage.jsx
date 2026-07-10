@@ -53,7 +53,7 @@ function exportPdf(month, sites, sponsorName) {
   </style>
 </head>
 <body>
-  <h1>USDA Program Meal Count Report</h1>
+  <h1>CACFP Meal Count Report</h1>
   <p class="meta">
     Sponsor: ${sponsorName || 'CACFPLink'} &nbsp;|&nbsp;
     Month: ${month} &nbsp;|&nbsp;

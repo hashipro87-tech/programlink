@@ -54,7 +54,7 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">CACFPLink</h1>
-          <p className="text-gray-500 mt-1 text-sm">USDA Food Program Operations</p>
+          <p className="text-gray-500 mt-1 text-sm">CACFP Operations Platform</p>
         </div>
 
         {/* Login Card */}
