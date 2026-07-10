@@ -163,6 +163,19 @@ export default function Register() {
               ))}
             </div>
 
+            {/* Already a Sponsor? — warn against registering a second account */}
+            {role === 'sponsor' && (
+              <div className="mt-4 flex gap-2.5 items-start p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
+                <span className="text-base leading-none mt-0.5">💡</span>
+                <div>
+                  <p className="font-semibold mb-0.5">Already a Sponsor?</p>
+                  <p className="text-xs text-blue-700">
+                    If you already have a Sponsor account, <Link to="/login" className="underline font-medium">sign in instead</Link>. Add coordinators, sites, and kitchens from your dashboard — you don't need to register again.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Warn non-sponsors that they need a Sponsor ID before continuing */}
             {role && role !== 'sponsor' && (
               <div className="mt-4 flex gap-2.5 items-start p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">

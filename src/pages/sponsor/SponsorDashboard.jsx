@@ -9,6 +9,7 @@ import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
 import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -22,6 +23,7 @@ import ClaimsPage         from './ClaimsPage';
 import MealOrdersPage     from './MealOrdersPage';
 import ActionCenter       from '../../components/common/ActionCenter';
 import CompliancePage     from './CompliancePage';
+import OnboardingPage     from './OnboardingPage';
 import api from '../../services/api';
 
 const NAV_ITEMS = [
@@ -54,6 +56,21 @@ export default function SponsorDashboard() {
   const navigate   = useNavigate();
   const isOverview = location.pathname === '/dashboard/sponsor';
   const { stats, loading }  = useDashboardStats();
+  const { user } = useAuth();
+
+  // Onboarding — show once per user, tracked in localStorage
+  const onboardingKey = user?.id ? `cacfplink_onboarding_${user.id}` : null;
+  const [onboardingDone, setOnboardingDone] = useState(
+    () => !onboardingKey || Boolean(localStorage.getItem(onboardingKey))
+  );
+
+  const dismissOnboarding = (path) => {
+    if (onboardingKey) localStorage.setItem(onboardingKey, 'done');
+    setOnboardingDone(true);
+    if (path) navigate(path);
+  };
+
+  const showOnboarding = isOverview && !onboardingDone;
 
   // Fetch the 5 most recent applications from the real database
   const [recentApps, setRecentApps]   = useState([]);
@@ -88,7 +105,9 @@ export default function SponsorDashboard() {
       <main className="flex-1 overflow-y-auto">
         <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-6xl mx-auto">
 
-          {isOverview ? (
+          {showOnboarding ? (
+            <OnboardingPage onDismiss={dismissOnboarding} />
+          ) : isOverview ? (
             <>
               <div className="mb-8">
                 <h1 className="text-2xl font-bold text-gray-900">Program Overview</h1>
@@ -220,7 +239,7 @@ export default function SponsorDashboard() {
             </>
           ) : (
             <Routes>
-              <Route path="applications"   element={<ApplicationsPage reviewerRole="sponsor" />} />
+              <Route path="applications"  element={<ApplicationsPage reviewerRole="sponsor" />} />
               <Route path="applications/*" element={<ApplicationsPage reviewerRole="sponsor" />} />
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />
