@@ -3,11 +3,14 @@
 // running 24/7 so these fire reliably.
 //
 // Jobs:
-//   1. Document expiry alerts  — 8am daily
+//   1. Delivery plan generation — 6am daily
+//      Creates today's delivery instances from recurring plans + notifies sites/kitchens.
+//
+//   2. Document expiry alerts  — 8am daily
 //      Finds documents expiring within 30 days and notifies the org's users
 //      and their assigned coordinators/sponsors.
 //
-//   2. Meal count reminders    — 4pm daily
+//   3. Meal count reminders    — 4pm daily
 //      Finds sites/kitchens that haven't submitted a count for today
 //      and sends a reminder to all active users in that org.
 
@@ -15,6 +18,7 @@ const cron = require('node-cron');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
 const { sendDocumentExpiryEmail } = require('./emailService');
+const { generateTodayDeliveries } = require('../controllers/deliveryPlansController');
 
 // ─── Job 1: Document expiry alerts ───────────────────────────────────────────
 // Runs every day at 8:00am UTC.
@@ -165,6 +169,11 @@ async function checkMealCountReminders() {
 
 // ─── Start all jobs ───────────────────────────────────────────────────────────
 function startScheduledJobs() {
+  // Delivery plan generation — 6:00am UTC every day
+  cron.schedule('0 6 * * *', generateTodayDeliveries, {
+    timezone: 'UTC',
+  });
+
   // Document expiry check — 8:00am UTC every day
   cron.schedule('0 8 * * *', checkDocumentExpiry, {
     timezone: 'UTC',
@@ -175,7 +184,7 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (doc expiry @ 8am UTC, meal reminders @ 4pm UTC)');
+  console.log('✅ Scheduled jobs started (deliveries @ 6am, doc expiry @ 8am, meal reminders @ 4pm UTC)');
 }
 
-module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders };
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, generateTodayDeliveries };

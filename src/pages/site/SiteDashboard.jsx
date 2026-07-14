@@ -82,7 +82,8 @@ function useSiteData() {
       api.get('/applications?limit=1'),
       api.get('/documents?limit=100'),
       api.get('/notifications?limit=5'),
-    ]).then(async ([meRes, mcRes, drRes, appRes, docRes, notifRes]) => {
+      api.get('/delivery-plans/schedule?days=14'),
+    ]).then(async ([meRes, mcRes, drRes, appRes, docRes, notifRes, dpRes]) => {
       // User / sponsor info
       const me          = meRes.status === 'fulfilled' ? meRes.value.data?.user ?? meRes.value.data : null;
       const sponsorId   = me?.sponsor_id;
@@ -98,11 +99,16 @@ function useSiteData() {
       const mealToday   = allCounts.find((c) => c.date === today) ?? null;
       const recentCounts = allCounts.filter((c) => c.date !== today).slice(0, 5);
 
-      // Today's delivery
+      // Today's delivery — merge one-off routes + recurring plan instances
       const allRoutes   = drRes.status === 'fulfilled'
         ? (Array.isArray(drRes.value.data) ? drRes.value.data : drRes.value.data?.routes ?? [])
         : [];
-      const todayRoutes = allRoutes.filter((r) => r.date === today && r.status !== 'cancelled');
+      const planDeliveries = dpRes.status === 'fulfilled'
+        ? (dpRes.value.data?.deliveries ?? [])
+        : [];
+      // Merge: plan deliveries are shaped like routes (stops[], date, etc.)
+      const mergedRoutes = [...allRoutes, ...planDeliveries];
+      const todayRoutes = mergedRoutes.filter((r) => r.date === today && r.status !== 'cancelled');
       const delivery    = todayRoutes[0] ?? null;
 
       // Application
@@ -121,7 +127,7 @@ function useSiteData() {
         ? (notifRes.value.data?.notifications ?? [])
         : [];
 
-      setData({ me, mealToday, delivery, recentCounts, docs, app, sponsorOrg, allRoutes, allCounts, notifications });
+      setData({ me, mealToday, delivery, recentCounts, docs, app, sponsorOrg, allRoutes: mergedRoutes, allCounts, notifications });
       setLoading(false);
     });
   }, []);

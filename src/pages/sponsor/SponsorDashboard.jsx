@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -21,6 +21,7 @@ import CoordinatorsPage  from './CoordinatorsPage';
 import ReportsPage        from './ReportsPage';
 import ClaimsPage         from './ClaimsPage';
 import MealOrdersPage     from './MealOrdersPage';
+import DeliveryPlansPage  from './DeliveryPlansPage';
 import ActionCenter       from '../../components/common/ActionCenter';
 import CompliancePage     from './CompliancePage';
 import OnboardingPage     from './OnboardingPage';
@@ -34,7 +35,8 @@ const NAV_ITEMS = [
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',          path: '/dashboard/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',       path: '/dashboard/sponsor/kitchens',     icon: Building2 },
-  { label: 'Deliveries',     path: '/dashboard/sponsor/meal-orders',  icon: Truck },
+  { label: 'Deliveries',       path: '/dashboard/sponsor/meal-orders',      icon: Truck },
+  { label: 'Delivery Plans',   path: '/dashboard/sponsor/delivery-plans',   icon: Repeat },
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
@@ -247,7 +249,8 @@ export default function SponsorDashboard() {
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />
               <Route path="kitchens"         element={<KitchensPage />} />
-              <Route path="meal-orders"      element={<MealOrdersPage />} />
+              <Route path="meal-orders"        element={<MealOrdersPage />} />
+              <Route path="delivery-plans"   element={<DeliveryPlansPage />} />
               <Route path="coordinators"     element={<CoordinatorsPage />} />
               <Route path="claims"           element={<ClaimsPage />} />
               <Route path="reports"          element={<ReportsPage />} />
