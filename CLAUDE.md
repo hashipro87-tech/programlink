@@ -615,6 +615,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 94 | Recurring Delivery Plans — backend controller + routes, delivery_plans + delivery_instances DB tables, DeliveryPlansPage.jsx (plan list, create/edit modal, pause/resume/delete), sponsor sidebar nav item, site dashboard merges plan schedule with manual routes | ✅ |
 | 95 | Week delivery schedule on site dashboard — WeekDeliverySchedule replaces TodayDeliveryCard, shows 7-day view with meal chips, kitchen, ETA, today highlighted blue, inline match indicator; SiteDeliveriesPage now merges /delivery-plans/schedule with /delivery/routes | ✅ |
 | 96 | Kitchen production schedule + bulk plan wizard — TodayProductionSchedule on kitchen dashboard (per-site breakdown + totals footer, color-coded meal chips); GET /delivery-plans/production + POST /delivery-plans/bulk backend endpoints; BulkWizardModal on DeliveryPlansPage (multi-site select, search, select all, creates N plans at once) | ✅ |
+| 97 | Kitchen Dashboard redesign — 9-section daily assistant layout: KitchenDailyChecklist (5 auto-tracked tasks), TodayProductionCard (meal totals + sites served + next delivery), TodayDeliveriesTimeline (dot timeline), SiteStatusCard (submitted vs pending with site list), inline MealEntryForm, DocComplianceCard (5 required docs inline), KitchenSummaryCard (monthly stats), TomorrowProductionCard (planning preview); useKitchenData() hook parallel-fetches 6 endpoints; getKitchenProduction extended with has_submitted/submittedCount/pendingCount/nextDelivery | ✅ |
 
 ---
 
