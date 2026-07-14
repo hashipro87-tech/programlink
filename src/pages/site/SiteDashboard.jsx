@@ -323,102 +323,137 @@ function MealCountStatus({ mealToday, app, navigate }) {
   );
 }
 
-// ─── Today's Delivery Card ─────────────────────────────────────────────────────
-function TodayDeliveryCard({ delivery, mealToday, navigate }) {
-  if (!delivery) {
-    return (
-      <div className="card px-5 py-6 mb-6 text-center">
-        <Truck className="w-9 h-9 text-gray-200 mx-auto mb-3" />
-        <p className="text-sm font-semibold text-gray-600">No delivery scheduled today</p>
-        <p className="text-xs text-gray-400 mt-1">Your sponsor will schedule deliveries here.</p>
-        <button onClick={() => navigate('/dashboard/site/deliveries')} className="mt-3 text-xs text-brand-600 hover:underline font-semibold">
-          View delivery history →
-        </button>
-      </div>
-    );
+// ─── Week Delivery Schedule ────────────────────────────────────────────────────
+// Shows today + 6 days so the site can see their full week at a glance.
+// allRoutes = merged manual routes + recurring plan instances
+function WeekDeliverySchedule({ allRoutes, mealToday, navigate }) {
+  const today = todayISO();
+
+  // Build a 7-day window starting today
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+
+  // Index routes by date (merge multiple routes on same day)
+  const byDate = {};
+  for (const r of (allRoutes ?? [])) {
+    if (!r.date || r.status === 'cancelled') continue;
+    if (!byDate[r.date]) byDate[r.date] = { stops: [], kitchen_name: r.kitchen_name, status: r.status };
+    byDate[r.date].stops.push(...(r.stops ?? []));
+    // Use the most "advanced" status
+    const rank = { scheduled: 0, in_transit: 1, delivered: 2 };
+    if ((rank[r.status] ?? 0) > (rank[byDate[r.date].status] ?? 0)) {
+      byDate[r.date].status = r.status;
+    }
   }
 
-  const stops      = delivery.stops ?? [];
-  const totalMeals = stops.reduce((s, st) => s + (st.meal_count || 0), 0);
-  const eta        = stops[0]?.pickup_time;
-  const kitchen    = delivery.kitchen_name;
-  const status     = delivery.status ?? 'scheduled';
   const mealCountToday = mealToday
     ? (mealToday.breakfast ?? 0) + (mealToday.lunch ?? 0) + (mealToday.supper ?? 0) + (mealToday.snack ?? 0)
     : 0;
-  const diff = totalMeals - mealCountToday;
 
-  const statusMeta = {
-    scheduled:   { label: 'Scheduled',   color: 'text-yellow-700 bg-yellow-50', dot: 'bg-yellow-400' },
-    preparing:   { label: 'Preparing',   color: 'text-orange-700 bg-orange-50', dot: 'bg-orange-400' },
-    in_transit:  { label: 'On the way',  color: 'text-brand-700 bg-brand-50',   dot: 'bg-brand-500 animate-pulse' },
-    delivered:   { label: 'Delivered',   color: 'text-green-700 bg-green-50',   dot: 'bg-green-500' },
+  const hasAnyDelivery = days.some((d) => byDate[d]);
+
+  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const statusDot = {
+    scheduled:  'bg-yellow-400',
+    in_transit: 'bg-brand-500 animate-pulse',
+    delivered:  'bg-green-500',
   };
-  const meta = statusMeta[status] ?? statusMeta.scheduled;
 
   return (
     <div className="card mb-6">
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900">Today's Delivery</h2>
-        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${meta.color}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
-          {meta.label}
-        </span>
+        <h2 className="font-semibold text-gray-900">This Week's Deliveries</h2>
+        <button
+          onClick={() => navigate('/dashboard/site/deliveries')}
+          className="text-xs font-semibold text-brand-600 hover:underline"
+        >
+          Full schedule →
+        </button>
       </div>
 
-      <div className="px-5 py-4">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <p className="text-3xl font-bold text-gray-900">{totalMeals}</p>
-            <p className="text-sm text-gray-500">meals incoming</p>
-          </div>
-          <div className="text-right">
-            {eta && <p className="text-lg font-bold text-gray-900">{fmt12(eta)}</p>}
-            {kitchen && <p className="text-xs text-gray-500">{kitchen}</p>}
-          </div>
+      {!hasAnyDelivery ? (
+        <div className="px-5 py-8 text-center">
+          <Truck className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No deliveries scheduled this week</p>
+          <p className="text-xs text-gray-400 mt-1">Your sponsor will set up deliveries here.</p>
         </div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {days.map((iso) => {
+            const isToday = iso === today;
+            const d       = byDate[iso];
+            const dayName = DAY_NAMES[new Date(iso + 'T12:00:00').getDay()];
+            const dateNum = new Date(iso + 'T12:00:00').getDate();
 
-        {/* Meal count integration */}
-        {mealCountToday > 0 && (
-          <div className={`rounded-xl px-4 py-3 mb-4 flex items-center gap-3 ${
-            diff >= 0 ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'
-          }`}>
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${diff >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              {diff >= 0
-                ? <CheckCircle className="w-4 h-4 text-green-600" />
-                : <AlertTriangle className="w-4 h-4 text-red-600" />
-              }
-            </div>
-            <div>
-              {diff >= 0 ? (
-                <p className="text-sm font-semibold text-green-800">
-                  {diff === 0 ? 'Delivery matches meal count exactly' : `${diff} extra meal${diff !== 1 ? 's' : ''} available`}
-                </p>
-              ) : (
-                <p className="text-sm font-semibold text-red-800">
-                  Delivery short by {Math.abs(diff)} meal{Math.abs(diff) !== 1 ? 's' : ''} — contact your sponsor
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-0.5">{mealCountToday} children · {totalMeals} meals ordered</p>
-            </div>
-          </div>
-        )}
+            return (
+              <div
+                key={iso}
+                onClick={() => navigate('/dashboard/site/deliveries')}
+                className={`flex items-center gap-4 px-5 py-3.5 cursor-pointer transition-colors ${
+                  isToday ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-gray-50'
+                }`}
+              >
+                {/* Day label */}
+                <div className={`w-10 text-center flex-shrink-0 ${isToday ? 'text-brand-700' : 'text-gray-400'}`}>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide`}>{dayName}</p>
+                  <p className={`text-lg font-bold leading-tight ${isToday ? 'text-brand-700' : 'text-gray-700'}`}>{dateNum}</p>
+                  {isToday && <p className="text-[9px] font-bold text-brand-500 uppercase">Today</p>}
+                </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={() => navigate('/dashboard/site/deliveries')}
-            className="flex-1 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors"
-          >
-            View Route
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/site/messages')}
-            className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl transition-colors"
-          >
-            Message Kitchen
-          </button>
+                {d ? (
+                  <>
+                    {/* Status dot */}
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot[d.status] ?? 'bg-yellow-400'}`} />
+
+                    {/* Delivery details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap gap-1.5 mb-0.5">
+                        {d.stops.map((st, i) => (
+                          <span key={i} className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            isToday ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {st.meal_type ? st.meal_type.charAt(0).toUpperCase() + st.meal_type.slice(1) : 'Meal'}: {st.meal_count}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {d.kitchen_name && <span>{d.kitchen_name}</span>}
+                        {d.stops[0]?.pickup_time && (
+                          <>
+                            {d.kitchen_name && <span>·</span>}
+                            <span>{fmt12(d.stops[0].pickup_time)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Today: meal count match indicator */}
+                    {isToday && mealCountToday > 0 && (() => {
+                      const total = d.stops.reduce((s, st) => s + (st.meal_count || 0), 0);
+                      const diff  = total - mealCountToday;
+                      return (
+                        <span className={`text-xs font-semibold flex-shrink-0 ${diff < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {diff === 0 ? '✓ Match' : diff > 0 ? `+${diff} extra` : `${diff} short`}
+                        </span>
+                      );
+                    })()}
+
+                    {d.status === 'delivered' && (
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-300 italic">No delivery</p>
+                )}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -568,7 +603,7 @@ function Overview() {
       <TodayChecklist mealToday={mealToday} delivery={delivery} docs={docs} app={app} unreadCount={unreadCount} navigate={navigate} />
       <SummaryCards mealToday={mealToday} delivery={delivery} allCounts={allCounts ?? []} />
       <MealCountStatus mealToday={mealToday} app={app} navigate={navigate} />
-      <TodayDeliveryCard delivery={delivery} mealToday={mealToday} navigate={navigate} />
+      <WeekDeliverySchedule allRoutes={allRoutes} mealToday={mealToday} navigate={navigate} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-0">
         <div>
           <QuickActions navigate={navigate} app={app} />
@@ -596,11 +631,16 @@ function SiteDeliveriesPage() {
     Promise.allSettled([
       api.get('/delivery/routes'),
       api.get(`/meal-counts?month=${month}&limit=50`),
-    ]).then(([routesRes, mcRes]) => {
-      const all = routesRes.status === 'fulfilled'
+      api.get('/delivery-plans/schedule?days=60'),
+    ]).then(([routesRes, mcRes, planRes]) => {
+      const manual = routesRes.status === 'fulfilled'
         ? (Array.isArray(routesRes.value.data) ? routesRes.value.data : routesRes.value.data?.routes ?? [])
         : [];
-      setRoutes(all.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')));
+      const planned = planRes.status === 'fulfilled'
+        ? (planRes.value.data?.deliveries ?? [])
+        : [];
+      const all = [...manual, ...planned].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+      setRoutes(all);
 
       const counts = mcRes.status === 'fulfilled'
         ? (mcRes.value.data?.meal_counts ?? mcRes.value.data?.counts ?? [])
