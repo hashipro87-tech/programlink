@@ -462,10 +462,20 @@ DB pool import: `require('../config/database')` — NOT `require('../db')`.
 - **`src/pages/site/SiteDashboard.jsx`** — `useSiteData()` now fetches `/delivery-plans/schedule?days=14` in parallel; merges plan instances with manual `/delivery/routes` so both show on Deliveries page
 
 ### How it works
-1. Sponsor creates a plan: site + kitchen + days + arrival time + meal counts
+1. Sponsor creates a plan (single or bulk): site(s) + kitchen + days + arrival time + meal counts
 2. Backend immediately generates delivery_instances for next 60 days
 3. Every morning at 6 AM UTC, cron generates today's instance + notifies site/kitchen users
-4. Site sees today's planned deliveries on their dashboard — no sponsor action needed
+4. **Kitchen** sees TodayProductionSchedule — per-site breakdown + totals (Breakfast 120, Lunch 185, Snack 92)
+5. **Site** sees WeekDeliverySchedule on overview — 7-day view, today highlighted, meal chips per day
+6. **SiteDeliveriesPage** merges /delivery/routes + /delivery-plans/schedule (60 days)
+7. **KitchenDeliveriesPage** merges /delivery/routes + /delivery-plans/production
+
+### New endpoints (Task #96)
+- `GET /delivery-plans/production` — kitchen role, today's production per site with totals
+- `POST /delivery-plans/bulk` — sponsor role, create N plans for N site_ids in one request
+
+### Bulk wizard
+Sponsor opens "Bulk Create" → picks kitchen → checks any number of sites (searchable, select all) → picks days → sets arrival time + meal counts → one click creates all plans at once. 15 sites = 15 plans generated immediately.
 
 ### SQL migration
 Run `delivery_plans.sql` (in Desktop/outputs) in Railway query editor. ✅ Done 2026-07-14.
@@ -603,6 +613,8 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 92 | All 50 US states — added to PROGRAM_STATES in Register.jsx + SettingsPage.jsx + generated 46 stateConfig JSON files | ✅ |
 | 93 | Site Dashboard redesign — daily assistant layout (GoodMorningBanner, TodayChecklist, SummaryCards, MealCountStatus, TodayDeliveryCard, meal count vs delivery integration, QuickActions, DocProgress, RecentActivity) + SiteDeliveriesPage with hero, timeline, history | ✅ |
 | 94 | Recurring Delivery Plans — backend controller + routes, delivery_plans + delivery_instances DB tables, DeliveryPlansPage.jsx (plan list, create/edit modal, pause/resume/delete), sponsor sidebar nav item, site dashboard merges plan schedule with manual routes | ✅ |
+| 95 | Week delivery schedule on site dashboard — WeekDeliverySchedule replaces TodayDeliveryCard, shows 7-day view with meal chips, kitchen, ETA, today highlighted blue, inline match indicator; SiteDeliveriesPage now merges /delivery-plans/schedule with /delivery/routes | ✅ |
+| 96 | Kitchen production schedule + bulk plan wizard — TodayProductionSchedule on kitchen dashboard (per-site breakdown + totals footer, color-coded meal chips); GET /delivery-plans/production + POST /delivery-plans/bulk backend endpoints; BulkWizardModal on DeliveryPlansPage (multi-site select, search, select all, creates N plans at once) | ✅ |
 
 ---
 
