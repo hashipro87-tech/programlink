@@ -218,8 +218,8 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 
 ---
 | 🔥 Now | Research + outreach — Virginia, Colorado, orgs like Charles's | ⏳ |
-| ⬆️ Next | About page | 🔄 |
-| ⬆️ Next | Social proof + pilot program badge | ⏳ |
+| ✅ Done | About page | ✅ |
+| ✅ Done | Social proof + pilot program badge | ✅ |
 | 📈 Growth | Stress test with a large sponsor | ✅ |
 | 📈 Growth | Optimize workflows that don't scale | ✅ |
 | 🔁 Ongoing | Continue sponsor outreach (more states) | ⏳ |
@@ -536,9 +536,9 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | # | Task | Status |
 |---|------|--------|
 | 1–9 | Homepage, demo player, analytics, chat, CTAs | ✅ |
-| 10 | Build About page | 🔄 in progress |
-| 11 | Trust signals (badges, privacy policy, ToS, contact) | ⏳ |
-| 12 | Social proof + pilot program badge | ⏳ |
+| 10 | Build About page | ✅ |
+| 11 | Trust signals (badges, privacy policy, ToS, contact) | ✅ |
+| 12 | Social proof + pilot program badge — added live "2 sponsors in pilot" badge to hero | ✅ |
 | 13 | Research Iowa + Ohio CACFP sponsor outreach list | ⏳ |
 | 14 | Iowa + Ohio outreach document | ✅ |
 | 15–17 | Email verification, Resend API, manual verify | ✅ |
@@ -571,6 +571,9 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 85 | Claims Center — specific blocker counts, smart CTA label, Claim Timeline | ✅ |
 | 86 | Claim Command Center polish — CSS progress bar, Claim Deadline card, "0 blockers" fallback fix | ✅ |
 | 87 | Site Status Grid (X/Y Sites Ready + per-site status cards) + rename "Potential Loss" → "Reimbursement at Risk" | ✅ |
+| 88 | Remove USDA from product branding — Login.jsx subtitle → "CACFP Operations Platform", ReportsPage title → "CACFP Meal Count Report" | ✅ |
+| 89 | Sponsor onboarding UX — "Already a Sponsor?" note on Register.jsx + first-login OnboardingPage.jsx (5 steps, localStorage per user) wired into SponsorDashboard | ✅ |
+| 90 | CheckEmailPage spam warning — replaced tiny gray text with prominent amber warning box | ✅ |
 
 ---
 

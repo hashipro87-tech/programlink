@@ -221,6 +221,12 @@ function Hero() {
       <div className="max-w-6xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div>
+            {/* Live pilot badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-semibold text-green-700">2 CACFP sponsors in active pilot</span>
+            </div>
+
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-5">
               Stop managing CACFP with{' '}
               <span className="text-brand-600">spreadsheets, emails, and phone calls.</span>
