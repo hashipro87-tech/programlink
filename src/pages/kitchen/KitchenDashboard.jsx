@@ -8,8 +8,9 @@ import { useLocation, Outlet, Routes, Route, useNavigate } from 'react-router-do
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, Building2, MessageSquare,
-  UtensilsCrossed, CheckCircle, Settings, Truck,
+  UtensilsCrossed, CheckCircle, Settings, Truck, Bell,
 } from 'lucide-react';
+import { useNotifications } from '../../hooks/useNotifications';
 
 import Sidebar           from '../../components/layout/Sidebar';
 import StatCard          from '../../components/common/StatCard';
@@ -38,8 +39,9 @@ const NAV_ITEMS = [
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
   { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
   { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
-  { label: 'Messages',        path: '/dashboard/kitchen/messages',     icon: MessageSquare },
-  { label: 'Settings',        path: '/dashboard/kitchen/settings',     icon: Settings },
+  { label: 'Messages',        path: '/dashboard/kitchen/messages',       icon: MessageSquare },
+  { label: 'Notifications',   path: '/dashboard/kitchen/notifications',  icon: Bell },
+  { label: 'Settings',        path: '/dashboard/kitchen/settings',       icon: Settings },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -251,6 +253,7 @@ export default function KitchenDashboard() {
   const navigate   = useNavigate();
   const isOverview = location.pathname === '/dashboard/kitchen';
   const { stats, loading } = useDashboardStats();
+  const { unreadCount } = useNotifications();
 
   const checklist   = buildChecklist(stats);
   const completed   = checklist.filter((s) => s.done).length;
@@ -317,7 +320,7 @@ export default function KitchenDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar navItems={NAV_ITEMS} />
+      <Sidebar navItems={NAV_ITEMS} badgeCounts={{ '/dashboard/kitchen/notifications': unreadCount }} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-4 pt-16 sm:p-6 lg:p-8 max-w-4xl mx-auto">

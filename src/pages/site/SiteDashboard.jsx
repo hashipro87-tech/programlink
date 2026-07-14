@@ -7,8 +7,9 @@ import { useLocation, Routes, Route, useNavigate, Link } from 'react-router-dom'
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
-  Building2, CheckCircle, Settings, AlertTriangle, ArrowRight, Truck,
+  Building2, CheckCircle, Settings, AlertTriangle, ArrowRight, Truck, Bell,
 } from 'lucide-react';
+import { useNotifications } from '../../hooks/useNotifications';
 
 import Sidebar       from '../../components/layout/Sidebar';
 import StatCard      from '../../components/common/StatCard';
@@ -32,8 +33,9 @@ const NAV_ITEMS = [
   { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
   { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
   { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
-  { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
-  { label: 'Settings',       path: '/dashboard/site/settings',     icon: Settings       },
+  { label: 'Messages',       path: '/dashboard/site/messages',       icon: MessageSquare  },
+  { label: 'Notifications', path: '/dashboard/site/notifications',  icon: Bell           },
+  { label: 'Settings',       path: '/dashboard/site/settings',       icon: Settings       },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -425,10 +427,11 @@ export default function SiteDashboard() {
   const location   = useLocation();
   const isOverview = location.pathname === '/dashboard/site';
   const { stats, loading } = useDashboardStats();
+  const { unreadCount } = useNotifications();
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar navItems={NAV_ITEMS} />
+      <Sidebar navItems={NAV_ITEMS} badgeCounts={{ '/dashboard/site/notifications': unreadCount }} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-4xl mx-auto">

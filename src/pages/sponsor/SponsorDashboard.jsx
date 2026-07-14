@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -24,6 +24,7 @@ import MealOrdersPage     from './MealOrdersPage';
 import ActionCenter       from '../../components/common/ActionCenter';
 import CompliancePage     from './CompliancePage';
 import OnboardingPage     from './OnboardingPage';
+import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
 const NAV_ITEMS = [
@@ -38,8 +39,9 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
   { label: 'Reports',        path: '/dashboard/sponsor/reports',      icon: ClipboardList },
-  { label: 'Messages',       path: '/dashboard/sponsor/messages',     icon: MessageSquare },
-  { label: 'Settings',       path: '/dashboard/sponsor/settings',     icon: Settings },
+  { label: 'Messages',       path: '/dashboard/sponsor/messages',       icon: MessageSquare },
+  { label: 'Notifications',  path: '/dashboard/sponsor/notifications',  icon: Bell },
+  { label: 'Settings',       path: '/dashboard/sponsor/settings',       icon: Settings },
 ];
 
 // Converts a date into a human-readable label — sponsors can instantly see how recent an application is
@@ -57,6 +59,7 @@ export default function SponsorDashboard() {
   const isOverview = location.pathname === '/dashboard/sponsor';
   const { stats, loading }  = useDashboardStats();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
 
   // Onboarding — show once per user, tracked in localStorage
   const onboardingKey = user?.id ? `cacfplink_onboarding_${user.id}` : null;
@@ -100,7 +103,7 @@ export default function SponsorDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar navItems={NAV_ITEMS} />
+      <Sidebar navItems={NAV_ITEMS} badgeCounts={{ '/dashboard/sponsor/notifications': unreadCount }} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-6xl mx-auto">

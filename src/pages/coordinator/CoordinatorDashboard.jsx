@@ -6,13 +6,14 @@ import { useState, useEffect } from 'react';
 import { useLocation, Routes, Route } from 'react-router-dom';
 import {
   Building2, MessageSquare, FileText,
-  CheckCircle, Settings, ClipboardList, AlertTriangle, UtensilsCrossed, ClipboardCheck,
+  CheckCircle, Settings, ClipboardList, AlertTriangle, UtensilsCrossed, ClipboardCheck, Bell,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import api from '../../services/api';
+import { useNotifications } from '../../hooks/useNotifications';
 
 // Pages
 import DocumentsPage              from '../documents/DocumentsPage';
@@ -32,8 +33,9 @@ const NAV_ITEMS = [
   { label: 'My Kitchens',   path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
   { label: 'Meal Counts',   path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList  },
   { label: 'Documents',     path: '/dashboard/coordinator/documents',     icon: FileText       },
-  { label: 'Messages',      path: '/dashboard/coordinator/messages',      icon: MessageSquare  },
-  { label: 'Settings',      path: '/dashboard/coordinator/settings',      icon: Settings       },
+  { label: 'Messages',       path: '/dashboard/coordinator/messages',       icon: MessageSquare  },
+  { label: 'Notifications', path: '/dashboard/coordinator/notifications',  icon: Bell           },
+  { label: 'Settings',      path: '/dashboard/coordinator/settings',       icon: Settings       },
 ];
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
@@ -211,10 +213,11 @@ function Overview() {
 export default function CoordinatorDashboard() {
   const location   = useLocation();
   const isOverview = location.pathname === '/dashboard/coordinator';
+  const { unreadCount } = useNotifications();
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar navItems={NAV_ITEMS} />
+      <Sidebar navItems={NAV_ITEMS} badgeCounts={{ '/dashboard/coordinator/notifications': unreadCount }} />
 
       <main className="flex-1 overflow-y-auto">
         <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-6xl mx-auto">

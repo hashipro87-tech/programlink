@@ -3,7 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { Zap, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export default function Sidebar({ navItems = [] }) {
+// badgeCounts: optional map of path → number, e.g. { '/dashboard/sponsor/notifications': 3 }
+export default function Sidebar({ navItems = [], badgeCounts = {} }) {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
   const [open, setOpen]  = useState(false);
@@ -25,25 +26,34 @@ export default function Sidebar({ navItems = [] }) {
 
       {/* Nav links */}
       <ul className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-        {navItems.map(({ label, path, icon: Icon }) => (
-          <li key={path}>
-            <NavLink
-              to={path}
-              end={navItems.some((n) => n.path !== path && path.startsWith(n.path))}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`
-              }
-            >
-              {Icon && <Icon className="w-4 h-4 shrink-0" />}
-              {label}
-            </NavLink>
-          </li>
-        ))}
+        {navItems.map(({ label, path, icon: Icon }) => {
+          const badge = badgeCounts[path] ?? 0;
+          return (
+            <li key={path}>
+              <NavLink
+                to={path}
+                end={navItems.some((n) => n.path !== path && path.startsWith(n.path))}
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-brand-50 text-brand-700'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  }`
+                }
+              >
+                {Icon && <Icon className="w-4 h-4 shrink-0" />}
+                <span className="flex-1">{label}</span>
+                {badge > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] px-1 flex items-center justify-center
+                                   bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </NavLink>
+            </li>
+          );
+        })}
       </ul>
 
       {/* User + logout */}
