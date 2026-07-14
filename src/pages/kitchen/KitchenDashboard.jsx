@@ -61,80 +61,111 @@ function mealLabel(v) {
   return ({ breakfast:'Breakfast', am_snack:'AM Snack', lunch:'Lunch', pm_snack:'PM Snack', dinner:'Dinner' }[v] ?? v);
 }
 
-// ─── Upcoming Deliveries Panel (kitchen view) ─────────────────────────────────
-function UpcomingDeliveriesPanel({ onViewAll }) {
-  const [routes, setRoutes]   = useState([]);
+// ─── Today's Production Schedule ──────────────────────────────────────────────
+// Auto-generated from recurring delivery plans.
+// Kitchens see exactly what to cook for each site — no guessing, no phone calls.
+function TodayProductionSchedule({ onViewAll }) {
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/delivery/routes')
-      .then(({ data }) => {
-        const all = Array.isArray(data) ? data : (data.routes ?? []);
-        // Show only upcoming (not delivered, not cancelled), sort by date asc
-        const upcoming = all
-          .filter(r => r.status !== 'delivered' && r.status !== 'cancelled')
-          .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-          .slice(0, 5);
-        setRoutes(upcoming);
-      })
-      .catch(() => {})
+    api.get('/delivery-plans/production')
+      .then(({ data: d }) => setData(d))
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const t = todayISO();
-  const tm = tomorrowISO();
-  const highlighted = routes.filter(r => r.date === t || r.date === tm);
+  const sites  = data?.sites  ?? [];
+  const totals = data?.totals ?? {};
+  const grandTotal = (totals.breakfast ?? 0) + (totals.lunch ?? 0) + (totals.snack ?? 0) + (totals.supper ?? 0);
+
+  const MEAL_COLORS = {
+    breakfast: 'bg-orange-50 text-orange-700',
+    lunch:     'bg-green-50 text-green-700',
+    snack:     'bg-blue-50 text-blue-700',
+    supper:    'bg-purple-50 text-purple-700',
+  };
 
   return (
     <div className="card mb-6">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Truck className="w-4 h-4 text-brand-600" />
-          <h2 className="font-semibold text-gray-900">Upcoming Deliveries</h2>
+        <div>
+          <h2 className="font-semibold text-gray-900">Today's Production Schedule</h2>
+          {!loading && grandTotal > 0 && (
+            <p className="text-xs text-gray-400 mt-0.5">{grandTotal} total meals to prepare</p>
+          )}
         </div>
-        <button onClick={onViewAll} className="text-sm text-brand-600 hover:underline">View all</button>
+        <button onClick={onViewAll} className="text-sm text-brand-600 hover:underline font-semibold">
+          Full schedule →
+        </button>
       </div>
 
       {loading ? (
-        <div className="px-6 py-8 text-center text-sm text-gray-400">Loading…</div>
-      ) : routes.length === 0 ? (
+        <div className="px-6 py-8 flex items-center justify-center">
+          <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : sites.length === 0 ? (
         <div className="px-6 py-10 text-center">
-          <Truck className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">No upcoming deliveries scheduled.</p>
-          <p className="text-xs text-gray-400 mt-1">Your sponsor will assign deliveries here.</p>
+          <Truck className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-gray-500">No deliveries scheduled today</p>
+          <p className="text-xs text-gray-400 mt-1">Your sponsor will set up recurring delivery plans.</p>
         </div>
       ) : (
-        <div className="divide-y divide-gray-100">
-          {routes.map((route) => {
-            const stops = route.stops ?? [];
-            const totalMeals = stops.reduce((s, st) => s + (st.meal_count || 0), 0);
-            const isNear = route.date === t || route.date === tm;
-            return (
-              <div key={route.id} className={`px-6 py-4 ${isNear ? 'bg-brand-50/40' : ''}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-sm font-bold ${isNear ? 'text-brand-800' : 'text-gray-800'}`}>
-                    {dateLabel(route.date)}
-                  </span>
-                  <span className="text-xs font-semibold text-gray-500">
-                    {totalMeals} meal{totalMeals !== 1 ? 's' : ''} · {stops.length} site{stops.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {stops.map((stop, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                      <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span className="flex-1 truncate">{stop.site_name ?? 'Site'}</span>
-                      <span className="text-gray-500 flex-shrink-0">{stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s</span>
-                      {stop.pickup_time && (
-                        <span className="text-gray-400 flex-shrink-0 text-xs">ETA {fmt12(stop.pickup_time)}</span>
+        <>
+          {/* Per-site breakdown */}
+          <div className="divide-y divide-gray-50">
+            {sites.map((site, i) => {
+              const siteMeals = [];
+              if (site.breakfast > 0) siteMeals.push({ type: 'breakfast', count: site.breakfast });
+              if (site.lunch     > 0) siteMeals.push({ type: 'lunch',     count: site.lunch });
+              if (site.snack     > 0) siteMeals.push({ type: 'snack',     count: site.snack });
+              if (site.supper    > 0) siteMeals.push({ type: 'supper',    count: site.supper });
+              const siteTotal = siteMeals.reduce((s, m) => s + m.count, 0);
+
+              return (
+                <div key={i} className="px-6 py-4 flex items-start gap-4">
+                  <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Building2 className="w-4 h-4 text-brand-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-bold text-gray-900">{site.site_name}</p>
+                      {site.arrival_time && (
+                        <span className="text-xs text-gray-400">· {fmt12(site.arrival_time.slice(0,5))}</span>
                       )}
+                      <span className="ml-auto text-xs font-semibold text-gray-500">{siteTotal} meals</span>
                     </div>
-                  ))}
+                    <div className="flex flex-wrap gap-1.5">
+                      {siteMeals.map(({ type, count }) => (
+                        <span key={type} className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${MEAL_COLORS[type] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {count} {type}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Totals footer */}
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Total to Prepare</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { key: 'breakfast', label: 'Breakfast' },
+                { key: 'lunch',     label: 'Lunch' },
+                { key: 'snack',     label: 'Snack' },
+                { key: 'supper',    label: 'Supper' },
+              ].filter(({ key }) => (totals[key] ?? 0) > 0).map(({ key, label }) => (
+                <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${MEAL_COLORS[key] ?? 'bg-gray-100'}`}>
+                  <span className="text-lg font-bold">{totals[key]}</span>
+                  <span className="text-xs font-semibold opacity-80">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -147,13 +178,33 @@ function KitchenDeliveriesPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/delivery/routes')
-      .then(({ data }) => {
-        const all = Array.isArray(data) ? data : (data.routes ?? []);
-        setRoutes(all.sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')));
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    // Fetch both manual routes and recurring plan production (next 60 days)
+    Promise.allSettled([
+      api.get('/delivery/routes'),
+      api.get('/delivery-plans/production'),
+    ]).then(([routesRes, prodRes]) => {
+      const manual = routesRes.status === 'fulfilled'
+        ? (Array.isArray(routesRes.value.data) ? routesRes.value.data : routesRes.value.data?.routes ?? [])
+        : [];
+      // Convert today's production into route-like objects for display
+      const today   = new Date().toISOString().split('T')[0];
+      const prodSites = prodRes.status === 'fulfilled' ? (prodRes.value.data?.sites ?? []) : [];
+      const planRoutes = prodSites.map((s) => ({
+        id:           `plan-${s.instance_id}`,
+        date:         today,
+        kitchen_name: null,
+        status:       s.status,
+        stops: [
+          ...(s.breakfast > 0 ? [{ meal_type:'breakfast', meal_count: s.breakfast, pickup_time: s.arrival_time, site_name: s.site_name }] : []),
+          ...(s.lunch     > 0 ? [{ meal_type:'lunch',     meal_count: s.lunch,     pickup_time: s.arrival_time, site_name: s.site_name }] : []),
+          ...(s.snack     > 0 ? [{ meal_type:'snack',     meal_count: s.snack,     pickup_time: s.arrival_time, site_name: s.site_name }] : []),
+          ...(s.supper    > 0 ? [{ meal_type:'supper',    meal_count: s.supper,    pickup_time: s.arrival_time, site_name: s.site_name }] : []),
+        ],
+      }));
+      const all = [...manual, ...planRoutes].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+      setRoutes(all);
+      setLoading(false);
+    });
   }, []);
 
   // Group by date
@@ -347,8 +398,8 @@ export default function KitchenDashboard() {
               {/* ── Meal Reminder — warns if recent entries are missing ── */}
               <MealReminderBanner onLogNow={() => navigate('/dashboard/kitchen/meals')} />
 
-              {/* ── Upcoming Deliveries — what meals to prep ── */}
-              <UpcomingDeliveriesPanel onViewAll={() => navigate('/dashboard/kitchen/deliveries')} />
+              {/* ── Today's Production Schedule — auto-generated from delivery plans ── */}
+              <TodayProductionSchedule onViewAll={() => navigate('/dashboard/kitchen/deliveries')} />
 
               {/* ── Alerts — derived from real stats ── */}
               <AlertsCenter stats={stats} onNavigate={handleAlertNav} />

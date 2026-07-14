@@ -9,18 +9,24 @@ const {
   deletePlan,
   getSiteSchedule,
   updateInstance,
+  getKitchenProduction,
+  bulkCreatePlans,
 } = require('../controllers/deliveryPlansController');
 
 router.use(authenticate);
 
 // Sponsor: manage plans
-router.get('/',           authorizeRoles('sponsor', 'admin'),                listPlans);
-router.post('/',          authorizeRoles('sponsor', 'admin'),                createPlan);
-router.patch('/:id',      authorizeRoles('sponsor', 'admin'),                updatePlan);
-router.delete('/:id',     authorizeRoles('sponsor', 'admin'),                deletePlan);
+router.get('/',           authorizeRoles('sponsor', 'admin'),                         listPlans);
+router.post('/',          authorizeRoles('sponsor', 'admin'),                         createPlan);
+router.post('/bulk',      authorizeRoles('sponsor', 'admin'),                         bulkCreatePlans);
+router.patch('/:id',      authorizeRoles('sponsor', 'admin'),                         updatePlan);
+router.delete('/:id',     authorizeRoles('sponsor', 'admin'),                         deletePlan);
 
 // Site: view upcoming delivery schedule from plans
-router.get('/schedule',   authorizeRoles('site', 'coordinator', 'sponsor'),  getSiteSchedule);
+router.get('/schedule',   authorizeRoles('site', 'coordinator', 'sponsor'),           getSiteSchedule);
+
+// Kitchen: today's production list
+router.get('/production', authorizeRoles('kitchen', 'coordinator', 'sponsor'),        getKitchenProduction);
 
 // Update a single instance (skip, deliver, etc.)
 router.patch('/instances/:instanceId', updateInstance);

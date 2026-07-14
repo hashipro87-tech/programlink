@@ -311,6 +311,105 @@ exports.generateTodayDeliveries = async () => {
   }
 };
 
+// ─── Kitchen: get today's production list ─────────────────────────────────────
+// Returns all delivery instances for today where this kitchen is assigned,
+// grouped by site with per-meal totals. Gives kitchens their auto-generated
+// production schedule — no guessing what to cook.
+exports.getKitchenProduction = async (req, res) => {
+  try {
+    const kitchenId = req.user.organizationId;
+    const date      = req.query.date ?? new Date().toISOString().split('T')[0];
+
+    const { rows } = await pool.query(`
+      SELECT
+        di.id           AS instance_id,
+        di.status,
+        dp.arrival_time,
+        dp.breakfast,
+        dp.lunch,
+        dp.snack,
+        dp.supper,
+        s.name          AS site_name,
+        s.id            AS site_id
+      FROM delivery_instances di
+      JOIN delivery_plans dp ON dp.id = di.plan_id
+      JOIN organizations  s  ON s.id  = dp.site_id
+      WHERE dp.kitchen_id = $1
+        AND di.date       = $2
+        AND di.status    != 'cancelled'
+      ORDER BY dp.arrival_time ASC, s.name ASC
+    `, [kitchenId, date]);
+
+    // Compute totals across all sites
+    const totals = { breakfast: 0, lunch: 0, snack: 0, supper: 0 };
+    for (const r of rows) {
+      totals.breakfast += r.breakfast ?? 0;
+      totals.lunch     += r.lunch     ?? 0;
+      totals.snack     += r.snack     ?? 0;
+      totals.supper    += r.supper    ?? 0;
+    }
+
+    res.json({ date, sites: rows, totals });
+  } catch (err) {
+    console.error('getKitchenProduction error:', err);
+    res.status(500).json({ error: 'Failed to fetch production schedule.' });
+  }
+};
+
+// ─── Bulk create plans (sponsor) ──────────────────────────────────────────────
+// Creates one plan per site_id in the array — same kitchen/days/meals for all.
+// Lets sponsors onboard dozens of sites in minutes.
+exports.bulkCreatePlans = async (req, res) => {
+  try {
+    const sponsorId = req.user.organizationId;
+    const {
+      site_ids,
+      kitchen_id,
+      days_of_week,
+      arrival_time,
+      breakfast = 0, lunch = 0, snack = 0, supper = 0,
+      start_date,
+      end_date,
+      auto_notify = true,
+      name_prefix,
+    } = req.body;
+
+    if (!site_ids?.length)          return res.status(400).json({ error: 'site_ids is required.' });
+    if (!days_of_week?.length)      return res.status(400).json({ error: 'days_of_week is required.' });
+    if (!arrival_time || !start_date) return res.status(400).json({ error: 'arrival_time and start_date are required.' });
+
+    const created = [];
+
+    for (const siteId of site_ids) {
+      // Get site name for optional plan name
+      const siteRes = await pool.query(`SELECT name FROM organizations WHERE id = $1`, [siteId]);
+      const siteName = siteRes.rows[0]?.name ?? '';
+      const planName = name_prefix ? `${name_prefix} — ${siteName}` : null;
+
+      const { rows } = await pool.query(`
+        INSERT INTO delivery_plans
+          (sponsor_id, site_id, kitchen_id, name, days_of_week, arrival_time,
+           breakfast, lunch, snack, supper, start_date, end_date, auto_notify)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING *
+      `, [sponsorId, siteId, kitchen_id || null, planName,
+          days_of_week, arrival_time,
+          breakfast, lunch, snack, supper,
+          start_date, end_date || null, auto_notify]);
+
+      if (rows[0]) {
+        await generateInstancesForPlan(rows[0]);
+        created.push(rows[0]);
+      }
+    }
+
+    res.status(201).json({ created: created.length, plans: created });
+  } catch (err) {
+    console.error('bulkCreatePlans error:', err);
+    res.status(500).json({ error: 'Failed to bulk create plans.' });
+  }
+};
+
 // Helper: "14:30" → "2:30 PM"
 function formatTime(t) {
   if (!t) return '';
