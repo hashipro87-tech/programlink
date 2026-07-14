@@ -322,18 +322,25 @@ exports.getKitchenProduction = async (req, res) => {
 
     const { rows } = await pool.query(`
       SELECT
-        di.id           AS instance_id,
+        di.id            AS instance_id,
         di.status,
         dp.arrival_time,
         dp.breakfast,
         dp.lunch,
         dp.snack,
         dp.supper,
-        s.name          AS site_name,
-        s.id            AS site_id
+        s.name           AS site_name,
+        s.id             AS site_id,
+        -- Did this site already submit meal counts for this date?
+        CASE WHEN mc.id IS NOT NULL THEN TRUE ELSE FALSE END AS has_submitted,
+        mc.breakfast     AS submitted_breakfast,
+        mc.lunch         AS submitted_lunch,
+        mc.snack         AS submitted_snack,
+        mc.supper        AS submitted_supper
       FROM delivery_instances di
-      JOIN delivery_plans dp ON dp.id = di.plan_id
-      JOIN organizations  s  ON s.id  = dp.site_id
+      JOIN delivery_plans  dp ON dp.id  = di.plan_id
+      JOIN organizations   s  ON s.id   = dp.site_id
+      LEFT JOIN meal_counts mc ON mc.org_id = s.id AND mc.date = $2
       WHERE dp.kitchen_id = $1
         AND di.date       = $2
         AND di.status    != 'cancelled'
@@ -342,6 +349,7 @@ exports.getKitchenProduction = async (req, res) => {
 
     // Compute totals across all sites
     const totals = { breakfast: 0, lunch: 0, snack: 0, supper: 0 };
+    const nextDelivery = rows.length > 0 ? rows[0].arrival_time?.slice(0,5) : null;
     for (const r of rows) {
       totals.breakfast += r.breakfast ?? 0;
       totals.lunch     += r.lunch     ?? 0;
@@ -349,7 +357,10 @@ exports.getKitchenProduction = async (req, res) => {
       totals.supper    += r.supper    ?? 0;
     }
 
-    res.json({ date, sites: rows, totals });
+    const submittedCount = rows.filter((r) => r.has_submitted).length;
+    const pendingCount   = rows.length - submittedCount;
+
+    res.json({ date, sites: rows, totals, nextDelivery, submittedCount, pendingCount });
   } catch (err) {
     console.error('getKitchenProduction error:', err);
     res.status(500).json({ error: 'Failed to fetch production schedule.' });
