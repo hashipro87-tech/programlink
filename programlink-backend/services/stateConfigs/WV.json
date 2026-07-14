@@ -1,0 +1,60 @@
+{
+  "stateCode": "WV",
+  "stateName": "West Virginia",
+  "rates": {
+    "breakfast": {
+      "tier1": 1.7,
+      "tier2": 0.61
+    },
+    "lunch": {
+      "tier1": 3.22,
+      "tier2": 1.94
+    },
+    "snack": {
+      "tier1": 0.96,
+      "tier2": 0.26
+    },
+    "supper": {
+      "tier1": 3.22,
+      "tier2": 1.94
+    },
+    "milk": {
+      "tier1": 0.26,
+      "tier2": 0.26
+    }
+  },
+  "allowedMealTypes": [
+    "breakfast",
+    "lunch",
+    "snack",
+    "supper"
+  ],
+  "maxMealsPerDay": 3,
+  "requiredDocuments": [
+    "w9",
+    "food_permit",
+    "insurance",
+    "enrollment",
+    "income_eligibility"
+  ],
+  "requiredFields": [
+    "enrollment",
+    "income_eligibility",
+    "menus"
+  ],
+  "validationRules": [
+    "meal_count_not_exceed_enrollment",
+    "lunch_not_exceed_attendance",
+    "income_eligibility_current",
+    "menus_meet_meal_pattern",
+    "documents_not_expired"
+  ],
+  "submissionDeadline": {
+    "dayOfMonth": "last",
+    "graceDays": 0
+  },
+  "exportFormat": "usda_standard_pdf",
+  "portalName": "West Virginia CACFP Portal",
+  "portalUrl": null,
+  "timezone": "America/New_York"
+}
