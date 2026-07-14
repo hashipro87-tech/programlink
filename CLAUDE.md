@@ -253,7 +253,7 @@ req.user.id             // user UUID
 
 ## Database (PostgreSQL on Railway)
 
-Key tables: `organizations`, `users`, `applications`, `documents`, `notifications`, `meal_counts`, `routes`, `kitchen_site_connections`, `message_threads`, `messages`, `message_recipients`, `coordinator_assignments`
+Key tables: `organizations`, `users`, `applications`, `documents`, `notifications`, `meal_counts`, `routes`, `kitchen_site_connections`, `message_threads`, `messages`, `message_recipients`, `coordinator_assignments`, `delivery_plans`, `delivery_instances`
 
 ### coordinator_assignments table (added Task #47)
 ```sql
@@ -447,6 +447,31 @@ DB pool import: `require('../config/database')` — NOT `require('../db')`.
 
 ---
 
+## Recurring Delivery Plans (Task #94, 2026-07-14) ✅ LIVE
+
+### What was built
+- **`delivery_plans` table** — one row per recurring plan (sponsor_id, site_id, kitchen_id, days_of_week TEXT[], arrival_time, meal counts, start/end dates, auto_notify, active)
+- **`delivery_instances` table** — one row per plan per day, UNIQUE(plan_id, date). Status: scheduled/in_transit/delivered/skipped/cancelled
+- **`programlink-backend/controllers/deliveryPlansController.js`** — listPlans, createPlan, updatePlan, deletePlan, getSiteSchedule, updateInstance, generateTodayDeliveries (exported for cron)
+  - `generateInstancesForPlan(plan, daysAhead=60)` — called on createPlan, pre-populates 60 days of instances
+  - `generateTodayDeliveries()` — 6 AM cron, creates today's instances for all active plans + notifies sites/kitchens if auto_notify=true
+- **`programlink-backend/routes/deliveryPlans.js`** — sponsor CRUD + `/schedule` for sites
+- **`programlink-backend/services/scheduledJobs.js`** — added `cron.schedule('0 6 * * *', generateTodayDeliveries)` at 6 AM UTC
+- **`src/pages/sponsor/DeliveryPlansPage.jsx`** — plan list with day badges, meal summary, arrival time; create/edit modal (site picker, kitchen picker, day checkboxes Mon–Sun, arrival time, meal counts, date range, auto-notify toggle); pause/resume/delete per plan
+- **`src/pages/sponsor/SponsorDashboard.jsx`** — added "Delivery Plans" nav item (Repeat icon, path `/dashboard/sponsor/delivery-plans`) + Route
+- **`src/pages/site/SiteDashboard.jsx`** — `useSiteData()` now fetches `/delivery-plans/schedule?days=14` in parallel; merges plan instances with manual `/delivery/routes` so both show on Deliveries page
+
+### How it works
+1. Sponsor creates a plan: site + kitchen + days + arrival time + meal counts
+2. Backend immediately generates delivery_instances for next 60 days
+3. Every morning at 6 AM UTC, cron generates today's instance + notifies site/kitchen users
+4. Site sees today's planned deliveries on their dashboard — no sponsor action needed
+
+### SQL migration
+Run `delivery_plans.sql` (in Desktop/outputs) in Railway query editor. ✅ Done 2026-07-14.
+
+---
+
 ## Claims Engine (Task #80–83, 2026-07-09) ✅ LIVE
 
 ### What was built
@@ -574,6 +599,10 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 88 | Remove USDA from product branding — Login.jsx subtitle → "CACFP Operations Platform", ReportsPage title → "CACFP Meal Count Report" | ✅ |
 | 89 | Sponsor onboarding UX — "Already a Sponsor?" note on Register.jsx + first-login OnboardingPage.jsx (5 steps, localStorage per user) wired into SponsorDashboard | ✅ |
 | 90 | CheckEmailPage spam warning — replaced tiny gray text with prominent amber warning box | ✅ |
+| 91 | Notification Center — unread badge on all 4 sidebar bells, NotificationsPage full redesign (filter tabs, time groups, action buttons, role-aware paths) | ✅ |
+| 92 | All 50 US states — added to PROGRAM_STATES in Register.jsx + SettingsPage.jsx + generated 46 stateConfig JSON files | ✅ |
+| 93 | Site Dashboard redesign — daily assistant layout (GoodMorningBanner, TodayChecklist, SummaryCards, MealCountStatus, TodayDeliveryCard, meal count vs delivery integration, QuickActions, DocProgress, RecentActivity) + SiteDeliveriesPage with hero, timeline, history | ✅ |
+| 94 | Recurring Delivery Plans — backend controller + routes, delivery_plans + delivery_instances DB tables, DeliveryPlansPage.jsx (plan list, create/edit modal, pause/resume/delete), sponsor sidebar nav item, site dashboard merges plan schedule with manual routes | ✅ |
 
 ---
 
