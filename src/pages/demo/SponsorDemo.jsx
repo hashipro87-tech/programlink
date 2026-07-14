@@ -15,8 +15,9 @@ const NAV = [
   { label: 'Compliance',   path: '/demo/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',        path: '/demo/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',     path: '/demo/sponsor/kitchens',     icon: Building2 },
-  { label: 'Deliveries',   path: '/demo/sponsor/deliveries',   icon: Truck },
-  { label: 'Coordinators', path: '/demo/sponsor/coordinators', icon: Users },
+  { label: 'Deliveries',     path: '/demo/sponsor/deliveries',      icon: Truck },
+  { label: 'Delivery Plans', path: '/demo/sponsor/delivery-plans',  icon: Truck },
+  { label: 'Coordinators',   path: '/demo/sponsor/coordinators',    icon: Users },
   { label: 'Messages',     path: '/demo/sponsor/messages',     icon: MessageSquare },
   { label: 'Meal Counts',  path: '/demo/sponsor/meal-counts',  icon: UtensilsCrossed },
   { label: 'Documents',    path: '/demo/sponsor/documents',    icon: FileText },
@@ -684,6 +685,132 @@ function KitchensPage() {
   );
 }
 
+// ─── Delivery Plans ───────────────────────────────────────────────────────────
+const DEMO_PLANS = [
+  {
+    id: 1, name: 'Morning Route', kitchen: 'Downtown Kitchen',
+    sites: ['Little Learners', 'Happy Kids Center', 'Sunshine Academy'],
+    days: ['Mon','Tue','Wed','Thu','Fri'],
+    eta: '8:00 AM', meals: { breakfast: 45, lunch: 62, snack: 28 }, active: true,
+  },
+  {
+    id: 2, name: 'Afternoon Route', kitchen: 'Westside Kitchen',
+    sites: ['Lincoln Learning', 'Riverside Kids'],
+    days: ['Mon','Wed','Fri'],
+    eta: '11:30 AM', meals: { lunch: 40, snack: 20 }, active: true,
+  },
+  {
+    id: 3, name: 'North Sites', kitchen: 'Downtown Kitchen',
+    sites: ['Northside Prep'],
+    days: ['Tue','Thu'],
+    eta: '9:00 AM', meals: { breakfast: 18, lunch: 22 }, active: false,
+  },
+];
+
+const DAY_COLORS = {
+  Mon: 'bg-blue-50 text-blue-700', Tue: 'bg-purple-50 text-purple-700',
+  Wed: 'bg-green-50 text-green-700', Thu: 'bg-orange-50 text-orange-700',
+  Fri: 'bg-pink-50 text-pink-700', Sat: 'bg-gray-50 text-gray-500', Sun: 'bg-gray-50 text-gray-500',
+};
+
+function DeliveryPlansPage() {
+  const [plans, setPlans] = useState(DEMO_PLANS);
+  const toggle = (id) => setPlans((ps) => ps.map((p) => p.id === id ? { ...p, active: !p.active } : p));
+
+  return (
+    <>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Delivery Plans</h1>
+          <p className="text-gray-500 mt-1 text-sm">Recurring schedules — set once, run every week automatically.</p>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <Link to="/register" className="text-xs font-semibold text-brand-600 border border-brand-200 bg-white px-3 py-2 rounded-xl hover:bg-brand-50 transition-colors">
+            Bulk Create
+          </Link>
+          <Link to="/register" className="text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 px-3 py-2 rounded-xl transition-colors">
+            + New Plan
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+          {plans.filter((p) => p.active).length} active
+        </span>
+        <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
+          {plans.filter((p) => !p.active).length} paused
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        {plans.map((plan) => {
+          const mealParts = [];
+          if (plan.meals.breakfast) mealParts.push(`${plan.meals.breakfast} Breakfast`);
+          if (plan.meals.lunch)     mealParts.push(`${plan.meals.lunch} Lunch`);
+          if (plan.meals.snack)     mealParts.push(`${plan.meals.snack} Snack`);
+
+          return (
+            <div key={plan.id} className={`card ${!plan.active ? 'opacity-60' : ''}`}>
+              <div className="px-5 py-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-bold text-gray-900">{plan.name}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${plan.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {plan.active ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">{plan.kitchen} · {plan.eta}</p>
+
+                  {/* Day badges */}
+                  <div className="flex flex-wrap gap-1 mb-2.5">
+                    {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d) => (
+                      <span key={d} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${plan.days.includes(d) ? (DAY_COLORS[d] ?? 'bg-blue-50 text-blue-700') : 'bg-gray-50 text-gray-300'}`}>
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Meal summary */}
+                  <p className="text-xs text-gray-500">{mealParts.join(' · ')}</p>
+
+                  {/* Sites */}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {plan.sites.map((s, i) => (
+                      <span key={i} className="text-[10px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{s}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => toggle(plan.id)}
+                    className="text-xs font-semibold text-gray-500 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-xl transition-colors"
+                  >
+                    {plan.active ? 'Pause' : 'Resume'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 bg-brand-50 border border-brand-100 rounded-2xl p-5">
+        <p className="text-sm font-bold text-brand-900 mb-1">How Delivery Plans work</p>
+        <p className="text-xs text-brand-700 leading-relaxed">
+          Create a plan once — pick a kitchen, sites, days, arrival time, and meal counts.
+          CACFPLink automatically generates daily delivery instances and notifies sites the morning of each delivery.
+          Kitchens see a production list so they know exactly what to cook and for whom.
+        </p>
+        <Link to="/register" className="inline-block mt-3 text-xs font-bold text-brand-700 underline">
+          Sign up to create your first plan →
+        </Link>
+      </div>
+    </>
+  );
+}
+
 // ─── Deliveries ───────────────────────────────────────────────────────────────
 function DeliveriesPage({ onOpenOrder }) {
   return (
@@ -1112,7 +1239,8 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/compliance'))   Page = () => <CompliancePage />;
   else if (pathname.startsWith('/demo/sponsor/sites'))        Page = () => <SitesPage />;
   else if (pathname.startsWith('/demo/sponsor/kitchens'))     Page = () => <KitchensPage />;
-  else if (pathname.startsWith('/demo/sponsor/deliveries'))   Page = () => <DeliveriesPage onOpenOrder={() => setShowOrder(true)} />;
+  else if (pathname.startsWith('/demo/sponsor/delivery-plans')) Page = () => <DeliveryPlansPage />;
+  else if (pathname.startsWith('/demo/sponsor/deliveries'))     Page = () => <DeliveriesPage onOpenOrder={() => setShowOrder(true)} />;
   else if (pathname.startsWith('/demo/sponsor/coordinators')) Page = () => <CoordinatorsPage />;
   else if (pathname.startsWith('/demo/sponsor/messages'))     Page = () => <MessagesPage onOpenBroadcast={() => setShowBroadcast(true)} />;
   else if (pathname.startsWith('/demo/sponsor/meal-counts'))  Page = () => <MealCountsPage />;

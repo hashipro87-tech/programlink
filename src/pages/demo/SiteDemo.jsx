@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
 const NAV = [
   { label: 'Overview',    path: '/demo/site',             icon: CheckCircle },
+  { label: 'Deliveries',  path: '/demo/site/deliveries',  icon: Truck },
   { label: 'Meal Counts', path: '/demo/site/meal-counts', icon: ClipboardList },
   { label: 'Documents',   path: '/demo/site/documents',   icon: FileText },
   { label: 'Messages',    path: '/demo/site/messages',    icon: MessageSquare },
@@ -34,6 +35,58 @@ const DOCUMENTS = [
   { name: 'Liability Insurance',  type: 'insurance',  status: 'valid',       expires: 'Mar 1, 2027',  uploaded: 'Mar 1, 2026' },
   { name: 'Health Certification', type: 'health_cert',status: 'missing',     expires: null,           uploaded: null },
 ];
+
+// Jul 14 is today (Monday)
+const WEEK = [
+  { day: 'Mon', date: 14, isToday: true,  delivery: { kitchen: 'Downtown Kitchen', eta: '8:00 AM', breakfast: 18, lunch: 22, snack: 10 } },
+  { day: 'Tue', date: 15, isToday: false, delivery: { kitchen: 'Downtown Kitchen', eta: '8:00 AM', breakfast: 18, lunch: 22, snack: 10 } },
+  { day: 'Wed', date: 16, isToday: false, delivery: { kitchen: 'Downtown Kitchen', eta: '8:00 AM', breakfast: 18, lunch: 22, snack: 10 } },
+  { day: 'Thu', date: 17, isToday: false, delivery: { kitchen: 'Downtown Kitchen', eta: '8:00 AM', breakfast: 18, lunch: 22, snack: 10 } },
+  { day: 'Fri', date: 18, isToday: false, delivery: { kitchen: 'Downtown Kitchen', eta: '8:00 AM', breakfast: 18, lunch: 22, snack: 10 } },
+  { day: 'Sat', date: 19, isToday: false, delivery: null },
+  { day: 'Sun', date: 20, isToday: false, delivery: null },
+];
+
+function WeekDeliverySchedule() {
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold text-gray-900">This Week's Deliveries</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Recurring plan — set up by your sponsor</p>
+        </div>
+        <Link to="/demo/site/deliveries" className="text-xs text-brand-600 hover:underline font-semibold">Full schedule →</Link>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {WEEK.map(({ day, date, isToday, delivery }) => (
+          <div key={day} className={`px-6 py-3.5 flex items-center gap-4 ${isToday ? 'bg-brand-50' : ''}`}>
+            <div className={`w-10 text-center flex-shrink-0`}>
+              <p className={`text-xs font-bold ${isToday ? 'text-brand-600' : 'text-gray-400'}`}>{day}</p>
+              <p className={`text-lg font-bold leading-tight ${isToday ? 'text-brand-700' : 'text-gray-900'}`}>{date}</p>
+            </div>
+            {delivery ? (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 mb-1.5">{delivery.kitchen} · {delivery.eta}</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {delivery.breakfast > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">Breakfast: {delivery.breakfast}</span>}
+                    {delivery.lunch     > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700">Lunch: {delivery.lunch}</span>}
+                    {delivery.snack     > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">Snack: {delivery.snack}</span>}
+                  </div>
+                </div>
+                {isToday && (
+                  <span className="text-xs font-bold text-brand-600 bg-brand-100 px-2.5 py-1 rounded-full flex-shrink-0">Today</span>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-300 italic flex-1">No delivery</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const DOC_STATUS = {
   valid:    { label: 'Valid',      bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-100', icon: '✓' },
@@ -115,10 +168,12 @@ function OverviewPage() {
         </div>
       </div>
 
+      <WeekDeliverySchedule />
+
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Submit Today's Headcount</h2>
-          <p className="text-xs text-gray-400 mt-0.5">July 6, 2026</p>
+          <p className="text-xs text-gray-400 mt-0.5">July 14, 2026</p>
         </div>
         <div className="px-6 py-4">
           <div className="grid grid-cols-3 gap-4 mb-4">
@@ -511,16 +566,38 @@ function SettingsPage() {
   );
 }
 
+// ─── Deliveries ──────────────────────────────────────────────────────────────
+function DeliveriesPage() {
+  return (
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Deliveries</h1>
+        <p className="text-gray-500 mt-1">Happy Hearts Daycare · Week of July 14–20</p>
+      </div>
+      <WeekDeliverySchedule />
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 text-center">
+        <Truck className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+        <p className="text-sm font-semibold text-gray-600 mb-1">Delivery schedule set by your sponsor</p>
+        <p className="text-xs text-gray-400 mb-4">Your program sponsor creates recurring delivery plans and you see them automatically — no manual input needed.</p>
+        <Link to="/register" className="inline-block bg-brand-600 text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-brand-700 transition-colors">
+          Get Started Free →
+        </Link>
+      </div>
+    </>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SiteDemo() {
   const { pathname } = useLocation();
 
   let Page;
-  if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
-  else if (pathname.startsWith('/demo/site/documents'))  Page = DocumentsPage;
-  else if (pathname.startsWith('/demo/site/messages'))   Page = MessagesPage;
-  else if (pathname.startsWith('/demo/site/settings'))   Page = SettingsPage;
-  else                                                    Page = OverviewPage;
+  if (pathname.startsWith('/demo/site/deliveries'))   Page = DeliveriesPage;
+  else if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
+  else if (pathname.startsWith('/demo/site/documents'))   Page = DocumentsPage;
+  else if (pathname.startsWith('/demo/site/messages'))    Page = MessagesPage;
+  else if (pathname.startsWith('/demo/site/settings'))    Page = SettingsPage;
+  else                                                     Page = OverviewPage;
 
   return (
     <div className="flex h-screen bg-gray-50">
