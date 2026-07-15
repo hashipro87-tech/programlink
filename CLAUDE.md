@@ -635,6 +635,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 104 | Claim history in ClaimsPage — ClaimHistory component below GenerateClaim CTA; table of past 6 months (month, status badge, readiness %, estimated $, sites ready); clicking a row loads that month's claim | ✅ |
 | 105 | Claim Simulator — add breakfast/lunch/snack/supper columns to meal_counts; submitMealCount stores per-type; claimsController pulls real per-type totals (falls back to even split for legacy rows); eliminates approximation in claims engine | ✅ |
 | 106 | Live Claim Simulator UI — ClaimSimulatorPanel on ClaimsPage; collapsed behind a dashed button; 2×2 meal type tiles with editable count inputs (+/− 10); client-side reimbursement recalculates instantly using state rates from API; simulated total vs current estimate delta; Reset to actual button | ✅ |
+| 107 | State export profiles — GET /claims/export?month=YYYY-MM returns formatted PDF (pdfkit); header bar, 3 summary cards, meal breakdown table with tier rates, per-site detail table, issues section, footer; "Download [State] Claim PDF" button on ClaimsPage; blob download via api responseType blob | ✅ |
 
 ---
 

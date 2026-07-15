@@ -648,19 +648,40 @@ function ClaimTimeline({ claim }) {
 
 // ─── Generate Claim CTA ───────────────────────────────────────────────────────
 function GenerateClaim({ claim, month }) {
-  const [showExport, setShowExport] = useState(false);
+  const [showExport,   setShowExport]   = useState(false);
+  const [downloading,  setDownloading]  = useState(false);
+  const [dlError,      setDlError]      = useState(null);
   const monthLabel = formatMonth(month);
 
   const isReady   = claim.overallStatus === 'ready';
   const isReview  = claim.overallStatus === 'needs_review';
   const isBlocked = claim.overallStatus === 'cannot_submit';
 
-  // Button label changes based on readiness
   const btnLabel = isReady
     ? `Generate ${monthLabel} Claim`
     : `Prepare ${monthLabel} Claim`;
 
   const btnBg = isReady ? '#10b981' : isReview ? '#f59e0b' : '#4f46e5';
+
+  const downloadPDF = async () => {
+    setDownloading(true);
+    setDlError(null);
+    try {
+      const response = await api.get(`/claims/export?month=${month}`, { responseType: 'blob' });
+      const url  = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href     = url;
+      link.download = `CACFP-Claim-${month}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setDlError('Download failed — try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -693,6 +714,10 @@ function GenerateClaim({ claim, month }) {
         </div>
       )}
 
+      {dlError && (
+        <div style={{ fontSize: 13, color: '#dc2626', marginBottom: 12 }}>{dlError}</div>
+      )}
+
       {!showExport ? (
         <button
           onClick={() => setShowExport(true)}
@@ -707,40 +732,38 @@ function GenerateClaim({ claim, month }) {
         </button>
       ) : (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
-            Export for your state:
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+            Export claim report for {claim.stateName}:
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['Ohio', 'Texas', 'Georgia', 'Florida'].map(state => {
-              const active = claim.stateName === state;
-              return (
-                <button
-                  key={state}
-                  disabled={!active}
-                  style={{
-                    padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                    border: `1px solid ${active ? '#4f46e5' : '#e5e7eb'}`,
-                    background: active ? '#4f46e5' : '#f9fafb',
-                    color: active ? '#fff' : '#d1d5db',
-                    cursor: active ? 'pointer' : 'not-allowed',
-                  }}
-                >
-                  Export for {state}
-                </button>
-              );
-            })}
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+            Downloads a formatted PDF summary with per-site meal counts, reimbursement breakdown, and any issues.
           </div>
+          <button
+            onClick={downloadPDF}
+            disabled={downloading}
+            style={{
+              padding: '12px 32px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+              border: 'none', background: btnBg, color: '#fff',
+              cursor: downloading ? 'wait' : 'pointer',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+              opacity: downloading ? 0.8 : 1
+            }}
+          >
+            {downloading ? '⏳ Generating PDF…' : `⬇ Download ${claim.stateName} Claim PDF`}
+          </button>
           {isBlocked && (
             <div style={{ marginTop: 14, fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>
-              ⚠ {claim.sitesCannotSubmit} {claim.sitesCannotSubmit === 1 ? 'site is' : 'sites are'} blocked and will be excluded from this export.
+              ⚠ {claim.sitesCannotSubmit} {claim.sitesCannotSubmit === 1 ? 'site is' : 'sites are'} blocked — they will appear in the Issues section of the PDF.
             </div>
           )}
-          <button
-            onClick={() => setShowExport(false)}
-            style={{ marginTop: 12, fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            Cancel
-          </button>
+          <div style={{ marginTop: 14 }}>
+            <button
+              onClick={() => setShowExport(false)}
+              style={{ fontSize: 12, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
