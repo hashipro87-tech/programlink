@@ -320,6 +320,8 @@ function calculateClaim(sites, stateConfig, claimMonth) {
     potentialLoss:          parseFloat(totalPotentialLoss.toFixed(2)),
     breakdown:              totalBreakdown,
     submissionDeadline:     stateConfig.submissionDeadline,
+    rates:                  stateConfig.rates,
+    allowedMealTypes:       stateConfig.allowedMealTypes,
     items:                  claimItems
   };
 }

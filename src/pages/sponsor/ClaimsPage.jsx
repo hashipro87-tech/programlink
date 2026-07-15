@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 
 const MONTH_LABELS = [
@@ -831,6 +831,195 @@ function SiteStatusGrid({ items, onSiteClick }) {
   );
 }
 
+// ─── Claim Simulator Panel ────────────────────────────────────────────────────
+const MEAL_COLORS = {
+  breakfast: { bg: '#fff7ed', border: '#fed7aa', accent: '#ea580c', label: '#9a3412' },
+  lunch:     { bg: '#f0fdf4', border: '#bbf7d0', accent: '#16a34a', label: '#14532d' },
+  snack:     { bg: '#eff6ff', border: '#bfdbfe', accent: '#2563eb', label: '#1e3a5f' },
+  supper:    { bg: '#faf5ff', border: '#ddd6fe', accent: '#7c3aed', label: '#4c1d95' },
+};
+
+function ClaimSimulatorPanel({ claim }) {
+  const rates     = claim.rates;
+  const mealTypes = claim.allowedMealTypes || Object.keys(rates || {});
+
+  const getCurrentCounts = useCallback(() => {
+    if (!rates) return {};
+    const c = {};
+    for (const mt of mealTypes) {
+      c[mt] = (claim.items || []).reduce((sum, item) => {
+        const t = item.mealTotals?.[mt] || {};
+        return sum + (t.tier1 || 0) + (t.tier2 || 0);
+      }, 0);
+    }
+    return c;
+  }, [claim.claimMonth]);
+
+  const [open,   setOpen]   = useState(false);
+  const [counts, setCounts] = useState(() => getCurrentCounts());
+
+  useEffect(() => {
+    setCounts(getCurrentCounts());
+    setOpen(false);
+  }, [claim.claimMonth]);
+
+  if (!rates || mealTypes.length === 0) return null;
+
+  // Blended rate: 70% tier1 + 30% tier2 (matches current engine approximation)
+  function blended(mealType) {
+    const r = rates[mealType];
+    if (!r) return 0;
+    return 0.7 * (r.tier1 || 0) + 0.3 * (r.tier2 || 0);
+  }
+
+  const simTotal     = mealTypes.reduce((sum, mt) => sum + (counts[mt] || 0) * blended(mt), 0);
+  const currentTotal = claim.estimatedReimbursement || 0;
+  const delta        = simTotal - currentTotal;
+  const currentCounts = getCurrentCounts();
+
+  if (!open) {
+    return (
+      <div style={{ marginBottom: 24 }}>
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            width: '100%', padding: '14px 20px',
+            background: '#fff', border: '1px dashed #d1d5db', borderRadius: 14,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            fontSize: 14, fontWeight: 600, color: '#6b7280', transition: 'border-color 0.15s'
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = '#4f46e5')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = '#d1d5db')}
+        >
+          <span style={{ fontSize: 18 }}>🧮</span>
+          Claim Simulator — see how more meal counts would affect your reimbursement
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: '#fafafa', border: '1px solid #e5e7eb',
+      borderRadius: 14, padding: '22px 24px', marginBottom: 24
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>🧮 Claim Simulator</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+            Adjust counts to see how reimbursement changes. Nothing is saved — actual counts are entered on the Meal Counts page.
+          </div>
+        </div>
+        <button
+          onClick={() => { setOpen(false); setCounts(currentCounts); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#9ca3af', lineHeight: 1 }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Meal tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
+        {mealTypes.map(mt => {
+          const clr   = MEAL_COLORS[mt] || MEAL_COLORS.breakfast;
+          const rate  = blended(mt);
+          const count = counts[mt] || 0;
+          const amt   = count * rate;
+          return (
+            <div key={mt} style={{
+              background: clr.bg, border: `1px solid ${clr.border}`,
+              borderRadius: 10, padding: '14px 16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: clr.label, textTransform: 'capitalize' }}>
+                  {mt}
+                </span>
+                <span style={{ fontSize: 11, color: '#9ca3af' }}>
+                  ${rate.toFixed(3)}/meal
+                </span>
+              </div>
+
+              {/* Count input row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <button
+                  onClick={() => setCounts(c => ({ ...c, [mt]: Math.max(0, c[mt] - 10) }))}
+                  style={{
+                    width: 30, height: 30, borderRadius: 6, border: '1px solid #d1d5db',
+                    background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, lineHeight: 1,
+                    color: '#374151', flexShrink: 0
+                  }}
+                >−</button>
+                <input
+                  type="number"
+                  min="0"
+                  value={count}
+                  onChange={e => setCounts(c => ({ ...c, [mt]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  onFocus={e => e.target.select()}
+                  style={{
+                    flex: 1, border: '1px solid #d1d5db', borderRadius: 6,
+                    padding: '5px 6px', fontSize: 20, fontWeight: 800,
+                    textAlign: 'center', background: '#fff', outline: 'none',
+                    color: '#111827'
+                  }}
+                />
+                <button
+                  onClick={() => setCounts(c => ({ ...c, [mt]: c[mt] + 10 }))}
+                  style={{
+                    width: 30, height: 30, borderRadius: 6, border: '1px solid #d1d5db',
+                    background: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 16, lineHeight: 1,
+                    color: '#374151', flexShrink: 0
+                  }}
+                >+</button>
+              </div>
+
+              {/* Meal $ amount */}
+              <div style={{ fontSize: 18, fontWeight: 800, color: clr.accent, textAlign: 'center' }}>
+                {formatCurrency(amt)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Totals footer */}
+      <div style={{
+        background: '#fff', border: '1px solid #e5e7eb',
+        borderRadius: 10, padding: '16px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap'
+      }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+            Simulated Total
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>
+            {formatCurrency(simTotal)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>vs current estimate</div>
+          <div style={{
+            fontSize: 18, fontWeight: 800,
+            color: delta > 0 ? '#059669' : delta < 0 ? '#dc2626' : '#9ca3af'
+          }}>
+            {delta > 0 ? '+' : ''}{formatCurrency(delta)}
+          </div>
+        </div>
+        <button
+          onClick={() => setCounts(currentCounts)}
+          style={{
+            padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+            border: '1px solid #d1d5db', background: '#f9fafb',
+            color: '#374151', cursor: 'pointer'
+          }}
+        >
+          Reset to actual
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClaimsPage() {
   const [month,       setMonth]       = useState(currentMonthStr());
@@ -968,6 +1157,9 @@ export default function ClaimsPage() {
 
           {/* 3. Breakdown */}
           <BreakdownRow breakdown={claim.breakdown} total={claim.estimatedReimbursement} />
+
+          {/* 3b. Claim Simulator */}
+          {claim.totalSites > 0 && <ClaimSimulatorPanel claim={claim} />}
 
           {/* 4. Site Status Grid */}
           {claim.totalSites > 0 && (
