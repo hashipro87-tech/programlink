@@ -49,12 +49,16 @@ async function getClaim(req, res) {
     const monthStart = new Date(year, mo - 1, 1);
     const monthEnd   = new Date(year, mo, 0);   // last day of month
 
-    // 3. Meal counts for the month (all sites)
+    // 3. Meal counts for the month (all sites) — with per-type totals
     const mealsRes = await pool.query(
       `SELECT site_id,
-              SUM(count_verified) FILTER (WHERE count_verified IS NOT NULL) AS verified,
-              SUM(count_submitted) AS submitted,
-              COUNT(*) AS days_with_entries
+              COALESCE(SUM(breakfast), 0)::int      AS total_breakfast,
+              COALESCE(SUM(lunch),     0)::int      AS total_lunch,
+              COALESCE(SUM(snack),     0)::int      AS total_snack,
+              COALESCE(SUM(supper),    0)::int      AS total_supper,
+              COALESCE(SUM(count_submitted), 0)::int AS submitted,
+              SUM(count_verified) FILTER (WHERE count_verified IS NOT NULL)::int AS verified,
+              COUNT(*)::int AS days_with_entries
        FROM meal_counts
        WHERE site_id = ANY($1)
          AND date >= $2 AND date <= $3
@@ -81,18 +85,28 @@ async function getClaim(req, res) {
       const validDocs = docs.valid_docs || [];
       const missingDocs = stateConfig.requiredDocuments.filter(d => !validDocs.includes(d));
 
-      // Approximate meal totals — split 70/30 tier1/tier2 until real tier data exists
+      // Use real per-meal-type counts from DB.
+      // Tier split is still approximated 70/30 until income eligibility data exists.
       const totalCount = parseInt(meals.submitted || 0);
-      const tier1Count = Math.round(totalCount * 0.7);
-      const tier2Count = totalCount - tier1Count;
+
+      const perTypeRaw = {
+        breakfast: parseInt(meals.total_breakfast || 0),
+        lunch:     parseInt(meals.total_lunch     || 0),
+        snack:     parseInt(meals.total_snack     || 0),
+        supper:    parseInt(meals.total_supper    || 0),
+      };
+
+      // If per-type data is missing (legacy rows) fall back to even distribution
+      const hasPerType = perTypeRaw.breakfast + perTypeRaw.lunch + perTypeRaw.snack + perTypeRaw.supper > 0;
 
       const mealTotals = {};
       for (const mealType of stateConfig.allowedMealTypes) {
-        // Distribute evenly across meal types for now (real data will break this out)
-        const perMeal = Math.floor(totalCount / stateConfig.allowedMealTypes.length);
+        const raw = hasPerType
+          ? (perTypeRaw[mealType] || 0)
+          : Math.floor(totalCount / stateConfig.allowedMealTypes.length);
         mealTotals[mealType] = {
-          tier1: Math.round(perMeal * 0.7),
-          tier2: perMeal - Math.round(perMeal * 0.7)
+          tier1: Math.round(raw * 0.7),
+          tier2: raw - Math.round(raw * 0.7)
         };
       }
 

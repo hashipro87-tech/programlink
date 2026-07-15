@@ -24,14 +24,41 @@ exports.listMealCounts = async (req, res) => {
 
 exports.submitMealCount = async (req, res) => {
   try {
-    const { site_id, kitchen_id, date, count_submitted, notes } = req.body;
+    const {
+      site_id, kitchen_id, date, notes,
+      breakfast_count, lunch_count, snack_count, supper_count,
+      count_submitted
+    } = req.body;
+
+    const breakfast = parseInt(breakfast_count) || 0;
+    const lunch     = parseInt(lunch_count)     || 0;
+    const snack     = parseInt(snack_count)     || 0;
+    const supper    = parseInt(supper_count)    || 0;
+    // Use provided total, or derive from per-type counts
+    const total = parseInt(count_submitted) || (breakfast + lunch + snack + supper);
+
     const { rows } = await pool.query(
-      `INSERT INTO meal_counts (site_id, kitchen_id, date, count_submitted, submitted_by, notes)
-       VALUES ($1,$2,$3,$4,$5,$6)
+      `INSERT INTO meal_counts
+         (site_id, kitchen_id, date, breakfast, lunch, snack, supper, count_submitted, submitted_by, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        ON CONFLICT (site_id, date) DO UPDATE
-         SET count_submitted = $4, submitted_by = $5, notes = $6
+         SET breakfast      = $4,
+             lunch          = $5,
+             snack          = $6,
+             supper         = $7,
+             count_submitted = $8,
+             submitted_by   = $9,
+             notes          = $10
        RETURNING *`,
-      [site_id || req.user.organizationId, kitchen_id || null, date, count_submitted, req.user.id, notes || null]
+      [
+        site_id || req.user.organizationId,
+        kitchen_id || null,
+        date,
+        breakfast, lunch, snack, supper,
+        total,
+        req.user.id,
+        notes || null
+      ]
     );
     res.status(201).json({ meal_count: rows[0] });
   } catch (err) {

@@ -255,6 +255,16 @@ req.user.id             // user UUID
 
 Key tables: `organizations`, `users`, `applications`, `documents`, `notifications`, `meal_counts`, `routes`, `kitchen_site_connections`, `message_threads`, `messages`, `message_recipients`, `coordinator_assignments`, `delivery_plans`, `delivery_instances`
 
+### meal_counts per-type columns (added Task #105)
+```sql
+ALTER TABLE meal_counts
+  ADD COLUMN IF NOT EXISTS breakfast INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lunch     INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS snack     INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS supper    INTEGER NOT NULL DEFAULT 0;
+```
+Run `meal_counts_types.sql` (Desktop/outputs) in Railway. `count_submitted` still stored as total for backward compat.
+
 ### coordinator_assignments table (added Task #47)
 ```sql
 CREATE TABLE coordinator_assignments (
@@ -623,6 +633,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 102 | Simplified site meal count page — SiteMealCountPage.jsx replaces MealEntryForm on site /meals route; 2x2 color-coded tile grid (Breakfast/Lunch/Snack/Supper), big +/− inputs, copy yesterday, pre-fills if today submitted, this-month history list (click to edit), sticky mobile Submit bar | ✅ |
 | 103 | Claim readiness widget on sponsor overview — ClaimReadinessWidget fetches GET /claims?month=YYYY-MM; shows readiness %, progress bar, estimated $, at-risk $, X/Y sites ready; no-state fallback prompts Settings; entire card links to /claims | ✅ |
 | 104 | Claim history in ClaimsPage — ClaimHistory component below GenerateClaim CTA; table of past 6 months (month, status badge, readiness %, estimated $, sites ready); clicking a row loads that month's claim | ✅ |
+| 105 | Claim Simulator — add breakfast/lunch/snack/supper columns to meal_counts; submitMealCount stores per-type; claimsController pulls real per-type totals (falls back to even split for legacy rows); eliminates approximation in claims engine | ✅ |
 
 ---
 
