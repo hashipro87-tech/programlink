@@ -24,6 +24,7 @@ import KitchenDemo      from './pages/demo/KitchenDemo';
 import SiteDemo         from './pages/demo/SiteDemo';
 import CoordinatorDemo  from './pages/demo/CoordinatorDemo';
 
+import AuditPage   from './pages/audit/AuditPage';
 import AboutPage   from './pages/about/AboutPage';
 import PrivacyPage from './pages/legal/PrivacyPage';
 import TermsPage   from './pages/legal/TermsPage';
@@ -90,6 +91,9 @@ export default function App() {
         <Route path="/demo/kitchen/*"     element={<KitchenDemo />} />
         <Route path="/demo/site/*"        element={<SiteDemo />} />
         <Route path="/demo/coordinator/*" element={<CoordinatorDemo />} />
+
+        {/* Audit — public, no login */}
+        <Route path="/audit/:token" element={<AuditPage />} />
 
         {/* Public pages */}
         <Route path="/about"   element={<AboutPage />} />

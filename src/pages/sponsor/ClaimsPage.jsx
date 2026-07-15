@@ -651,6 +651,9 @@ function GenerateClaim({ claim, month }) {
   const [showExport,   setShowExport]   = useState(false);
   const [downloading,  setDownloading]  = useState(false);
   const [dlError,      setDlError]      = useState(null);
+  const [auditUrl,     setAuditUrl]     = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditCopied,  setAuditCopied]  = useState(false);
   const monthLabel = formatMonth(month);
 
   const isReady   = claim.overallStatus === 'ready';
@@ -662,6 +665,26 @@ function GenerateClaim({ claim, month }) {
     : `Prepare ${monthLabel} Claim`;
 
   const btnBg = isReady ? '#10b981' : isReview ? '#f59e0b' : '#4f46e5';
+
+  const createAuditLink = async () => {
+    setAuditLoading(true);
+    setAuditUrl(null);
+    try {
+      const { data } = await api.post('/claims/audit-token', { month });
+      setAuditUrl(data.url);
+    } catch (err) {
+      setDlError('Failed to create audit link — try again.');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const copyAuditUrl = () => {
+    navigator.clipboard.writeText(auditUrl).then(() => {
+      setAuditCopied(true);
+      setTimeout(() => setAuditCopied(false), 2500);
+    });
+  };
 
   const downloadPDF = async () => {
     setDownloading(true);
@@ -766,6 +789,57 @@ function GenerateClaim({ claim, month }) {
           </div>
         </div>
       )}
+
+      {/* ── Audit Link section ── */}
+      <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid #e5e7eb' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+          🔍 One-Click Audit Mode
+        </div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+          Generate a secure read-only link for your state auditor. No login required — just share the link. Expires in 30 days.
+        </div>
+
+        {!auditUrl ? (
+          <button
+            onClick={createAuditLink}
+            disabled={auditLoading}
+            style={{
+              padding: '9px 22px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+              border: '1px solid #4f46e5', background: '#fff',
+              color: '#4f46e5', cursor: auditLoading ? 'wait' : 'pointer',
+              opacity: auditLoading ? 0.7 : 1
+            }}
+          >
+            {auditLoading ? '⏳ Generating link…' : '🔗 Create Audit Link'}
+          </button>
+        ) : (
+          <div style={{
+            background: '#f0fdf4', border: '1px solid #bbf7d0',
+            borderRadius: 10, padding: '14px 16px',
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap'
+          }}>
+            <span style={{ fontSize: 12, color: '#065f46', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace' }}>
+              {auditUrl}
+            </span>
+            <button
+              onClick={copyAuditUrl}
+              style={{
+                padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                border: 'none', background: auditCopied ? '#059669' : '#4f46e5',
+                color: '#fff', cursor: 'pointer', flexShrink: 0
+              }}
+            >
+              {auditCopied ? '✓ Copied!' : 'Copy Link'}
+            </button>
+            <button
+              onClick={() => { setAuditUrl(null); setAuditCopied(false); }}
+              style={{ fontSize: 11, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Regenerate
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
