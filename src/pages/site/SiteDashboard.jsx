@@ -21,7 +21,7 @@ import MessagesPage         from '../messages/MessagesPage';
 import NotificationsPage    from '../notifications/NotificationsPage';
 import KitchenDirectoryPage from '../kitchen/KitchenDirectoryPage';
 import SettingsPage         from '../settings/SettingsPage';
-import MealEntryForm        from '../kitchen/components/MealEntryForm';
+import SiteMealCountPage    from './SiteMealCountPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/site',              icon: CheckCircle    },
@@ -891,7 +891,7 @@ export default function SiteDashboard() {
           ) : (
             <Routes>
               <Route path="deliveries"   element={<SiteDeliveriesPage />} />
-              <Route path="meals"        element={<MealEntryForm />} />
+              <Route path="meals"        element={<SiteMealCountPage />} />
               <Route path="application"  element={<ApplicationPage />} />
               <Route path="documents"    element={<DocumentsPage />} />
               <Route path="messages"     element={<MessagesPage />} />
