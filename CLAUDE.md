@@ -619,13 +619,30 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 97 | Kitchen Dashboard redesign — 9-section daily assistant layout: KitchenDailyChecklist (5 auto-tracked tasks), TodayProductionCard (meal totals + sites served + next delivery), TodayDeliveriesTimeline (dot timeline), SiteStatusCard (submitted vs pending with site list), inline MealEntryForm, DocComplianceCard (5 required docs inline), KitchenSummaryCard (monthly stats), TomorrowProductionCard (planning preview); useKitchenData() hook parallel-fetches 6 endpoints; getKitchenProduction extended with has_submitted/submittedCount/pendingCount/nextDelivery | ✅ |
 | 99 | All 4 demo pages updated — CoordinatorDemo full rewrite (5 sites, TIER_META, SiteDrawer, inline approve/reject); KitchenDemo full rewrite (production card, checklist, deliveries, timeline); SiteDemo + WeekDeliverySchedule + Deliveries section; SponsorDemo + DeliveryPlansPage with pause/resume toggle | ✅ |
 | 100 | Kitchen Dashboard layout — TodayProductionCard moved above KitchenDailyChecklist (production is primary job); checklist compacted (py-2, gap-x-4 gap-y-1.5) so both are visible above the fold; KitchenDemo mirrored same order | ✅ |
+| 101 | Proactive warning triggers — GET /warnings backend endpoint (4 warning types: sites missing counts 3+ days, docs expiring ≤7 days, sites with zero counts this month, meal count anomaly >2x avg); ProactiveWarningsCard on sponsor overview (severity colors, Fix → links, dismissible per session) | ✅ |
+| 102 | Simplified site meal count page — SiteMealCountPage.jsx replaces MealEntryForm on site /meals route; 2x2 color-coded tile grid (Breakfast/Lunch/Snack/Supper), big +/− inputs, copy yesterday, pre-fills if today submitted, this-month history list (click to edit), sticky mobile Submit bar | ✅ |
+| 103 | Claim readiness widget on sponsor overview — ClaimReadinessWidget fetches GET /claims?month=YYYY-MM; shows readiness %, progress bar, estimated $, at-risk $, X/Y sites ready; no-state fallback prompts Settings; entire card links to /claims | ✅ |
+| 104 | Claim history in ClaimsPage — ClaimHistory component below GenerateClaim CTA; table of past 6 months (month, status badge, readiness %, estimated $, sites ready); clicking a row loads that month's claim | ✅ |
 
 ---
 
 ## Outreach
 
-5 personalized emails drafted and sent to Iowa/Ohio CACFP sponsors (stored in outreach doc, Task #14).  
-Target contacts in Iowa and Ohio — see outreach document on Desktop.
+Iowa/Ohio: 5 personalized emails drafted and sent (stored in outreach doc, Task #14).
+
+California outreach (2026-07-15): 10 sponsor emails drafted and sent:
+1. Community Bridges — CACFPinfo@cbridges.org (Santa Cruz/Monterey)
+2. Wu Yee Children's Services — randr@wuyee.org (San Francisco)
+3. Valley Oak Children's Services — info@valleyoakchildren.org (Chico)
+4. Solano Family & Children's Services — info@solanofamily.org (Fairfield)
+5. Community Child Care Council of Sonoma County (4Cs) — info@sonoma4cs.org
+6. Central Valley Children's Services Network — info@cvcsn.org (Fresno)
+7. Chicano Federation of San Diego County — info@chicanofed.org
+8. Changing Tides Family Services — info@changingtidesfs.org (Eureka)
+9. Felton Institute — info@felton.org (San Francisco)
+10. Del Norte Child Care Council — carissa@dnccc.com (Crescent City)
+
+All sourced from the official CDSS CACFP Day Care Home Sponsors directory.
 
 ---
 
