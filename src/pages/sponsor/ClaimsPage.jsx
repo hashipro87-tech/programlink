@@ -1054,8 +1054,98 @@ export default function ClaimsPage() {
 
           {/* 7. Generate Claim CTA */}
           <GenerateClaim claim={claim} month={month} />
+
+          {/* 8. Claim History */}
+          <ClaimHistory currentMonth={month} onSelectMonth={(m) => setMonth(m)} />
         </>
       )}
+    </div>
+  );
+}
+
+// ─── Claim History ────────────────────────────────────────────────────────────
+function ClaimHistory({ currentMonth, onSelectMonth }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/claims/history')
+      .then(({ data }) => setHistory(data.history ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const past = history.filter((h) => {
+    const hm = (h.claim_month ?? '').slice(0, 7);
+    return hm !== currentMonth;
+  });
+
+  if (loading || past.length === 0) return null;
+
+  const STATUS = {
+    ready:       { label: 'Ready',       bg: 'bg-green-100', text: 'text-green-700' },
+    submitted:   { label: 'Submitted',   bg: 'bg-blue-100',  text: 'text-blue-700'  },
+    in_progress: { label: 'In Progress', bg: 'bg-amber-100', text: 'text-amber-700' },
+  };
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 12 }}>
+        Claim History
+      </h2>
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #f3f4f6', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+              {['Month', 'Status', 'Readiness', 'Estimated', 'Sites Ready'].map((h) => (
+                <th key={h} style={{ padding: '10px 20px', textAlign: h === 'Month' || h === 'Status' ? 'left' : 'right', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {past.map((h, i) => {
+              const monthStr  = (h.claim_month ?? '').slice(0, 7);
+              const label     = formatMonth(monthStr);
+              const s         = STATUS[h.status] ?? STATUS.in_progress;
+              const score     = h.readiness_score ?? 0;
+              const est       = h.estimated_reimbursement ?? 0;
+              const ready     = h.sites_ready ?? 0;
+              const total     = ready + (h.sites_needs_review ?? 0) + (h.sites_cannot_submit ?? 0);
+              const scoreColor = score >= 90 ? '#16a34a' : score >= 70 ? '#4f46e5' : '#d97706';
+
+              return (
+                <tr
+                  key={i}
+                  onClick={() => onSelectMonth(monthStr)}
+                  style={{ borderBottom: '1px solid #f9fafb', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f9fafb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600, color: '#111827' }}>
+                    {label}
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }} className={`${s.bg} ${s.text}`}>
+                      {s.label}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: scoreColor }}>{score}%</span>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#111827' }}>
+                    {formatCurrency(est)}
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: 13, color: '#6b7280' }}>
+                    {total > 0 ? `${ready}/${total}` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
