@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -45,6 +45,78 @@ const NAV_ITEMS = [
   { label: 'Notifications',  path: '/dashboard/sponsor/notifications',  icon: Bell },
   { label: 'Settings',       path: '/dashboard/sponsor/settings',       icon: Settings },
 ];
+
+// ─── Proactive Warnings Card ──────────────────────────────────────────────────
+function ProactiveWarningsCard({ navigate }) {
+  const [warnings, setWarnings] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cacfp_dismissed_warnings') || '[]'); }
+    catch { return []; }
+  });
+
+  useEffect(() => {
+    api.get('/warnings')
+      .then(({ data }) => setWarnings(data.warnings ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const dismiss = (idx) => {
+    const key = warnings[idx].type + (warnings[idx].org_id ?? '');
+    const next = [...dismissed, key];
+    setDismissed(next);
+    localStorage.setItem('cacfp_dismissed_warnings', JSON.stringify(next));
+  };
+
+  const visible = warnings.filter((w) => !dismissed.includes(w.type + (w.org_id ?? '')));
+
+  if (loading) return null;
+  if (visible.length === 0) return null;
+
+  const SEVERITY = {
+    high:   { bg: 'bg-red-50',    border: 'border-red-200',    icon: 'text-red-500',    dot: 'bg-red-500'    },
+    medium: { bg: 'bg-amber-50',  border: 'border-amber-200',  icon: 'text-amber-500',  dot: 'bg-amber-400'  },
+    low:    { bg: 'bg-blue-50',   border: 'border-blue-200',   icon: 'text-blue-500',   dot: 'bg-blue-400'   },
+  };
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle className="w-4 h-4 text-amber-500" />
+        <h2 className="text-sm font-bold text-gray-900">Program Alerts</h2>
+        <span className="ml-auto text-xs text-gray-400">{visible.length} issue{visible.length !== 1 ? 's' : ''} need attention</span>
+      </div>
+      <div className="space-y-2">
+        {visible.map((w, i) => {
+          const s = SEVERITY[w.severity] ?? SEVERITY.low;
+          return (
+            <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${s.bg} ${s.border}`}>
+              <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{w.title}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{w.detail}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {w.link && (
+                  <button
+                    onClick={() => navigate(w.link)}
+                    className="text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap"
+                  >
+                    Fix →
+                  </button>
+                )}
+                <button onClick={() => dismiss(i)} className="text-gray-300 hover:text-gray-400">
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Converts a date into a human-readable label — sponsors can instantly see how recent an application is
 function relativeDate(dateStr) {
@@ -145,6 +217,9 @@ export default function SponsorDashboard() {
                   },
                 ]}
               />
+
+              {/* Proactive warnings — surface issues before they become claim problems */}
+              <ProactiveWarningsCard navigate={navigate} />
 
               {/* Stat cards — driven by real counts from the /stats API */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
