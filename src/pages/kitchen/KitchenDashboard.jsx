@@ -233,7 +233,7 @@ function KitchenDailyChecklist({ todayProd, todayRoutes, todayCount }) {
         <h2 className="text-sm font-bold text-brand-900">Today's Checklist</h2>
         <span className="text-xs font-bold text-brand-600">{doneCount}/{tasks.length} done</span>
       </div>
-      <div className="px-5 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
+      <div className="px-5 py-2 flex flex-wrap gap-x-4 gap-y-1.5">
         {tasks.map((t, i) => (
           <div key={i} className="flex items-center gap-1.5">
             {t.done
@@ -711,15 +711,15 @@ function KitchenOverview({ stats, loading, navigate }) {
         <p className="text-gray-500 mt-1 text-sm">Here's everything you need to run today's service.</p>
       </div>
 
-      {/* 1. Daily Checklist — persistent banner */}
+      {/* 1. Today's Production — primary job, above the fold */}
+      <TodayProductionCard todayProd={todayProd} />
+
+      {/* 2. Daily Checklist — compact strip below production */}
       <KitchenDailyChecklist
         todayProd={todayProd}
         todayRoutes={todayRoutes ?? []}
         todayCount={todayCount}
       />
-
-      {/* 2. Today's Production — what to cook, for whom */}
-      <TodayProductionCard todayProd={todayProd} />
 
       {/* 3. Today's Deliveries Timeline */}
       <TodayDeliveriesTimeline

@@ -69,28 +69,7 @@ function OverviewSection() {
         <p className="text-sm text-gray-500 mt-1">Here's everything you need to run today's service.</p>
       </div>
 
-      {/* 1. Daily Checklist */}
-      <div className="card mb-6 border-brand-100">
-        <div className="px-5 py-3.5 border-b border-brand-100 flex items-center justify-between bg-brand-50 rounded-t-2xl">
-          <h2 className="text-sm font-bold text-brand-900">Today's Checklist</h2>
-          <span className="text-xs font-bold text-brand-600">{doneCount}/{tasks.length} done</span>
-        </div>
-        <div className="px-5 py-3 flex flex-wrap gap-x-5 gap-y-2.5">
-          {tasks.map((t, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              {t.done
-                ? <CheckSquare className="w-4 h-4 text-green-500 flex-shrink-0" />
-                : <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
-              }
-              <span className={`text-xs font-medium ${t.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                {t.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. Today's Production */}
+      {/* 1. Today's Production */}
       <div className="card mb-6">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -128,6 +107,27 @@ function OverviewSection() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* 2. Daily Checklist */}
+      <div className="card mb-6 border-brand-100">
+        <div className="px-5 py-3.5 border-b border-brand-100 flex items-center justify-between bg-brand-50 rounded-t-2xl">
+          <h2 className="text-sm font-bold text-brand-900">Today's Checklist</h2>
+          <span className="text-xs font-bold text-brand-600">{doneCount}/{tasks.length} done</span>
+        </div>
+        <div className="px-5 py-2 flex flex-wrap gap-x-4 gap-y-1.5">
+          {tasks.map((t, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              {t.done
+                ? <CheckSquare className="w-4 h-4 text-green-500 flex-shrink-0" />
+                : <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              }
+              <span className={`text-xs font-medium ${t.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                {t.label}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
