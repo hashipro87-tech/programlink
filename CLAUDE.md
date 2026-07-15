@@ -637,6 +637,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 106 | Live Claim Simulator UI — ClaimSimulatorPanel on ClaimsPage; collapsed behind a dashed button; 2×2 meal type tiles with editable count inputs (+/− 10); client-side reimbursement recalculates instantly using state rates from API; simulated total vs current estimate delta; Reset to actual button | ✅ |
 | 107 | State export profiles — GET /claims/export?month=YYYY-MM returns formatted PDF (pdfkit); header bar, 3 summary cards, meal breakdown table with tier rates, per-site detail table, issues section, footer; "Download [State] Claim PDF" button on ClaimsPage; blob download via api responseType blob | ✅ |
 | 108 | One-Click Audit Mode — audit_tokens table (token UUID, snapshot JSONB, 30-day expiry, view_count); POST /claims/audit-token creates token with full claim snapshot; GET /audit/:token public endpoint; AuditPage.jsx public read-only view (no login); "Create Audit Link" + copy button in GenerateClaim section | ✅ |
+| 109 | Update SponsorDemo with Claims — added Claims nav item (DollarSign icon), DEMO_RATES/DEMO_INITIAL_COUNTS/DEMO_SITES_CLAIM/MEAL_COLORS constants, ClaimsPage demo component (health score bar, 3 stat cards, meal breakdown, interactive Claim Simulator with +/− inputs, site status grid, Submit & Export CTA with disabled PDF + audit link); claim readiness widget on Overview (gradient purple card, 88% / $14,234 / 4/5 sites) | ✅ |
 
 ---
 

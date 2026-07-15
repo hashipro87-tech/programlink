@@ -4,7 +4,7 @@ import {
   CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed,
   FileText, Settings, Truck, ChefHat, Plus, X,
   ShieldCheck, ShieldAlert, ShieldX, Shield,
-  MessageSquare, Megaphone, Bell, TrendingUp, Upload,
+  MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -20,6 +20,7 @@ const NAV = [
   { label: 'Coordinators',   path: '/demo/sponsor/coordinators',    icon: Users },
   { label: 'Messages',     path: '/demo/sponsor/messages',     icon: MessageSquare },
   { label: 'Meal Counts',  path: '/demo/sponsor/meal-counts',  icon: UtensilsCrossed },
+  { label: 'Claims',       path: '/demo/sponsor/claims',       icon: DollarSign },
   { label: 'Documents',    path: '/demo/sponsor/documents',    icon: FileText },
   { label: 'Settings',     path: '/demo/sponsor/settings',     icon: Settings },
 ];
@@ -117,6 +118,27 @@ const DOC_STATUS_STYLE = {
   expiring: { label: 'Expiring Soon',  bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-100' },
   missing:  { label: 'Missing',        bg: 'bg-red-50',    text: 'text-red-700',    border: 'border-red-100'    },
   pending:  { label: 'Pending Review', bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100' },
+};
+
+const DEMO_RATES = {
+  breakfast: { tier1: 1.70, tier2: 1.28 },
+  lunch:     { tier1: 3.22, tier2: 2.89 },
+  snack:     { tier1: 0.96, tier2: 0.89 },
+  supper:    { tier1: 2.14, tier2: 1.94 },
+};
+const DEMO_INITIAL_COUNTS = { breakfast: 2100, lunch: 2900, snack: 2000, supper: 0 };
+const DEMO_SITES_CLAIM = [
+  { name: 'Bright Minds Academy', status: 'ready',        est: 3840 },
+  { name: 'Little Stars Center',  status: 'ready',        est: 3210 },
+  { name: 'Riverside Childcare',  status: 'ready',        est: 2880 },
+  { name: 'Lincoln Kitchen',      status: 'ready',        est: 3484 },
+  { name: 'Happy Hearts Center',  status: 'needs_review', est: 820,  error: 'Enrollment docs missing' },
+];
+const MEAL_COLORS = {
+  breakfast: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', label: '🌅 Breakfast' },
+  lunch:     { bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  label: '☀️ Lunch'     },
+  snack:     { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',   label: '🍎 Snack'     },
+  supper:    { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: '🌙 Supper'    },
 };
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
@@ -340,6 +362,25 @@ function OverviewPage({ onOpenOrder, onOpenBroadcast }) {
           </div>
         </div>
       </div>
+
+      {/* Claim Readiness Widget */}
+      <Link to="/demo/sponsor/claims" className="block bg-gradient-to-r from-brand-600 to-brand-700 rounded-2xl p-5 mb-6 shadow-sm hover:shadow-md transition-shadow text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-brand-200 uppercase tracking-wide mb-1">July 2026 Claim</p>
+            <p className="text-xl font-black">$14,234 Estimated</p>
+            <p className="text-sm text-brand-200 mt-1">4/5 Sites Ready · $820 at Risk</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-black">88%</div>
+            <div className="text-xs text-brand-200">Ready</div>
+          </div>
+        </div>
+        <div className="mt-3 h-2 bg-brand-500 rounded-full overflow-hidden">
+          <div className="h-full bg-white rounded-full opacity-90" style={{ width: '88%' }} />
+        </div>
+        <p className="text-xs text-brand-200 mt-2">View Claim Command Center →</p>
+      </Link>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
@@ -1165,6 +1206,204 @@ function DocumentsPage() {
   );
 }
 
+// ─── Claims ──────────────────────────────────────────────────────────────────
+function ClaimsPage() {
+  const [counts, setCounts] = useState({ ...DEMO_INITIAL_COUNTS });
+  const [simOpen, setSimOpen] = useState(false);
+  const SCORE = 88;
+
+  const blended = (type) => 0.7 * DEMO_RATES[type].tier1 + 0.3 * DEMO_RATES[type].tier2;
+  const fmt$ = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+  const simTotal     = Object.entries(counts).reduce((s, [t, n]) => s + n * blended(t), 0);
+  const currentTotal = Object.entries(DEMO_INITIAL_COUNTS).reduce((s, [t, n]) => s + n * blended(t), 0);
+  const delta        = simTotal - currentTotal;
+
+  const adjust = (type, d) => setCounts(c => ({ ...c, [type]: Math.max(0, c[type] + d) }));
+  const reset  = () => setCounts({ ...DEMO_INITIAL_COUNTS });
+
+  const statusCfg = {
+    ready:        { label: 'Ready',   bg: 'bg-green-50',  text: 'text-green-700',  dot: 'bg-green-400' },
+    needs_review: { label: 'Review',  bg: 'bg-yellow-50', text: 'text-yellow-700', dot: 'bg-yellow-400' },
+    cannot_submit:{ label: 'Blocked', bg: 'bg-red-50',    text: 'text-red-700',    dot: 'bg-red-400' },
+  };
+
+  return (
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Claim Command Center</h1>
+        <p className="text-gray-500 mt-1">July 2026 · Ohio CACFP Program</p>
+      </div>
+
+      {/* Health Score */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-bold text-gray-900">Claim Health Score</h2>
+            <p className="text-xs text-gray-400 mt-0.5">1 issue preventing full readiness · Fix it to recover $820</p>
+          </div>
+          <span className="text-3xl font-black text-amber-500">{SCORE}%</span>
+        </div>
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-600 rounded-full" style={{ width: `${SCORE}%` }} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3 text-xs">
+          <span className="text-red-600 font-medium">• 1 site needs review</span>
+          <span className="text-gray-400">• 4 sites ready</span>
+          <span className="text-gray-400">• Claim period active</span>
+        </div>
+      </div>
+
+      {/* 3 stat cards */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: 'Estimated Reimbursement', value: fmt$(currentTotal), color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Reimbursement at Risk',   value: '$820',             color: 'text-red-600',   bg: 'bg-red-50'   },
+          { label: 'Claim Deadline',          value: 'Jul 31',           color: 'text-brand-600', bg: 'bg-brand-50' },
+        ].map(({ label, value, color, bg }) => (
+          <div key={label} className={`${bg} border border-gray-100 rounded-2xl p-5`}>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
+            <p className={`text-2xl font-black ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Meal Breakdown */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">Meal Type Breakdown</h2>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-gray-100 px-2 py-4">
+          {[
+            { label: 'Breakfast', value: fmt$(DEMO_INITIAL_COUNTS.breakfast * blended('breakfast')), count: '2,100 meals', color: 'text-orange-600' },
+            { label: 'Lunch',     value: fmt$(DEMO_INITIAL_COUNTS.lunch     * blended('lunch')),     count: '2,900 meals', color: 'text-green-600'  },
+            { label: 'Snack',     value: fmt$(DEMO_INITIAL_COUNTS.snack     * blended('snack')),     count: '2,000 meals', color: 'text-blue-600'   },
+          ].map(({ label, value, count, color }) => (
+            <div key={label} className="px-4 text-center">
+              <p className={`text-xl font-bold ${color}`}>{value}</p>
+              <p className="text-xs font-semibold text-gray-600 mt-0.5">{label}</p>
+              <p className="text-xs text-gray-400">{count}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Claim Simulator */}
+      <div className="mb-6">
+        <button
+          onClick={() => setSimOpen(o => !o)}
+          className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-3 text-sm font-semibold text-gray-500 hover:border-brand-300 hover:text-brand-600 transition-colors"
+        >
+          {simOpen ? '▲ Hide Claim Simulator' : '🧮 Open Claim Simulator — Adjust meal counts and see impact instantly'}
+        </button>
+        {simOpen && (
+          <div className="mt-3 bg-white border border-brand-100 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 bg-brand-50 border-b border-brand-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-brand-900">Claim Simulator</h3>
+                <p className="text-xs text-brand-600 mt-0.5">Adjust counts to see how reimbursement changes instantly</p>
+              </div>
+              <button onClick={reset} className="text-xs font-semibold text-brand-600 hover:underline">Reset to actual</button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3">
+              {Object.keys(DEMO_INITIAL_COUNTS).map((type) => {
+                const c = MEAL_COLORS[type];
+                return (
+                  <div key={type} className={`${c.bg} border ${c.border} rounded-xl p-3`}>
+                    <p className={`text-xs font-bold ${c.text} mb-2`}>{c.label}</p>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => adjust(type, -10)} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">−</button>
+                      <input
+                        type="number"
+                        value={counts[type]}
+                        onChange={e => setCounts(prev => ({ ...prev, [type]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        className="flex-1 text-center text-sm font-bold bg-white border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                      />
+                      <button onClick={() => adjust(type, 10)} className="w-7 h-7 rounded-lg bg-white border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">+</button>
+                    </div>
+                    <p className={`text-xs ${c.text} mt-1.5 text-center font-medium`}>
+                      ≈ {fmt$(counts[type] * blended(type))}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className={`px-6 py-4 border-t flex items-center justify-between ${delta >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Simulated Total</p>
+                <p className="text-xl font-black text-gray-900">{fmt$(simTotal)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">vs Current Estimate</p>
+                <p className={`text-lg font-bold ${delta >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {delta >= 0 ? '+' : ''}{fmt$(delta)}
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-3 text-center border-t border-gray-100">
+              <p className="text-xs text-gray-400">Demo only — <Link to="/register" className="text-brand-600 hover:underline">sign up</Link> to simulate with your real meal data.</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Site Status Grid */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Site Status — 4 / 5 Ready</h2>
+          <div className="h-2 w-32 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full" style={{ width: '80%' }} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4">
+          {DEMO_SITES_CLAIM.map((site) => {
+            const cfg = statusCfg[site.status];
+            return (
+              <div key={site.name} className={`${cfg.bg} border border-gray-100 rounded-xl p-3`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                  <span className={`text-xs font-bold ${cfg.text}`}>{cfg.label}</span>
+                </div>
+                <p className="text-xs font-semibold text-gray-800 leading-tight mb-0.5">{site.name}</p>
+                <p className="text-sm font-bold text-gray-900">{fmt$(site.est)}</p>
+                {site.error && <p className="text-xs text-red-600 mt-1">{site.error}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Generate Claim CTA */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">Submit & Export</h2>
+        </div>
+        <div className="px-6 py-5 space-y-3">
+          <div className="flex gap-3">
+            <Link to="/register" className="flex-1 py-2.5 bg-brand-600 text-white font-semibold text-sm rounded-xl text-center hover:bg-brand-700 transition-colors">
+              Sign Up to Generate Claim →
+            </Link>
+            <button disabled className="flex-1 py-2.5 bg-gray-100 text-gray-400 font-semibold text-sm rounded-xl cursor-not-allowed">
+              📄 Download PDF (Sign Up)
+            </button>
+          </div>
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+            <p className="text-sm font-bold text-gray-800 mb-0.5">🔍 One-Click Audit Mode</p>
+            <p className="text-xs text-gray-500 mb-2">Generate a secure read-only link for auditors — no login required. Share it in seconds.</p>
+            <Link to="/register" className="inline-block text-xs font-semibold text-brand-600 hover:underline">
+              Sign Up to Create Audit Link →
+            </Link>
+          </div>
+        </div>
+        <div className="px-6 py-3 bg-gray-50 rounded-b-2xl text-center border-t border-gray-100">
+          <p className="text-xs text-gray-400">Demo only — <Link to="/register" className="text-brand-600 hover:underline">sign up</Link> to generate real claims.</p>
+        </div>
+      </div>
+
+      <DemoCTA />
+    </>
+  );
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 function SettingsPage() {
   const [saved, setSaved] = useState(false);
@@ -1244,6 +1483,7 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/coordinators')) Page = () => <CoordinatorsPage />;
   else if (pathname.startsWith('/demo/sponsor/messages'))     Page = () => <MessagesPage onOpenBroadcast={() => setShowBroadcast(true)} />;
   else if (pathname.startsWith('/demo/sponsor/meal-counts'))  Page = () => <MealCountsPage />;
+  else if (pathname.startsWith('/demo/sponsor/claims'))       Page = () => <ClaimsPage />;
   else if (pathname.startsWith('/demo/sponsor/documents'))    Page = () => <DocumentsPage />;
   else if (pathname.startsWith('/demo/sponsor/settings'))     Page = () => <SettingsPage />;
   else                                                         Page = () => <OverviewPage onOpenOrder={() => setShowOrder(true)} onOpenBroadcast={() => setShowBroadcast(true)} />;
