@@ -44,16 +44,19 @@ export default function DemoLanding() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand-600 rounded-xl flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" viewBox="0 0 44 44" fill="none">
-                <path d="M19 26H17a6 6 0 0 1 0-12h2" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-                <path d="M25 18h2a6 6 0 0 1 0 12h-2" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-                <line x1="18.5" y1="22" x2="25.5" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span className="font-bold text-gray-900">CACFPLink</span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-sm text-gray-400 hover:text-gray-600 font-medium transition-colors">← Home</Link>
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-brand-600 rounded-xl flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" viewBox="0 0 44 44" fill="none">
+                  <path d="M19 26H17a6 6 0 0 1 0-12h2" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+                  <path d="M25 18h2a6 6 0 0 1 0 12h-2" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+                  <line x1="18.5" y1="22" x2="25.5" y2="22" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <span className="font-bold text-gray-900">CACFPLink</span>
+            </Link>
+          </div>
           <Link
             to="/register"
             className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors"
