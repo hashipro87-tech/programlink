@@ -393,24 +393,25 @@ export default function SponsorDashboard() {
                 )}
               </div>
 
-              {/* Compliance alerts — shows a warning if documents are expiring soon */}
-              <div className="card">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h2 className="font-semibold text-gray-900">Compliance Alerts</h2>
-                </div>
-                {stats.compliance_alerts > 0 ? (
-                  <div className="px-6 py-4">
-                    <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
-                      {stats.compliance_alerts} document{stats.compliance_alerts !== 1 ? 's are' : ' is'} expiring within 30 days. Review the Documents section.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="px-6 py-12 text-center">
-                    <CheckCircle className="w-8 h-8 text-green-300 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500">No compliance alerts right now.</p>
-                    <p className="text-xs text-gray-400 mt-1">Expired or missing documents will appear here.</p>
-                  </div>
-                )}
+              {/* Quick links — fast access to the most-used sections */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Compliance',     path: '/dashboard/sponsor/compliance',    icon: AlertTriangle, color: 'text-amber-600',  bg: 'bg-amber-50'  },
+                  { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',   icon: UtensilsCrossed, color: 'text-brand-600', bg: 'bg-brand-50'  },
+                  { label: 'Documents',      path: '/dashboard/sponsor/documents',     icon: FileText,      color: 'text-blue-600',   bg: 'bg-blue-50'   },
+                  { label: 'Reports',        path: '/dashboard/sponsor/reports',       icon: ClipboardList, color: 'text-green-600',  bg: 'bg-green-50'  },
+                ].map(({ label, path, icon: Icon, color, bg }) => (
+                  <button
+                    key={label}
+                    onClick={() => navigate(path)}
+                    className="card px-4 py-4 flex flex-col items-start gap-2 hover:shadow-md transition-shadow text-left"
+                  >
+                    <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">{label}</span>
+                  </button>
+                ))}
               </div>
             </>
           ) : (

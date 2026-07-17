@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const MONTH_LABELS = [
@@ -1119,6 +1120,7 @@ function ClaimSimulatorPanel({ claim }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClaimsPage() {
+  const navigate = useNavigate();
   const [month,       setMonth]       = useState(currentMonthStr());
   const [claim,       setClaim]       = useState(null);
   const [prevClaim,   setPrevClaim]   = useState(null);
@@ -1199,6 +1201,24 @@ export default function ClaimsPage() {
           ))}
         </select>
       </div>
+
+      {/* Reports cross-link */}
+      <button
+        onClick={() => navigate('/dashboard/sponsor/reports')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          width: '100%', background: '#f0fdf4', border: '1px solid #bbf7d0',
+          borderRadius: 10, padding: '10px 16px', marginBottom: 20,
+          cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 14 }}>📊</span>
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}>Need the raw meal count data?</span>
+          <span style={{ fontSize: 12, color: '#15803d', marginLeft: 6 }}>View the Monthly Report for per-site submission totals and CSV export.</span>
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#166534', whiteSpace: 'nowrap' }}>View Report →</span>
+      </button>
 
       {/* Loading */}
       {loading && (

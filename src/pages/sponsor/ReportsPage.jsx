@@ -3,10 +3,11 @@
 // Sponsors can export the data as CSV for USDA reimbursement prep.
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart2, Download, RefreshCw, CheckCircle,
   AlertTriangle, UtensilsCrossed, Calendar,
-  TrendingUp, FileText, Info,
+  TrendingUp, FileText, Info, DollarSign,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -316,6 +317,7 @@ function SiteRow({ site }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
+  const navigate = useNavigate();
   const today = new Date();
   const [month, setMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
@@ -383,6 +385,19 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Claims callout — connects raw data to financial view */}
+      <button
+        onClick={() => navigate('/dashboard/sponsor/claims')}
+        className="w-full flex items-center gap-3 bg-brand-50 border border-brand-100 rounded-xl px-5 py-3.5 mb-6 hover:bg-brand-100 transition-colors text-left"
+      >
+        <DollarSign className="w-4 h-4 text-brand-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-brand-800">Want to see reimbursement estimates?</p>
+          <p className="text-xs text-brand-600 mt-0.5">The Claims Center turns these meal counts into dollar amounts using your state's CACFP rates.</p>
+        </div>
+        <span className="text-xs font-bold text-brand-600 whitespace-nowrap">View Claims →</span>
+      </button>
 
       {/* 6-month trend chart */}
       {trendData && <TrendChart data={trendData} />}

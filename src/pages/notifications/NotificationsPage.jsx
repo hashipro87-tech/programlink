@@ -22,6 +22,8 @@ const TYPE_META = {
   new_message:         { icon: MessageSquare,   color: 'text-brand-500',  bg: 'bg-brand-50',   category: 'messages'     },
   delivery_issue:      { icon: Truck,           color: 'text-red-500',    bg: 'bg-red-50',     category: 'deliveries'   },
   connection_request:  { icon: Users,           color: 'text-brand-500',  bg: 'bg-brand-50',   category: 'applications' },
+  claim_submitted:     { icon: DollarSign,      color: 'text-green-500',  bg: 'bg-green-50',   category: 'claims'       },
+  claim_issue:         { icon: DollarSign,      color: 'text-red-500',    bg: 'bg-red-50',     category: 'claims'       },
   general:             { icon: Info,            color: 'text-gray-400',   bg: 'bg-gray-50',    category: null           },
   default:             { icon: Info,            color: 'text-gray-400',   bg: 'bg-gray-50',    category: null           },
 };
@@ -72,7 +74,10 @@ function getActions(type, basePath) {
     case 'new_message':
       return [{ label: 'View Message', path: `${basePath}/messages` }];
     case 'delivery_issue':
-      return [{ label: 'View Deliveries', path: `${basePath}/meal-orders` }];
+      return [{ label: 'View Deliveries', path: `${basePath}/delivery-plans` }];
+    case 'claim_submitted':
+    case 'claim_issue':
+      return [{ label: 'View Claims', path: `${basePath}/claims` }];
     default:
       return [];
   }

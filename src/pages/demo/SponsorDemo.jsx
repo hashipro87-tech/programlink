@@ -9,20 +9,22 @@ import {
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
+import { Repeat } from 'lucide-react';
+
 const NAV = [
-  { label: 'Overview',     path: '/demo/sponsor',              icon: CheckCircle },
-  { label: 'Applications', path: '/demo/sponsor/applications', icon: ClipboardList },
-  { label: 'Compliance',   path: '/demo/sponsor/compliance',   icon: AlertTriangle },
-  { label: 'Sites',        path: '/demo/sponsor/sites',        icon: Building2 },
-  { label: 'Kitchens',     path: '/demo/sponsor/kitchens',     icon: Building2 },
-  { label: 'Deliveries',     path: '/demo/sponsor/deliveries',      icon: Truck },
-  { label: 'Delivery Plans', path: '/demo/sponsor/delivery-plans',  icon: Truck },
-  { label: 'Coordinators',   path: '/demo/sponsor/coordinators',    icon: Users },
-  { label: 'Messages',     path: '/demo/sponsor/messages',     icon: MessageSquare },
-  { label: 'Meal Counts',  path: '/demo/sponsor/meal-counts',  icon: UtensilsCrossed },
-  { label: 'Claims',       path: '/demo/sponsor/claims',       icon: DollarSign },
-  { label: 'Documents',    path: '/demo/sponsor/documents',    icon: FileText },
-  { label: 'Settings',     path: '/demo/sponsor/settings',     icon: Settings },
+  { label: 'Overview',       path: '/demo/sponsor',                   icon: CheckCircle    },
+  { label: 'Applications',   path: '/demo/sponsor/applications',      icon: ClipboardList  },
+  { label: 'Claims',         path: '/demo/sponsor/claims',            icon: DollarSign     },
+  { label: 'Compliance',     path: '/demo/sponsor/compliance',        icon: AlertTriangle  },
+  { label: 'Sites',          path: '/demo/sponsor/sites',             icon: Building2      },
+  { label: 'Kitchens',       path: '/demo/sponsor/kitchens',          icon: Building2      },
+  { label: 'Deliveries',     path: '/demo/sponsor/deliveries',        icon: Truck          },
+  { label: 'Delivery Plans', path: '/demo/sponsor/delivery-plans',    icon: Repeat         },
+  { label: 'Coordinators',   path: '/demo/sponsor/coordinators',      icon: Users          },
+  { label: 'Messages',       path: '/demo/sponsor/messages',          icon: MessageSquare  },
+  { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
+  { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
+  { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
 ];
 
 const RECENT_APPS = [
