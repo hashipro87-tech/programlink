@@ -7,7 +7,7 @@ import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
   Building2, CheckCircle, Settings, AlertTriangle, ArrowRight,
   Truck, Bell, CheckSquare, Square, Phone, Mail, Clock,
-  Package, TrendingUp, ShieldCheck, Calendar,
+  Package, TrendingUp, ShieldCheck, Calendar, Activity,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +23,7 @@ import KitchenDirectoryPage from '../kitchen/KitchenDirectoryPage';
 import SettingsPage         from '../settings/SettingsPage';
 import SiteMealCountPage    from './SiteMealCountPage';
 import TasksPage            from '../tasks/TasksPage';
+import ActivityFeedPage    from '../activity/ActivityFeedPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/site',              icon: CheckCircle    },
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
   { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
   { label: 'Tasks',          path: '/dashboard/site/tasks',        icon: CheckSquare    },
+  { label: 'Activity',      path: '/dashboard/site/activity',     icon: Activity       },
   { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
   { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
   { label: 'Notifications',  path: '/dashboard/site/notifications', icon: Bell          },
@@ -897,6 +899,7 @@ export default function SiteDashboard() {
               <Route path="application"  element={<ApplicationPage />} />
               <Route path="documents"    element={<DocumentsPage />} />
               <Route path="tasks"        element={<TasksPage />} />
+              <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"     element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="kitchen"      element={<KitchenDirectoryPage />} />

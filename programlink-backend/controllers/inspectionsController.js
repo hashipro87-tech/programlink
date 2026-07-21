@@ -1,5 +1,6 @@
 // inspectionsController.js — CACFP monitoring visit tracker
 const pool = require('../config/database');
+const { logActivity, TYPES } = require('../services/activityService');
 
 // ── GET /inspections ──────────────────────────────────────────────────────────
 // Sponsor sees all inspections for all their orgs
@@ -111,6 +112,11 @@ async function listFindings(req, res) {
   }
 }
 
+const VISIT_TYPE_LABELS = {
+  state_review: 'State review', usda_review: 'USDA review',
+  sponsor_monitoring: 'Sponsor monitoring visit', self_assessment: 'Self-assessment',
+};
+
 // ── POST /inspections ─────────────────────────────────────────────────────────
 async function createInspection(req, res) {
   try {
@@ -129,6 +135,14 @@ async function createInspection(req, res) {
       [targetOrg, organizationId, visit_date, visit_type, conducted_by || null,
        status, notes || null, next_visit_date || null, userId]
     );
+    await logActivity({
+      org_id: targetOrg, actor_id: userId,
+      type: TYPES.INSPECTION_LOGGED,
+      title: `${VISIT_TYPE_LABELS[visit_type] || 'Monitoring visit'} logged`,
+      description: conducted_by ? `Conducted by ${conducted_by}` : null,
+      link: '/dashboard/sponsor/inspections',
+    });
+
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('createInspection error:', err);
@@ -241,6 +255,17 @@ async function updateFinding(req, res) {
       [finding, severity, corrective_action, due_date, status, finding_id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Finding not found' });
+
+    // Log resolution
+    if (status === 'resolved') {
+      await logActivity({
+        org_id: rows[0].org_id, actor_id: req.user?.id,
+        type: TYPES.FINDING_RESOLVED,
+        title: `Inspection finding resolved`,
+        description: rows[0].finding?.slice(0, 100),
+        link: '/dashboard/sponsor/inspections',
+      });
+    }
 
     // If all findings resolved, update inspection status
     if (status === 'resolved') {

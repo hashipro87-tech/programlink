@@ -2,6 +2,7 @@ const pool = require('../config/database');
 const { createNotification, notifyCoordinators, notifySponsors } = require('../services/notificationService');
 const { sendApplicationStatusEmail } = require('../services/emailService');
 const { logAction } = require('../services/auditService');
+const { logActivity, TYPES } = require('../services/activityService');
 
 exports.listApplications = async (req, res) => {
   try {
@@ -152,6 +153,23 @@ exports.updateStatus = async (req, res) => {
         entityName: app.org_name,
         details:    { status, notes },
       });
+
+      // Activity feed
+      const typeMap = {
+        submitted: TYPES.APPLICATION_SUBMITTED,
+        approved:  TYPES.APPLICATION_APPROVED,
+        rejected:  TYPES.APPLICATION_REJECTED,
+        changes_requested: TYPES.APPLICATION_CHANGES,
+      };
+      if (typeMap[status]) {
+        await logActivity({
+          org_id: app.org_id,
+          actor_id: req.user.id,
+          type: typeMap[status],
+          title: `Application ${status.replace('_', ' ')}: ${app.org_name}`,
+          link: `/dashboard/sponsor/applications`,
+        });
+      }
     }
 
     res.json({ application: app });

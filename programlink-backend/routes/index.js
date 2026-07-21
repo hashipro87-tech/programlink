@@ -24,5 +24,6 @@ router.use('/audit',                   require('./auditPublic'));
 router.use('/children',                require('./children'));
 router.use('/tasks',                   require('./tasks'));
 router.use('/inspections',             require('./inspections'));
+router.use('/activity',                require('./activity'));
 
 module.exports = router;

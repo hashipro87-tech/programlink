@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { logActivity, TYPES } = require('../services/activityService');
 
 exports.listMealCounts = async (req, res) => {
   try {
@@ -60,6 +61,15 @@ exports.submitMealCount = async (req, res) => {
         notes || null
       ]
     );
+    await logActivity({
+      org_id: site_id || req.user.organizationId,
+      actor_id: req.user.id,
+      type: TYPES.MEAL_COUNTS_SUBMITTED,
+      title: `Meal counts submitted for ${date}`,
+      description: `${total} total meals (B:${breakfast} L:${lunch} S:${snack} Su:${supper})`,
+      link: '/dashboard/site/meals',
+    });
+
     res.status(201).json({ meal_count: rows[0] });
   } catch (err) {
     console.error('submitMealCount error:', err);

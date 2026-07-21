@@ -1,6 +1,7 @@
 // tasksController.js — Org-wide task system
 const pool = require('../config/database');
 const { createNotification } = require('../services/notificationService');
+const { logActivity, TYPES } = require('../services/activityService');
 
 // ── GET /tasks ────────────────────────────────────────────────────────────────
 async function listTasks(req, res) {
@@ -79,6 +80,15 @@ async function createTask(req, res) {
       });
     }
 
+    // Log activity
+    const actor = await pool.query('SELECT first_name, last_name FROM users WHERE id = $1', [userId]);
+    const actorName = actor.rows[0] ? `${actor.rows[0].first_name} ${actor.rows[0].last_name}` : null;
+    await logActivity({
+      org_id: organizationId, actor_id: userId, actor_name: actorName,
+      type: TYPES.TASK_CREATED, title: `Task created: ${title}`,
+      link: '/dashboard/sponsor/tasks',
+    });
+
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('createTask error:', err);
@@ -110,6 +120,15 @@ async function updateTask(req, res) {
        RETURNING *`,
       [title, description, due_date, priority, status, category, assigned_to, id, organizationId]
     );
+
+    // Log completion
+    if (status === 'completed') {
+      await logActivity({
+        org_id: organizationId, actor_id: req.user?.id,
+        type: TYPES.TASK_COMPLETED, title: `Task completed: ${rows[0].title}`,
+        link: '/dashboard/sponsor/tasks',
+      });
+    }
 
     res.json(rows[0]);
   } catch (err) {
