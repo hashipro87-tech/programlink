@@ -13,7 +13,7 @@ import {
   Building2, MessageSquare, FileText, CheckCircle, Settings,
   ClipboardList, AlertTriangle, UtensilsCrossed, Bell,
   AlertCircle, ChevronRight, Send, CheckSquare, X,
-  TrendingUp,
+  TrendingUp, ShieldCheck,
 } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import api from '../../services/api';
@@ -29,6 +29,7 @@ import CoordinatorMealCountsPage from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage   from './CoordinatorKitchensPage';
 import ApplicationsPage          from '../sponsor/ApplicationsPage';
 import TasksPage                 from '../tasks/TasksPage';
+import InspectionsPage           from '../inspections/InspectionsPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/coordinator',               icon: CheckCircle     },
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
   { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
   { label: 'Tasks',          path: '/dashboard/coordinator/tasks',         icon: CheckSquare     },
+  { label: 'Inspections',   path: '/dashboard/coordinator/inspections',   icon: ShieldCheck     },
   { label: 'Messages',       path: '/dashboard/coordinator/messages',      icon: MessageSquare   },
   { label: 'Notifications',  path: '/dashboard/coordinator/notifications', icon: Bell            },
   { label: 'Settings',       path: '/dashboard/coordinator/settings',      icon: Settings        },
@@ -802,6 +804,7 @@ export default function CoordinatorDashboard() {
               <Route path="meal-counts"   element={<CoordinatorMealCountsPage />} />
               <Route path="documents"     element={<DocumentsPage />} />
               <Route path="tasks"         element={<TasksPage />} />
+              <Route path="inspections"  element={<InspectionsPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings"      element={<SettingsPage />} />

@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -27,6 +27,7 @@ import CompliancePage     from './CompliancePage';
 import OnboardingPage     from './OnboardingPage';
 import ChildRosterPage    from './ChildRosterPage';
 import TasksPage          from '../tasks/TasksPage';
+import InspectionsPage    from '../inspections/InspectionsPage';
 import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { label: 'Claims',         path: '/dashboard/sponsor/claims',       icon: DollarSign },
   { label: 'Children',       path: '/dashboard/sponsor/children',     icon: Baby },
   { label: 'Tasks',         path: '/dashboard/sponsor/tasks',        icon: CheckSquare },
+  { label: 'Inspections',  path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',          path: '/dashboard/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',       path: '/dashboard/sponsor/kitchens',     icon: Building2 },
@@ -424,6 +426,7 @@ export default function SponsorDashboard() {
               <Route path="applications/*" element={<ApplicationsPage reviewerRole="sponsor" />} />
               <Route path="children"       element={<ChildRosterPage />} />
               <Route path="tasks"          element={<TasksPage />} />
+              <Route path="inspections"   element={<InspectionsPage />} />
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />
               <Route path="kitchens"         element={<KitchensPage />} />
