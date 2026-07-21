@@ -9,7 +9,7 @@ import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, Building2, MessageSquare,
   UtensilsCrossed, CheckCircle, Settings, Truck, Bell,
-  CheckSquare, Square, AlertCircle, Clock, TrendingUp, Activity,
+  CheckSquare, Square, AlertCircle, Clock, TrendingUp, Activity, BookOpen,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 
@@ -23,6 +23,7 @@ import KitchenDirectoryPage from './KitchenDirectoryPage';
 import SettingsPage      from '../settings/SettingsPage';
 import TasksPage         from '../tasks/TasksPage';
 import ActivityFeedPage from '../activity/ActivityFeedPage';
+import MenuBuilderPage  from '../menus/MenuBuilderPage';
 import api               from '../../services/api';
 
 // New kitchen-specific components
@@ -42,7 +43,8 @@ const NAV_ITEMS = [
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
   { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
   { label: 'Tasks',           path: '/dashboard/kitchen/tasks',         icon: CheckSquare },
-  { label: 'Activity',       path: '/dashboard/kitchen/activity',      icon: Activity },
+  { label: 'Menus',          path: '/dashboard/kitchen/menus',         icon: BookOpen },
+  { label: 'Activity',      path: '/dashboard/kitchen/activity',      icon: Activity },
   { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
   { label: 'Messages',        path: '/dashboard/kitchen/messages',       icon: MessageSquare },
   { label: 'Notifications',   path: '/dashboard/kitchen/notifications',  icon: Bell },
@@ -872,7 +874,8 @@ export default function KitchenDashboard() {
               <Route path="application"   element={<ApplicationPage />} />
               <Route path="documents"     element={<DocumentsPage />} />
               <Route path="tasks"         element={<TasksPage />} />
-              <Route path="activity"     element={<ActivityFeedPage />} />
+              <Route path="menus"        element={<MenuBuilderPage />} />
+              <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="sites"         element={<KitchenDirectoryPage />} />
