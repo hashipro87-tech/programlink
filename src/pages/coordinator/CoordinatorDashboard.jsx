@@ -28,6 +28,7 @@ import CoordinatorSitesPage      from './CoordinatorSitesPage';
 import CoordinatorMealCountsPage from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage   from './CoordinatorKitchensPage';
 import ApplicationsPage          from '../sponsor/ApplicationsPage';
+import TasksPage                 from '../tasks/TasksPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/coordinator',               icon: CheckCircle     },
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { label: 'My Kitchens',    path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
   { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
   { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
+  { label: 'Tasks',          path: '/dashboard/coordinator/tasks',         icon: CheckSquare     },
   { label: 'Messages',       path: '/dashboard/coordinator/messages',      icon: MessageSquare   },
   { label: 'Notifications',  path: '/dashboard/coordinator/notifications', icon: Bell            },
   { label: 'Settings',       path: '/dashboard/coordinator/settings',      icon: Settings        },
@@ -799,6 +801,7 @@ export default function CoordinatorDashboard() {
               <Route path="kitchens"      element={<CoordinatorKitchensPage />} />
               <Route path="meal-counts"   element={<CoordinatorMealCountsPage />} />
               <Route path="documents"     element={<DocumentsPage />} />
+              <Route path="tasks"         element={<TasksPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="settings"      element={<SettingsPage />} />

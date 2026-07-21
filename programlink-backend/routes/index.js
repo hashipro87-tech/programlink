@@ -22,5 +22,6 @@ router.use('/delivery-plans',          require('./deliveryPlans'));
 router.use('/warnings',                require('./warnings'));
 router.use('/audit',                   require('./auditPublic'));
 router.use('/children',                require('./children'));
+router.use('/tasks',                   require('./tasks'));
 
 module.exports = router;

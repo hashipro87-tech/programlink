@@ -21,6 +21,7 @@ import MessagesPage      from '../messages/MessagesPage';
 import NotificationsPage from '../notifications/NotificationsPage';
 import KitchenDirectoryPage from './KitchenDirectoryPage';
 import SettingsPage      from '../settings/SettingsPage';
+import TasksPage         from '../tasks/TasksPage';
 import api               from '../../services/api';
 
 // New kitchen-specific components
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',     path: '/dashboard/kitchen/meals',        icon: UtensilsCrossed },
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
   { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
+  { label: 'Tasks',           path: '/dashboard/kitchen/tasks',         icon: CheckSquare },
   { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
   { label: 'Messages',        path: '/dashboard/kitchen/messages',       icon: MessageSquare },
   { label: 'Notifications',   path: '/dashboard/kitchen/notifications',  icon: Bell },
@@ -867,6 +869,7 @@ export default function KitchenDashboard() {
               <Route path="meals"         element={<MealEntryForm />} />
               <Route path="application"   element={<ApplicationPage />} />
               <Route path="documents"     element={<DocumentsPage />} />
+              <Route path="tasks"         element={<TasksPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="sites"         element={<KitchenDirectoryPage />} />

@@ -519,6 +519,13 @@ These users registered before Task #83. Fix:
 ### Railway watched files issue
 Railway's "watch paths" filter causes some pushes to be SKIPPED ("No changes to watched files"). Fix: manually click ⋮ → Redeploy on the SKIPPED deployment in Railway.
 
+### Railway sleeping (KNOWN PAIN POINT 🔴)
+Railway free/hobby tier puts the backend to sleep after inactivity. Every time Hashi opens Railway he has to wait for a redeploy. This is frustrating and needs to be solved. Options to fix:
+- Upgrade to Railway Pro ($20/mo) — no sleeping, always on
+- Add a cron ping (UptimeRobot free tier pings the backend URL every 5 minutes to keep it awake)
+- Move backend to a always-on host (Render, Fly.io, etc.)
+**Priority:** Set up UptimeRobot free ping as the immediate fix. Pro upgrade when revenue supports it.
+
 ### Railway query editor LIMIT injection
 Railway wraps subqueries in UPDATE statements with a LIMIT, causing syntax errors. Use two-step workaround: SELECT to get UUID, then UPDATE with literal UUID. Example:
 ```sql

@@ -22,6 +22,7 @@ import NotificationsPage    from '../notifications/NotificationsPage';
 import KitchenDirectoryPage from '../kitchen/KitchenDirectoryPage';
 import SettingsPage         from '../settings/SettingsPage';
 import SiteMealCountPage    from './SiteMealCountPage';
+import TasksPage            from '../tasks/TasksPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/site',              icon: CheckCircle    },
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',    path: '/dashboard/site/meals',        icon: UtensilsCrossed },
   { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
   { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
+  { label: 'Tasks',          path: '/dashboard/site/tasks',        icon: CheckSquare    },
   { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
   { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
   { label: 'Notifications',  path: '/dashboard/site/notifications', icon: Bell          },
@@ -894,6 +896,7 @@ export default function SiteDashboard() {
               <Route path="meals"        element={<SiteMealCountPage />} />
               <Route path="application"  element={<ApplicationPage />} />
               <Route path="documents"    element={<DocumentsPage />} />
+              <Route path="tasks"        element={<TasksPage />} />
               <Route path="messages"     element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="kitchen"      element={<KitchenDirectoryPage />} />
