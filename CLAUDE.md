@@ -641,6 +641,53 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 
 ---
 
+## Alexia Thex — National CACFP Association (KEY CONTACT) 🌟
+
+**Who:** Alexia Thex, President, National CACFP Association (alexia@cacfp.org)
+**Phone:** 512-987-1459
+**Location:** Round Rock, TX (Austin area)
+**Network:** 165,000 CACFP stakeholders
+**Website:** cacfp.org
+
+### First Call — Monday, July 21, 2026 (~20 minutes)
+- Hashi told her he was nervous — she was warm and put him at ease immediately
+- She spent the first few minutes explaining NCA and what they do
+- Hashi explained why he built CACFPLink — she liked the concept
+- She asked question after question (this helped Hashi relax)
+- Hashi asked what challenges sponsors face with other software — she gave real answers (see below)
+- Hashi told her this attention is new to him — she appreciated his honesty
+- She said she loves the concept and he should work harder to make the software more usable
+- She asked where he sees CACFPLink in the future — Hashi said: "I'm not worried about the future. My next step is to get 1 active user." She respected that answer.
+- She told him to keep in touch and don't be afraid to ask her anything
+- She hopes the next time they talk CACFPLink will be a finished product
+- She joked that the first person talking to Hashi about CACFPLink and hearing his voice is the president of the national association
+- **Open door: stay in touch, she is rooting for CACFPLink**
+
+### What Alexia Said Sponsors Struggle With (Direct From The Call)
+These came up even after she saw the demo — treat them as confirmed real gaps:
+
+| Pain Point | What Sponsors Are Really Saying | Opportunity for CACFPLink |
+|---|---|---|
+| List of kids | Child rosters are difficult to manage and verify | Build a stronger child roster with enrollment status, age groups, and quick lookup |
+| Monitors / inspections | Preparing for reviews is stressful | Inspection dashboard with findings, corrective actions, and due dates |
+| Compliance | They don't know what's missing until it's too late | Keep expanding proactive warnings and compliance center |
+| To-do's | Important tasks fall through the cracks | Organization-wide task system with assignments and reminders |
+| Real-time updates | Staff don't know what changed | Live notifications, activity feed, and status updates |
+| End-of-month claims | Month-end becomes a scramble | Claims dashboard with progress, missing info, and readiness indicators |
+| Technical problems / reliability | Software goes down right when sponsors need it most (end of month) | Make reliability a selling point — monitor uptime, market stability |
+| Meal maintenance | Menus and meal patterns are hard to maintain | Improve menu management and meal pattern validation |
+| Buyer's Guide | Sponsors need trusted resources | Get CACFPLink listed in NCA Buyer's Guide when product is more complete |
+
+**Key insight:** She saw the demo AND still flagged these. They are real gaps, not already-solved problems.
+
+### Follow-Up Strategy
+- Don't reach out every week — only when something meaningful happens
+- Meaningful moments: new sponsor signed up, major feature shipped, milestone hit
+- Future ask (when product is more complete): NCA Buyer's Guide listing + newsletter feature
+- Possible 2027 opportunity: NCA annual conference exhibitor/workshop slot
+
+---
+
 ## Outreach
 
 Iowa/Ohio: 5 personalized emails drafted and sent (stored in outreach doc, Task #14).
