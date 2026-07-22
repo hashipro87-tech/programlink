@@ -8,7 +8,7 @@ import {
   ClipboardList, Truck, CheckCircle, AlertTriangle, ArrowRight,
   Zap, Clock, X, Menu, UtensilsCrossed, MapPin, Shield, RefreshCw,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DemoPlayer from '../../components/common/DemoPlayer';
 import { trackCTAClick } from '../../utils/analytics';
 
@@ -1742,6 +1742,200 @@ function PricingSection() {
   );
 }
 
+// ─── ROI Calculator ──────────────────────────────────────────────────────────
+// CACFP FY2025 Tier 1 rates (approximate; used for illustration)
+const STATE_RATES = {
+  OH: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  TX: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  CA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  NY: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  FL: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  GA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  IL: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  PA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  NC: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  VA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  WA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  AZ: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  CO: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  IA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  MN: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+};
+const DEFAULT_RATES = { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 };
+const OPERATING_DAYS = 20;
+
+function ROICalculator() {
+  const [sites,       setSites]       = useState(5);
+  const [enrollment,  setEnrollment]  = useState(30);
+  const [state,       setState]       = useState('OH');
+  const [meals,       setMeals]       = useState({ breakfast: true, lunch: true, snack: true, supper: false });
+
+  const { monthly, annual, daily } = useMemo(() => {
+    const rates  = STATE_RATES[state] ?? DEFAULT_RATES;
+    const perDay = Object.entries(meals).reduce((sum, [m, on]) => on ? sum + (rates[m] ?? 0) : sum, 0);
+    const monthly = Math.round(sites * enrollment * OPERATING_DAYS * perDay);
+    return { monthly, annual: monthly * 12, daily: Math.round(sites * enrollment * perDay) };
+  }, [sites, enrollment, state, meals]);
+
+  function toggleMeal(m) {
+    setMeals(prev => ({ ...prev, [m]: !prev[m] }));
+  }
+
+  const fmt = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+  return (
+    <section className="py-20 px-6 bg-gradient-to-b from-gray-50 to-white border-t border-gray-100">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
+            <BarChart2 className="w-3.5 h-3.5 text-brand-600" />
+            <span className="text-xs font-semibold text-brand-700">Reimbursement Estimator</span>
+          </div>
+          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
+            How much is your program worth?
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto text-sm">
+            Enter your program details below to see your estimated CACFP reimbursement.
+            CACFPLink protects every dollar by flagging issues before your submission deadline.
+          </p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-3xl shadow-xl overflow-hidden">
+          <div className="grid md:grid-cols-2">
+            {/* Left — inputs */}
+            <div className="p-8 border-b md:border-b-0 md:border-r border-gray-100">
+              <p className="text-sm font-bold text-gray-700 mb-6">Your program</p>
+
+              {/* Number of sites */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                  Number of sites / daycares
+                </label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setSites(s => Math.max(1, s - 1))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 font-bold text-lg">
+                    −
+                  </button>
+                  <span className="text-3xl font-black text-gray-900 w-12 text-center">{sites}</span>
+                  <button onClick={() => setSites(s => Math.min(200, s + 1))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 font-bold text-lg">
+                    +
+                  </button>
+                  <input type="range" min={1} max={200} value={sites} onChange={e => setSites(+e.target.value)}
+                    className="flex-1 accent-brand-600" />
+                </div>
+              </div>
+
+              {/* Enrollment per site */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                  Average children per site
+                </label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setEnrollment(e => Math.max(5, e - 5))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 font-bold text-lg">
+                    −
+                  </button>
+                  <span className="text-3xl font-black text-gray-900 w-12 text-center">{enrollment}</span>
+                  <button onClick={() => setEnrollment(e => Math.min(500, e + 5))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 font-bold text-lg">
+                    +
+                  </button>
+                  <input type="range" min={5} max={500} step={5} value={enrollment} onChange={e => setEnrollment(+e.target.value)}
+                    className="flex-1 accent-brand-600" />
+                </div>
+              </div>
+
+              {/* Meals served */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                  Meals served daily
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { key:'breakfast', label:'Breakfast', rate:1.70 },
+                    { key:'lunch',     label:'Lunch',     rate:3.22 },
+                    { key:'snack',     label:'Snack',     rate:0.96 },
+                    { key:'supper',    label:'Supper',    rate:3.22 },
+                  ].map(({ key, label, rate }) => (
+                    <button key={key} onClick={() => toggleMeal(key)}
+                      className={`flex flex-col items-center px-3 py-2 rounded-xl border-2 text-xs font-bold transition-colors ${
+                        meals[key]
+                          ? 'border-brand-400 bg-brand-50 text-brand-700'
+                          : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                      }`}>
+                      <span className="capitalize">{label}</span>
+                      <span className={`text-[10px] font-normal mt-0.5 ${meals[key] ? 'text-brand-500' : 'text-gray-300'}`}>
+                        ${rate.toFixed(2)}/child
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* State */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                  State
+                </label>
+                <select value={state} onChange={e => setState(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400">
+                  {Object.keys(STATE_RATES).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  <option value="OTHER">Other state</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1.5">Rates shown are FY2025 Tier 1 estimates for illustration purposes.</p>
+              </div>
+            </div>
+
+            {/* Right — result */}
+            <div className="p-8 flex flex-col justify-between bg-gradient-to-br from-brand-600 to-violet-700">
+              <div>
+                <p className="text-xs font-bold text-white/60 uppercase tracking-wide mb-6">Your estimated CACFP reimbursement</p>
+
+                <div className="mb-8">
+                  <p className="text-white/70 text-sm mb-1">Monthly</p>
+                  <p className="text-5xl font-black text-white leading-none mb-1">{fmt(monthly)}</p>
+                  <p className="text-white/50 text-xs">{sites} {sites===1?'site':'sites'} × {enrollment} children × {OPERATING_DAYS} days</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-8">
+                  <div className="bg-white/10 border border-white/20 rounded-xl p-4">
+                    <p className="text-white/60 text-xs mb-1">Annual</p>
+                    <p className="text-2xl font-black text-white">{fmt(annual)}</p>
+                  </div>
+                  <div className="bg-white/10 border border-white/20 rounded-xl p-4">
+                    <p className="text-white/60 text-xs mb-1">Per day</p>
+                    <p className="text-2xl font-black text-white">{fmt(daily)}</p>
+                  </div>
+                </div>
+
+                <div className="bg-white/10 border border-white/20 rounded-xl p-4 mb-6">
+                  <p className="text-white/70 text-xs font-semibold mb-2">What CACFPLink protects</p>
+                  <p className="text-white text-sm leading-relaxed">
+                    Every disallowance issue we catch before submission day protects dollars from this total.
+                    A 2% error rate on {fmt(annual)}/year = <span className="font-bold text-green-300">{fmt(Math.round(annual * 0.02))} recovered</span>.
+                  </p>
+                </div>
+              </div>
+
+              <Link to="/register" onClick={() => trackCTAClick('roi_calculator_cta')}
+                className="block text-center py-3 bg-white hover:bg-gray-50 text-brand-700 font-bold rounded-xl transition-colors">
+                Protect this reimbursement with CACFPLink →
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-400 mt-5">
+          Rates are illustrative estimates based on USDA FY2025 Tier 1 reimbursement rates. Actual reimbursements depend on meal type, income eligibility tier, and state-specific rates. No credit card required to sign up.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ─── Final CTA ────────────────────────────────────────────────────────────────
 
 // ─── Contact Section ──────────────────────────────────────────────────────────
@@ -2046,6 +2240,7 @@ export default function HomePage() {
       <PilotSection />
       <FounderStory />
       <PricingSection />
+      <ROICalculator />
       <ContactSection />
       <FinalCTA />
       <Footer />
