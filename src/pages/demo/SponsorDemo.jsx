@@ -371,24 +371,55 @@ function OverviewPage({ onOpenOrder, onOpenBroadcast }) {
         </div>
       </div>
 
-      {/* Claim Readiness Widget */}
-      <Link to="/demo/sponsor/claims" className="block bg-gradient-to-r from-brand-600 to-brand-700 rounded-2xl p-5 mb-6 shadow-sm hover:shadow-md transition-shadow text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-brand-200 uppercase tracking-wide mb-1">July 2026 Claim</p>
-            <p className="text-xl font-black">$14,234 Estimated</p>
-            <p className="text-sm text-brand-200 mt-1">4/5 Sites Ready · $820 at Risk</p>
+      {/* Claim Intelligence Widget */}
+      <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-brand-200">
+        <Link to="/demo/sponsor/claims" className="block px-5 py-4 bg-gradient-to-r from-brand-600 to-brand-700 text-white">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs font-bold text-brand-200 uppercase tracking-wide">Claim Intelligence</p>
+              <p className="text-base font-bold mt-0.5">July 2026</p>
+            </div>
+            <div className="text-right text-brand-200">
+              <p className="text-xs font-bold">⏰ 9 days left</p>
+              <p className="text-xs opacity-80">Due Jul 31</p>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-black">88%</div>
-            <div className="text-xs text-brand-200">Ready</div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-xs text-brand-200 mb-0.5">Estimated Reimbursement</p>
+              <p className="text-2xl font-bold">$14,234</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold text-red-300">Reimbursement at Risk</p>
+              <p className="text-2xl font-bold text-red-300">$820</p>
+            </div>
+          </div>
+        </Link>
+        <div className="bg-white px-5 py-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+            Fix 1 issue before Jul 31 to recover $820:
+          </p>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full flex-shrink-0 bg-red-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-700">
+                <span className="font-semibold">Happy Tots Site</span>
+                {' — '}
+                <span className="text-gray-500">no meal counts submitted</span>
+              </p>
+            </div>
+            <span className="text-xs font-bold text-red-500 flex-shrink-0 tabular-nums">$820</span>
+            <Link to="/demo/sponsor/meal-counts" className="text-xs font-bold text-brand-600 hover:underline whitespace-nowrap flex-shrink-0">
+              Enter Counts →
+            </Link>
+          </div>
+          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+            <Link to="/demo/sponsor/claims" className="text-xs font-bold text-brand-600 hover:underline">
+              View Full Claims Center →
+            </Link>
           </div>
         </div>
-        <div className="mt-3 h-2 bg-brand-500 rounded-full overflow-hidden">
-          <div className="h-full bg-white rounded-full opacity-90" style={{ width: '88%' }} />
-        </div>
-        <p className="text-xs text-brand-200 mt-2">View Claim Command Center →</p>
-      </Link>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[

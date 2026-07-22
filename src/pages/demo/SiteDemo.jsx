@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus } from 'lucide-react';
+import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
 const NAV = [
-  { label: 'Overview',    path: '/demo/site',             icon: CheckCircle  },
-  { label: 'Deliveries',  path: '/demo/site/deliveries',  icon: Truck        },
-  { label: 'Meal Counts', path: '/demo/site/meal-counts', icon: ClipboardList },
-  { label: 'Tasks',       path: '/demo/site/tasks',       icon: CheckSquare  },
-  { label: 'Documents',   path: '/demo/site/documents',   icon: FileText     },
-  { label: 'Messages',    path: '/demo/site/messages',    icon: MessageSquare },
-  { label: 'Activity',    path: '/demo/site/activity',    icon: Activity     },
-  { label: 'Settings',    path: '/demo/site/settings',    icon: Settings     },
+  { label: 'Overview',      path: '/demo/site',               icon: CheckCircle   },
+  { label: 'Deliveries',    path: '/demo/site/deliveries',    icon: Truck         },
+  { label: 'Meal Counts',   path: '/demo/site/meal-counts',   icon: ClipboardList },
+  { label: 'Income Certs',  path: '/demo/site/income',        icon: DollarSign    },
+  { label: 'Tasks',         path: '/demo/site/tasks',         icon: CheckSquare   },
+  { label: 'Documents',     path: '/demo/site/documents',     icon: FileText      },
+  { label: 'Messages',      path: '/demo/site/messages',      icon: MessageSquare },
+  { label: 'Activity',      path: '/demo/site/activity',      icon: Activity      },
+  { label: 'Settings',      path: '/demo/site/settings',      icon: Settings      },
 ];
 
 const HISTORY = [
@@ -689,6 +690,125 @@ function SiteActivityPage() {
   );
 }
 
+// ─── Income Certs Page ────────────────────────────────────────────────────────
+const DEMO_CHILDREN = [
+  { id: 1, name: 'Emma Johnson',    age: 'Preschool',  status: 'expired',  cert_date: 'Jul 1, 2025',  expires: 'Jun 30, 2026', tier: 'Tier I' },
+  { id: 2, name: 'James Smith',     age: 'Toddler',    status: 'missing',  cert_date: null,            expires: null,           tier: null     },
+  { id: 3, name: 'Aisha Williams',  age: 'Preschool',  status: 'valid',    cert_date: 'Oct 15, 2025', expires: 'Oct 14, 2026', tier: 'Tier I' },
+  { id: 4, name: 'Diego Martinez',  age: 'School Age', status: 'expiring', cert_date: 'Jul 30, 2025', expires: 'Jul 29, 2026', tier: 'Tier II'},
+  { id: 5, name: 'Mia Chen',        age: 'Toddler',    status: 'valid',    cert_date: 'Jan 5, 2026',  expires: 'Jan 4, 2027',  tier: 'Tier I' },
+  { id: 6, name: 'Liam Thompson',   age: 'Preschool',  status: 'missing',  cert_date: null,            expires: null,           tier: null     },
+];
+const CERT_META = {
+  valid:    { label: 'Certified',     dot: 'bg-green-500', badge: 'bg-green-50 text-green-700 border-green-100'  },
+  expiring: { label: 'Expiring Soon', dot: 'bg-amber-400', badge: 'bg-amber-50 text-amber-700 border-amber-100'  },
+  expired:  { label: 'Expired',       dot: 'bg-red-500',   badge: 'bg-red-50 text-red-700 border-red-100'        },
+  missing:  { label: 'Not Certified', dot: 'bg-gray-300',  badge: 'bg-gray-50 text-gray-600 border-gray-200'     },
+};
+const ORDER = { missing: 0, expired: 1, expiring: 2, valid: 3 };
+
+function IncomeCertsPage() {
+  const [open, setOpen] = useState(null);
+  const sorted = [...DEMO_CHILDREN].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
+  const needsAction = DEMO_CHILDREN.filter(c => c.status === 'missing' || c.status === 'expired').length;
+  const certified   = DEMO_CHILDREN.filter(c => c.status === 'valid' || c.status === 'expiring').length;
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Income Eligibility</h1>
+        <p className="text-gray-500 mt-1 text-sm">CACFP requires annual income certification for every enrolled child.</p>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+          <p className="text-2xl font-bold text-green-600">{certified}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Certified</p>
+        </div>
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-center shadow-sm">
+          <p className="text-2xl font-bold text-red-600">{needsAction}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Need Action</p>
+        </div>
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center shadow-sm">
+          <p className="text-2xl font-bold text-amber-600">1</p>
+          <p className="text-xs text-gray-500 mt-0.5">Expiring Soon</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center shadow-sm">
+          <p className="text-2xl font-bold text-gray-700">{DEMO_CHILDREN.length}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Total Children</p>
+        </div>
+      </div>
+
+      {/* Alert */}
+      {needsAction > 0 && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 mb-5 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700 font-medium">
+            {needsAction} children missing income certification — fix before July 31 to protect your reimbursement.
+          </p>
+        </div>
+      )}
+
+      {/* Children list */}
+      <div>
+        {sorted.map(child => {
+          const meta = CERT_META[child.status];
+          return (
+            <div key={child.id} className="rounded-xl border border-gray-100 bg-white mb-2 overflow-hidden">
+              <div
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => setOpen(open === child.id ? null : child.id)}
+              >
+                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${meta.dot}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{child.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {child.age}
+                    {child.cert_date && ` · Cert: ${child.cert_date}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {child.status === 'expiring' && <span className="text-xs font-semibold text-amber-600">29d left</span>}
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${meta.badge}`}>{meta.label}</span>
+                  {open === child.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </div>
+              {open === child.id && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50">
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Certification Date *</label>
+                      <input type="date" defaultValue={child.cert_date ? '2026-07-22' : ''} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-brand-300" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Expiry Date</label>
+                      <input type="date" defaultValue="2027-07-21" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-brand-300" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Income Tier</label>
+                      <select defaultValue={child.tier === 'Tier II' ? 'tier2' : 'tier1'} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-brand-300">
+                        <option value="tier1">Tier I — Free (≤130% FPL)</option>
+                        <option value="tier2">Tier II — Paid (&gt;130% FPL)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setOpen(null)}
+                    className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors"
+                  >
+                    Save Certification
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SiteDemo() {
   const { pathname } = useLocation();
@@ -696,6 +816,7 @@ export default function SiteDemo() {
   let Page;
   if (pathname.startsWith('/demo/site/deliveries'))   Page = DeliveriesPage;
   else if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
+  else if (pathname.startsWith('/demo/site/income'))      Page = IncomeCertsPage;
   else if (pathname.startsWith('/demo/site/tasks'))       Page = SiteTasksPage;
   else if (pathname.startsWith('/demo/site/documents'))   Page = DocumentsPage;
   else if (pathname.startsWith('/demo/site/messages'))    Page = MessagesPage;
