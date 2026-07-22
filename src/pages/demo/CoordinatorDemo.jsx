@@ -4,7 +4,7 @@ import { useLocation, Link } from 'react-router-dom';
 import {
   CheckCircle, Building2, AlertTriangle, ClipboardList, MessageSquare,
   Settings, FileText, UtensilsCrossed, Bell, ChevronRight, X,
-  AlertCircle, Send, CheckSquare, TrendingUp,
+  AlertCircle, Send, CheckSquare, TrendingUp, ShieldCheck, Activity, Plus,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -13,9 +13,12 @@ const NAV = [
   { label: 'Overview',      path: '/demo/coordinator',               icon: CheckCircle    },
   { label: 'Applications',  path: '/demo/coordinator/applications',  icon: ClipboardList  },
   { label: 'My Sites',      path: '/demo/coordinator/sites',         icon: Building2      },
+  { label: 'Tasks',         path: '/demo/coordinator/tasks',         icon: CheckSquare    },
+  { label: 'Inspections',   path: '/demo/coordinator/inspections',   icon: ShieldCheck    },
   { label: 'Meal Counts',   path: '/demo/coordinator/meal-counts',   icon: UtensilsCrossed },
   { label: 'Documents',     path: '/demo/coordinator/documents',     icon: FileText       },
   { label: 'Messages',      path: '/demo/coordinator/messages',      icon: MessageSquare  },
+  { label: 'Activity',      path: '/demo/coordinator/activity',      icon: Activity       },
   { label: 'Settings',      path: '/demo/coordinator/settings',      icon: Settings       },
 ];
 
@@ -408,6 +411,98 @@ export default function CoordinatorDemo() {
             </div>
           </div>
         );
+      case 'tasks': {
+        const COORD_TASKS = [
+          { id:1, title:'Verify Happy Kids meal counts for July',   priority:'urgent', due:'Jul 22', assignee:'You' },
+          { id:2, title:'Request missing docs from Bright Futures', priority:'high',   due:'Jul 23', assignee:'You' },
+          { id:3, title:'Schedule monitoring visit — Sunshine',     priority:'medium', due:'Jul 28', assignee:'You' },
+        ];
+        const PRIORITY_COLORS = { urgent:'text-red-700 bg-red-50', high:'text-orange-700 bg-orange-50', medium:'text-amber-700 bg-amber-50', low:'text-gray-600 bg-gray-100' };
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">My Tasks</h1>
+              <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700"><Plus className="w-4 h-4" /> Add Task</Link>
+            </div>
+            <div className="card divide-y divide-gray-50">
+              {COORD_TASKS.map(t => (
+                <div key={t.id} className="px-5 py-4 flex items-start gap-3">
+                  <div className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${PRIORITY_COLORS[t.priority]}`}>{t.priority}</span>
+                      <span className="text-xs text-gray-400">Due {t.due}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'inspections': {
+        const COORD_INSP = [
+          { org:'Happy Kids Center', date:'Jul 8, 2026',  type:'Sponsor Monitoring', status:'Action Required', findings: 2 },
+          { org:'Sunshine Academy',  date:'Jun 28, 2026', type:'Sponsor Monitoring', status:'Resolved',        findings: 1 },
+          { org:'Little Learners',   date:'Jun 15, 2026', type:'Self Assessment',    status:'Completed',       findings: 0 },
+        ];
+        const STATUS_COLORS = { 'Action Required':'bg-red-50 text-red-700', 'Resolved':'bg-green-50 text-green-700', 'Completed':'bg-gray-100 text-gray-600' };
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Inspections</h1>
+              <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700"><Plus className="w-4 h-4" /> Log Visit</Link>
+            </div>
+            <div className="space-y-3">
+              {COORD_INSP.map((i, idx) => (
+                <div key={idx} className="card px-5 py-4 flex items-start gap-3">
+                  <ShieldCheck className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-gray-900">{i.org}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{i.type} · {i.date}</p>
+                    {i.findings > 0 && <p className="text-xs text-orange-600 mt-1 font-semibold">{i.findings} finding{i.findings > 1 ? 's' : ''}</p>}
+                  </div>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[i.status]}`}>{i.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'activity': {
+        const COORD_ACTIVITY = [
+          { icon:'📄', text:'Happy Kids uploaded Enrollment List',            time:'9:15 AM',   group:'Today'     },
+          { icon:'🍽️', text:'Little Learners submitted breakfast count',      time:'8:42 AM',   group:'Today'     },
+          { icon:'✅', text:'Sunshine Academy CACFP Agreement approved',      time:'Yesterday', group:'Yesterday' },
+          { icon:'⚠️', text:'Bright Futures license expires in 3 days',       time:'Yesterday', group:'Yesterday' },
+          { icon:'🔍', text:'Monitoring visit logged at Happy Kids Center',   time:'Jul 19',    group:'Jul 19'    },
+        ];
+        const groups = [...new Set(COORD_ACTIVITY.map(a => a.group))];
+        return (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Activity Feed</h1>
+            <div className="space-y-6">
+              {groups.map(g => (
+                <div key={g}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">{g}</p>
+                  <div className="card divide-y divide-gray-50">
+                    {COORD_ACTIVITY.filter(a => a.group === g).map((a, i) => (
+                      <div key={i} className="px-5 py-3.5 flex items-start gap-3">
+                        <span className="w-7 h-7 bg-gray-50 rounded-full flex items-center justify-center text-sm flex-shrink-0">{a.icon}</span>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-800">{a.text}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{a.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
       default:
         return <OverviewSection />;
     }

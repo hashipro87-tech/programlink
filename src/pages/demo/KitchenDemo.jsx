@@ -4,7 +4,7 @@ import { useLocation, Link } from 'react-router-dom';
 import {
   CheckCircle, UtensilsCrossed, FileText, MessageSquare,
   Settings, Truck, CheckSquare, Square, AlertCircle, Clock,
-  Building2,
+  Building2, BookOpen, Activity, Plus,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -13,8 +13,11 @@ const NAV = [
   { label: 'Overview',    path: '/demo/kitchen',             icon: CheckCircle    },
   { label: 'Deliveries',  path: '/demo/kitchen/deliveries',  icon: Truck          },
   { label: 'Meal Counts', path: '/demo/kitchen/meal-counts', icon: UtensilsCrossed },
+  { label: 'Menus',       path: '/demo/kitchen/menus',       icon: BookOpen       },
+  { label: 'Tasks',       path: '/demo/kitchen/tasks',       icon: CheckSquare    },
   { label: 'Documents',   path: '/demo/kitchen/documents',   icon: FileText       },
   { label: 'Messages',    path: '/demo/kitchen/messages',    icon: MessageSquare  },
+  { label: 'Activity',    path: '/demo/kitchen/activity',    icon: Activity       },
   { label: 'Settings',    path: '/demo/kitchen/settings',    icon: Settings       },
 ];
 
@@ -381,6 +384,113 @@ export default function KitchenDemo() {
             </div>
           </div>
         );
+      case 'menus': {
+        const KITCHEN_MENU = [
+          { day:'Mon', breakfast:['WG Toast','Milk','OJ'],           breakfastOk:true,  lunch:['Turkey','WG Bread','Milk','Apple','Carrots'],   lunchOk:true,  snack:['Graham Crackers','Juice'], snackOk:true  },
+          { day:'Tue', breakfast:['Oatmeal','Milk','Banana'],        breakfastOk:true,  lunch:['Chicken','Brown Rice','Milk','Peach'],           lunchOk:false, snack:['Yogurt'],                   snackOk:false },
+          { day:'Wed', breakfast:['Pancakes','Milk'],                breakfastOk:false, lunch:['Bean Burrito','Tortilla','Milk','Pineapple','Corn'], lunchOk:true, snack:['Cheese','Crackers'],      snackOk:true  },
+          { day:'Thu', breakfast:['WG Cereal','Milk','Strawberries'],breakfastOk:true,  lunch:['Tuna','WG Bread','Milk','Grapes','Broccoli'],   lunchOk:true,  snack:['Apple','PB'],               snackOk:true  },
+          { day:'Fri', breakfast:['French Toast','Milk','OJ'],       breakfastOk:true,  lunch:['Salmon','Brown Rice','Milk','Mandarin','Green Beans'], lunchOk:true, snack:['Crackers','Hummus'], snackOk:true  },
+        ];
+        const issues = KITCHEN_MENU.reduce((n, d) => n + (!d.breakfastOk ? 1 : 0) + (!d.lunchOk ? 1 : 0) + (!d.snackOk ? 1 : 0), 0);
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Weekly Menu</h1>
+              <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700"><Plus className="w-4 h-4" /> Add Item</Link>
+            </div>
+            {issues > 0
+              ? <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-3 mb-5 text-sm font-semibold text-red-700">{issues} meals missing CACFP components</div>
+              : <div className="bg-green-50 border border-green-100 rounded-2xl px-5 py-3 mb-5 text-sm font-semibold text-green-700">All meals meet CACFP requirements ✓</div>
+            }
+            <div className="space-y-3">
+              {KITCHEN_MENU.map(d => (
+                <div key={d.day} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+                    <p className="font-bold text-gray-900">{d.day}</p>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {[
+                      { label:'Breakfast', items:d.breakfast, ok:d.breakfastOk },
+                      { label:'Lunch',     items:d.lunch,     ok:d.lunchOk     },
+                      { label:'Snack',     items:d.snack,     ok:d.snackOk     },
+                    ].map(m => (
+                      <div key={m.label} className={`px-5 py-3 flex items-start gap-3 ${m.ok ? 'bg-green-50/30' : 'bg-red-50/30'}`}>
+                        <span className="text-xs font-semibold text-gray-500 w-20 flex-shrink-0 pt-0.5">{m.label}</span>
+                        <span className="text-sm text-gray-700">{m.items.join(' · ')}</span>
+                        {!m.ok && <span className="ml-auto text-xs font-bold text-red-600 flex-shrink-0">Incomplete</span>}
+                        {m.ok && <CheckCircle className="ml-auto w-4 h-4 text-green-500 flex-shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'tasks': {
+        const KTASKS = [
+          { title:'Order produce for next week',           priority:'high',   due:'Jul 22' },
+          { title:'Submit July meal count summary',        priority:'urgent', due:'Jul 31' },
+          { title:'Renew food handler certification',      priority:'medium', due:'Aug 5'  },
+        ];
+        const PCOL = { urgent:'text-red-700 bg-red-50', high:'text-orange-700 bg-orange-50', medium:'text-amber-700 bg-amber-50' };
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
+              <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700"><Plus className="w-4 h-4" /> Add Task</Link>
+            </div>
+            <div className="card divide-y divide-gray-50">
+              {KTASKS.map((t, i) => (
+                <div key={i} className="px-5 py-4 flex items-start gap-3">
+                  <div className="mt-0.5 w-5 h-5 rounded border-2 border-gray-300 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${PCOL[t.priority]}`}>{t.priority}</span>
+                      <span className="text-xs text-gray-400">Due {t.due}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case 'activity': {
+        const KACTIVITY = [
+          { icon:'🍽️', text:'Submitted breakfast counts for 3 sites',    time:'8:30 AM',   group:'Today'     },
+          { icon:'🚚', text:'Delivery completed — Little Learners',       time:'7:45 AM',   group:'Today'     },
+          { icon:'📄', text:'Uploaded updated menu plan',                 time:'Yesterday', group:'Yesterday' },
+          { icon:'✅', text:'W-9 document approved by sponsor',           time:'Jul 19',    group:'Jul 19'    },
+        ];
+        const groups = [...new Set(KACTIVITY.map(a => a.group))];
+        return (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Activity Feed</h1>
+            <div className="space-y-6">
+              {groups.map(g => (
+                <div key={g}>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">{g}</p>
+                  <div className="card divide-y divide-gray-50">
+                    {KACTIVITY.filter(a => a.group === g).map((a, i) => (
+                      <div key={i} className="px-5 py-3.5 flex items-start gap-3">
+                        <span className="w-7 h-7 bg-gray-50 rounded-full flex items-center justify-center text-sm flex-shrink-0">{a.icon}</span>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-800">{a.text}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{a.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
       default:
         return <OverviewSection />;
     }

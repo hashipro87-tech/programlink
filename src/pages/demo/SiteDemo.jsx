@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck } from 'lucide-react';
+import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
 const NAV = [
-  { label: 'Overview',    path: '/demo/site',             icon: CheckCircle },
-  { label: 'Deliveries',  path: '/demo/site/deliveries',  icon: Truck },
+  { label: 'Overview',    path: '/demo/site',             icon: CheckCircle  },
+  { label: 'Deliveries',  path: '/demo/site/deliveries',  icon: Truck        },
   { label: 'Meal Counts', path: '/demo/site/meal-counts', icon: ClipboardList },
-  { label: 'Documents',   path: '/demo/site/documents',   icon: FileText },
+  { label: 'Tasks',       path: '/demo/site/tasks',       icon: CheckSquare  },
+  { label: 'Documents',   path: '/demo/site/documents',   icon: FileText     },
   { label: 'Messages',    path: '/demo/site/messages',    icon: MessageSquare },
-  { label: 'Settings',    path: '/demo/site/settings',    icon: Settings },
+  { label: 'Activity',    path: '/demo/site/activity',    icon: Activity     },
+  { label: 'Settings',    path: '/demo/site/settings',    icon: Settings     },
 ];
 
 const HISTORY = [
@@ -587,6 +589,106 @@ function DeliveriesPage() {
   );
 }
 
+// ─── Tasks ────────────────────────────────────────────────────────────────────
+function SiteTasksPage() {
+  const SITE_TASKS = [
+    { title:"Submit today's meal counts",        priority:'urgent', due:'Today',    done: false },
+    { title:'Upload updated enrollment list',    priority:'high',   due:'Jul 22',   done: false },
+    { title:'Confirm July delivery schedule',    priority:'medium', due:'Jul 25',   done: false },
+    { title:'Review June meal count report',     priority:'low',    due:'Jul 18',   done: true  },
+  ];
+  const [tasks, setTasks] = useState(SITE_TASKS);
+  const toggle = (i) => setTasks(t => t.map((x, idx) => idx === i ? { ...x, done: !x.done } : x));
+  const PCOL = { urgent:'text-red-700 bg-red-50', high:'text-orange-700 bg-orange-50', medium:'text-amber-700 bg-amber-50', low:'text-gray-600 bg-gray-100' };
+  const open = tasks.filter(t => !t.done);
+  const done = tasks.filter(t => t.done);
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
+        <p className="text-gray-500 mt-1">{open.length} open · {done.length} completed</p>
+      </div>
+      {open.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4">
+          <div className="px-5 py-4 border-b border-gray-100"><h2 className="font-semibold text-gray-900">Open</h2></div>
+          <div className="divide-y divide-gray-50">
+            {tasks.map((t, i) => !t.done && (
+              <div key={i} className="px-5 py-4 flex items-start gap-3">
+                <button onClick={() => toggle(i)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-brand-500 transition-colors" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${PCOL[t.priority]}`}>{t.priority}</span>
+                    <span className="text-xs text-gray-400">Due {t.due}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {done.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4 opacity-60">
+          <div className="px-5 py-4 border-b border-gray-100"><h2 className="font-semibold text-gray-400">Completed</h2></div>
+          <div className="divide-y divide-gray-50">
+            {tasks.map((t, i) => t.done && (
+              <div key={i} className="px-5 py-4 flex items-start gap-3">
+                <div className="mt-0.5 w-5 h-5 rounded border-2 border-green-400 bg-green-400 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-3 h-3 text-white" />
+                </div>
+                <p className="text-sm text-gray-400 line-through">{t.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="bg-brand-600 rounded-2xl p-5 text-center text-white mt-4">
+        <p className="font-bold mb-1">Managing a real site?</p>
+        <p className="text-brand-200 text-sm mb-3">Your sponsor will invite you to join CACFPLink.</p>
+        <Link to="/register" className="inline-block bg-white text-brand-700 font-bold px-5 py-2 rounded-xl text-sm hover:bg-gray-50">Get Started →</Link>
+      </div>
+    </>
+  );
+}
+
+// ─── Activity ─────────────────────────────────────────────────────────────────
+function SiteActivityPage() {
+  const SITE_ACTIVITY = [
+    { icon:'🍽️', text:'You submitted breakfast count (22 children)',    time:'8:15 AM',   group:'Today'     },
+    { icon:'🚚', text:'Delivery arrived from Downtown Kitchen',         time:'7:50 AM',   group:'Today'     },
+    { icon:'📄', text:'You uploaded Enrollment List',                   time:'Yesterday', group:'Yesterday' },
+    { icon:'✅', text:'July 18 meal count verified by coordinator',     time:'Yesterday', group:'Yesterday' },
+    { icon:'💬', text:'New message from sponsor',                       time:'Jul 19',    group:'Jul 19'    },
+  ];
+  const groups = [...new Set(SITE_ACTIVITY.map(a => a.group))];
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Activity Feed</h1>
+        <p className="text-gray-500 mt-1">Everything that happened at your site</p>
+      </div>
+      <div className="space-y-6">
+        {groups.map(g => (
+          <div key={g}>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">{g}</p>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-50">
+              {SITE_ACTIVITY.filter(a => a.group === g).map((a, i) => (
+                <div key={i} className="px-5 py-3.5 flex items-start gap-3">
+                  <span className="w-7 h-7 bg-gray-50 rounded-full flex items-center justify-center text-sm flex-shrink-0">{a.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800">{a.text}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{a.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SiteDemo() {
   const { pathname } = useLocation();
@@ -594,8 +696,10 @@ export default function SiteDemo() {
   let Page;
   if (pathname.startsWith('/demo/site/deliveries'))   Page = DeliveriesPage;
   else if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
+  else if (pathname.startsWith('/demo/site/tasks'))       Page = SiteTasksPage;
   else if (pathname.startsWith('/demo/site/documents'))   Page = DocumentsPage;
   else if (pathname.startsWith('/demo/site/messages'))    Page = MessagesPage;
+  else if (pathname.startsWith('/demo/site/activity'))    Page = SiteActivityPage;
   else if (pathname.startsWith('/demo/site/settings'))    Page = SettingsPage;
   else                                                     Page = OverviewPage;
 

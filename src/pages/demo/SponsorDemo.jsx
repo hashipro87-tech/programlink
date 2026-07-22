@@ -5,6 +5,7 @@ import {
   FileText, Settings, Truck, ChefHat, Plus, X,
   ShieldCheck, ShieldAlert, ShieldX, Shield,
   MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
+  CheckSquare, Users2, Activity, BookOpen, Circle,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -18,12 +19,17 @@ const NAV = [
   { label: 'Compliance',     path: '/demo/sponsor/compliance',        icon: AlertTriangle  },
   { label: 'Sites',          path: '/demo/sponsor/sites',             icon: Building2      },
   { label: 'Kitchens',       path: '/demo/sponsor/kitchens',          icon: Building2      },
+  { label: 'Children',       path: '/demo/sponsor/children',          icon: Users2         },
+  { label: 'Tasks',          path: '/demo/sponsor/tasks',             icon: CheckSquare    },
+  { label: 'Inspections',    path: '/demo/sponsor/inspections',       icon: ShieldCheck    },
+  { label: 'Menus',          path: '/demo/sponsor/menus',             icon: BookOpen       },
   { label: 'Deliveries',     path: '/demo/sponsor/deliveries',        icon: Truck          },
   { label: 'Delivery Plans', path: '/demo/sponsor/delivery-plans',    icon: Repeat         },
   { label: 'Coordinators',   path: '/demo/sponsor/coordinators',      icon: Users          },
   { label: 'Messages',       path: '/demo/sponsor/messages',          icon: MessageSquare  },
   { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
   { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
+  { label: 'Activity',       path: '/demo/sponsor/activity',          icon: Activity       },
   { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
 ];
 
@@ -1406,6 +1412,510 @@ function ClaimsPage() {
   );
 }
 
+// ─── Child Roster ─────────────────────────────────────────────────────────────
+const CHILDREN = [
+  { name: 'Emma Rodriguez',   dob: '2022-03-15', status: 'active',   age_group: 'toddler',    site: 'Sunshine Daycare',     tier: 1 },
+  { name: 'Marcus Johnson',   dob: '2021-08-22', status: 'active',   age_group: 'preschool',  site: 'Happy Hearts Center',  tier: 1 },
+  { name: 'Sofia Chen',       dob: '2020-01-10', status: 'active',   age_group: 'preschool',  site: 'Bright Minds Academy', tier: 2 },
+  { name: 'Aiden Williams',   dob: '2019-11-05', status: 'inactive', age_group: 'school_age', site: 'Little Stars Center',  tier: 1 },
+  { name: 'Isabella Davis',   dob: '2022-07-30', status: 'active',   age_group: 'infant',     site: 'Sunshine Daycare',     tier: 1 },
+  { name: 'Noah Martinez',    dob: '2021-02-14', status: 'active',   age_group: 'toddler',    site: 'Happy Hearts Center',  tier: 2 },
+  { name: 'Olivia Thompson',  dob: '2020-09-05', status: 'active',   age_group: 'preschool',  site: 'Bright Minds Academy', tier: 1 },
+  { name: 'Liam Parker',      dob: '2023-01-20', status: 'pending',  age_group: 'infant',     site: 'Riverside Childcare',  tier: 1 },
+];
+const AGE_META = {
+  infant:     { label: 'Infant',     bg: 'bg-pink-50',    text: 'text-pink-700'    },
+  toddler:    { label: 'Toddler',    bg: 'bg-purple-50',  text: 'text-purple-700'  },
+  preschool:  { label: 'Preschool',  bg: 'bg-blue-50',    text: 'text-blue-700'    },
+  school_age: { label: 'School Age', bg: 'bg-green-50',   text: 'text-green-700'   },
+};
+const CHILD_STATUS_META = {
+  active:   { label: 'Active',   bg: 'bg-green-50',  text: 'text-green-700' },
+  inactive: { label: 'Inactive', bg: 'bg-gray-100',  text: 'text-gray-500'  },
+  pending:  { label: 'Pending',  bg: 'bg-yellow-50', text: 'text-yellow-700'},
+};
+
+function ChildRosterPage() {
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const visible = CHILDREN.filter(c =>
+    (filter === 'all' || c.status === filter) &&
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const active   = CHILDREN.filter(c => c.status === 'active').length;
+  const inactive = CHILDREN.filter(c => c.status === 'inactive').length;
+  const pending  = CHILDREN.filter(c => c.status === 'pending').length;
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Child Roster</h1>
+          <p className="text-gray-500 mt-1">{CHILDREN.length} children enrolled across all sites</p>
+        </div>
+        <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700">
+          <Plus className="w-4 h-4" /> Add Child
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: 'Active',   value: active,   bg: 'bg-green-50',  text: 'text-green-700'  },
+          { label: 'Inactive', value: inactive, bg: 'bg-gray-100',  text: 'text-gray-600'   },
+          { label: 'Pending',  value: pending,  bg: 'bg-yellow-50', text: 'text-yellow-700' },
+        ].map(({ label, value, bg, text }) => (
+          <div key={label} className={`${bg} rounded-2xl p-4 text-center`}>
+            <p className={`text-3xl font-bold ${text}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4">
+        <div className="px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row gap-3">
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name…"
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50" />
+          <div className="flex gap-1">
+            {['all','active','inactive','pending'].map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${filter === f ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {visible.map((c) => {
+            const am = AGE_META[c.age_group];
+            const sm = CHILD_STATUS_META[c.status];
+            const age = Math.floor((new Date() - new Date(c.dob)) / (365.25 * 24 * 3600 * 1000));
+            return (
+              <div key={c.name} className="px-5 py-3.5 flex items-center gap-3">
+                <div className="w-8 h-8 bg-brand-50 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-brand-600">{c.name[0]}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{c.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{c.site} · Age {age} · Tier {c.tier}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${am.bg} ${am.text}`}>{am.label}</span>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sm.bg} ${sm.text}`}>{sm.label}</span>
+              </div>
+            );
+          })}
+          {visible.length === 0 && (
+            <div className="px-5 py-10 text-center text-sm text-gray-400">No children match your filter.</div>
+          )}
+        </div>
+      </div>
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Tasks ────────────────────────────────────────────────────────────────────
+const DEMO_TASKS = [
+  { id:1, title: 'Review Happy Hearts enrollment list',     priority:'urgent', status:'open',      due:'Jul 22, 2026', assignee:'Maria Torres',   category:'compliance' },
+  { id:2, title: 'Follow up on Lincoln Kitchen food permit',priority:'high',   status:'open',      due:'Jul 24, 2026', assignee:'James Porter',   category:'documents'  },
+  { id:3, title: 'Send broadcast reminder for July counts', priority:'medium', status:'open',      due:'Jul 25, 2026', assignee:'You',            category:'general'    },
+  { id:4, title: 'Approve Sunshine Daycare application',    priority:'high',   status:'open',      due:'Jul 21, 2026', assignee:'You',            category:'applications'},
+  { id:5, title: 'Update Metro Meals delivery schedule',    priority:'low',    status:'completed', due:'Jul 18, 2026', assignee:'Aaliyah Brooks', category:'deliveries' },
+  { id:6, title: 'Review Q2 compliance report',            priority:'low',    status:'completed', due:'Jul 15, 2026', assignee:'You',            category:'compliance' },
+];
+const PRIORITY_META = {
+  urgent: { label:'Urgent', dot:'bg-red-500',    text:'text-red-700',    bg:'bg-red-50'    },
+  high:   { label:'High',   dot:'bg-orange-400', text:'text-orange-700', bg:'bg-orange-50' },
+  medium: { label:'Medium', dot:'bg-amber-400',  text:'text-amber-700',  bg:'bg-amber-50'  },
+  low:    { label:'Low',    dot:'bg-gray-400',   text:'text-gray-600',   bg:'bg-gray-100'  },
+};
+
+function TasksPage() {
+  const [tasks, setTasks] = useState(DEMO_TASKS);
+  const toggle = (id) => setTasks(t => t.map(x => x.id === id ? { ...x, status: x.status === 'open' ? 'completed' : 'open' } : x));
+  const open      = tasks.filter(t => t.status === 'open');
+  const completed = tasks.filter(t => t.status === 'completed');
+  const overdue   = open.filter(t => new Date(t.due) < new Date()).length;
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
+          <p className="text-gray-500 mt-1">Track important actions across your program</p>
+        </div>
+        <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700">
+          <Plus className="w-4 h-4" /> Add Task
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label:'Open',      value: open.length,      bg:'bg-blue-50',   text:'text-blue-700'  },
+          { label:'Overdue',   value: overdue,           bg:'bg-red-50',    text:'text-red-700'   },
+          { label:'Completed', value: completed.length,  bg:'bg-green-50',  text:'text-green-700' },
+        ].map(({ label, value, bg, text }) => (
+          <div key={label} className={`${bg} rounded-2xl p-4 text-center`}>
+            <p className={`text-3xl font-bold ${text}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      {open.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900">Open Tasks</h2>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {open.map(t => {
+              const pm = PRIORITY_META[t.priority];
+              const isOverdue = new Date(t.due) < new Date();
+              return (
+                <div key={t.id} className="px-5 py-4 flex items-start gap-3">
+                  <button onClick={() => toggle(t.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-brand-500 transition-colors" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pm.bg} ${pm.text}`}>{pm.label}</span>
+                      <span className="text-xs text-gray-400">{t.category}</span>
+                      <span className="text-xs text-gray-400">→ {t.assignee}</span>
+                      {isOverdue
+                        ? <span className="text-xs font-bold text-red-600">Overdue · {t.due}</span>
+                        : <span className="text-xs text-gray-400">Due {t.due}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {completed.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-4">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900 text-gray-400">Completed</h2>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {completed.map(t => (
+              <div key={t.id} className="px-5 py-4 flex items-start gap-3 opacity-60">
+                <button onClick={() => toggle(t.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 border-green-400 bg-green-400 flex items-center justify-center transition-colors">
+                  <CheckSquare className="w-3 h-3 text-white" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-500 line-through">{t.title}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Completed · {t.due}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Inspections ──────────────────────────────────────────────────────────────
+const DEMO_INSPECTIONS = [
+  {
+    id: 1, org: 'Happy Hearts Center', visitType: 'Sponsor Monitoring', date: 'Jul 8, 2026',
+    conductedBy: 'Maria Torres', status: 'corrective_action_required',
+    findings: [
+      { id:1, finding:'Meal counts not posted in meal service area', severity:'major',    status:'open',     due:'Jul 22, 2026' },
+      { id:2, finding:'Missing civil rights poster',                 severity:'minor',    status:'resolved', due:null           },
+    ],
+  },
+  {
+    id: 2, org: 'Sunshine Daycare', visitType: 'Sponsor Monitoring', date: 'Jul 1, 2026',
+    conductedBy: 'James Porter', status: 'resolved',
+    findings: [
+      { id:3, finding:'Enrollment forms not current', severity:'minor', status:'resolved', due:null },
+    ],
+  },
+  {
+    id: 3, org: 'Lincoln Kitchen', visitType: 'Self Assessment', date: 'Jun 20, 2026',
+    conductedBy: 'Aaliyah Brooks', status: 'completed',
+    findings: [],
+  },
+];
+const SEV_META = {
+  critical:    { label:'Critical',    bg:'bg-red-100',    text:'text-red-700'    },
+  major:       { label:'Major',       bg:'bg-orange-100', text:'text-orange-700' },
+  minor:       { label:'Minor',       bg:'bg-yellow-100', text:'text-yellow-700' },
+  observation: { label:'Observation', bg:'bg-blue-50',    text:'text-blue-700'   },
+};
+const INSP_STATUS = {
+  corrective_action_required: { label:'Action Required', bg:'bg-red-50',    text:'text-red-700'    },
+  resolved:                   { label:'Resolved',        bg:'bg-green-50',  text:'text-green-700'  },
+  completed:                  { label:'Completed',       bg:'bg-gray-100',  text:'text-gray-600'   },
+  scheduled:                  { label:'Scheduled',       bg:'bg-blue-50',   text:'text-blue-700'   },
+};
+
+function InspectionsPage() {
+  const [expanded, setExpanded] = useState({});
+  const [resolved, setResolved] = useState({});
+  const toggle = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
+  const resolve = (fid) => setResolved(r => ({ ...r, [fid]: true }));
+  const totalFindings = DEMO_INSPECTIONS.flatMap(i => i.findings).length;
+  const openFindings  = DEMO_INSPECTIONS.flatMap(i => i.findings).filter(f => f.status === 'open').length;
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Inspections</h1>
+          <p className="text-gray-500 mt-1">Monitor visits, findings, and corrective actions</p>
+        </div>
+        <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700">
+          <Plus className="w-4 h-4" /> Log Visit
+        </Link>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label:'Total Visits',  value: DEMO_INSPECTIONS.length, bg:'bg-blue-50',   text:'text-blue-700'  },
+          { label:'Open Findings', value: openFindings,            bg:'bg-red-50',    text:'text-red-700'   },
+          { label:'Resolved',      value: totalFindings - openFindings, bg:'bg-green-50',text:'text-green-700'},
+        ].map(({ label, value, bg, text }) => (
+          <div key={label} className={`${bg} rounded-2xl p-4 text-center`}>
+            <p className={`text-3xl font-bold ${text}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-4 mb-6">
+        {DEMO_INSPECTIONS.map(insp => {
+          const sm = INSP_STATUS[insp.status] ?? INSP_STATUS.completed;
+          const isOpen = expanded[insp.id];
+          return (
+            <div key={insp.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <button onClick={() => toggle(insp.id)} className="w-full px-5 py-4 flex items-start gap-3 text-left hover:bg-gray-50 transition-colors">
+                <ShieldCheck className="w-4 h-4 text-brand-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">{insp.org}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{insp.visitType} · {insp.date} · {insp.conductedBy}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${sm.bg} ${sm.text}`}>{sm.label}</span>
+              </button>
+              {isOpen && (
+                <div className="px-5 pb-4 border-t border-gray-100">
+                  {insp.findings.length === 0 ? (
+                    <p className="text-sm text-green-600 font-medium pt-4">✓ No findings — clean visit</p>
+                  ) : (
+                    <div className="pt-3 space-y-2">
+                      {insp.findings.map(f => {
+                        const isRes = resolved[f.id] || f.status === 'resolved';
+                        const sev = SEV_META[f.severity] ?? SEV_META.minor;
+                        return (
+                          <div key={f.id} className={`flex items-start gap-3 p-3 rounded-xl ${isRes ? 'bg-green-50 opacity-60' : 'bg-gray-50'}`}>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${sev.bg} ${sev.text}`}>{sev.label}</span>
+                            <p className={`flex-1 text-sm ${isRes ? 'line-through text-gray-400' : 'text-gray-800'}`}>{f.finding}</p>
+                            {!isRes && (
+                              <button onClick={() => resolve(f.id)} className="text-xs font-semibold text-green-600 hover:text-green-700 flex-shrink-0">
+                                Resolve
+                              </button>
+                            )}
+                            {isRes && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Menus ────────────────────────────────────────────────────────────────────
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const MEAL_TYPES = ['breakfast', 'lunch', 'snack'];
+const COMP_EMOJI = { milk:'🥛', grain:'🌾', protein:'🍗', fruit:'🍎', vegetable:'🥦', other:'🍽️' };
+const DEMO_MENU_GRID = {
+  Mon: {
+    breakfast: [{ food:'Whole Wheat Toast', comp:'grain', wgr:true }, { food:'1% Milk', comp:'milk' }, { food:'Orange Juice', comp:'fruit' }],
+    lunch:     [{ food:'Turkey', comp:'protein' }, { food:'WG Bread', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Apple', comp:'fruit' }, { food:'Carrots', comp:'vegetable' }],
+    snack:     [{ food:'Graham Crackers', comp:'grain' }, { food:'Apple Juice', comp:'fruit' }],
+  },
+  Tue: {
+    breakfast: [{ food:'Oatmeal', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Banana', comp:'fruit' }],
+    lunch:     [{ food:'Chicken', comp:'protein' }, { food:'Brown Rice', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Peach Cup', comp:'fruit' }], // missing vegetable
+    snack:     [{ food:'Yogurt', comp:'milk' }], // needs 2nd component
+  },
+  Wed: {
+    breakfast: [{ food:'Pancakes', comp:'grain' }, { food:'Milk', comp:'milk' }], // missing fruit/veg
+    lunch:     [{ food:'Bean Burrito', comp:'protein' }, { food:'Tortilla', comp:'grain' }, { food:'Milk', comp:'milk' }, { food:'Pineapple', comp:'fruit' }, { food:'Corn', comp:'vegetable' }],
+    snack:     [{ food:'Cheese', comp:'milk' }, { food:'Crackers', comp:'grain' }],
+  },
+  Thu: {
+    breakfast: [{ food:'Cereal', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Strawberries', comp:'fruit' }],
+    lunch:     [{ food:'Tuna', comp:'protein' }, { food:'WG Bread', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Grapes', comp:'fruit' }, { food:'Broccoli', comp:'vegetable' }],
+    snack:     [{ food:'Apple', comp:'fruit' }, { food:'Peanut Butter', comp:'protein' }],
+  },
+  Fri: {
+    breakfast: [{ food:'French Toast', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'OJ', comp:'fruit' }],
+    lunch:     [{ food:'Salmon', comp:'protein' }, { food:'Brown Rice', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Mandarin', comp:'fruit' }, { food:'Green Beans', comp:'vegetable' }],
+    snack:     [{ food:'Crackers', comp:'grain' }, { food:'Hummus', comp:'protein' }],
+  },
+};
+
+function validateMealDemo(items, type) {
+  if (!items || items.length === 0) return { ok: false, missing: ['empty'] };
+  const comps = new Set(items.map(i => i.comp));
+  if (type === 'breakfast') {
+    const missing = [];
+    if (!comps.has('milk'))  missing.push('milk');
+    if (!comps.has('grain')) missing.push('grain');
+    if (!comps.has('fruit') && !comps.has('vegetable')) missing.push('fruit/veg');
+    return { ok: missing.length === 0, missing };
+  }
+  if (type === 'lunch' || type === 'supper') {
+    const missing = [];
+    if (!comps.has('milk'))      missing.push('milk');
+    if (!comps.has('grain'))     missing.push('grain');
+    if (!comps.has('protein'))   missing.push('protein');
+    if (!comps.has('fruit'))     missing.push('fruit');
+    if (!comps.has('vegetable')) missing.push('vegetable');
+    return { ok: missing.length === 0, missing };
+  }
+  // snack: any 2 of 4
+  const snackComps = ['milk','grain','protein','fruit','vegetable'];
+  const present = snackComps.filter(c => comps.has(c));
+  return { ok: present.length >= 2, missing: present.length < 2 ? ['needs 2 components'] : [] };
+}
+
+function MenusPage() {
+  let totalIssues = 0;
+  DAYS.forEach(d => MEAL_TYPES.forEach(m => {
+    const items = DEMO_MENU_GRID[d]?.[m];
+    if (!validateMealDemo(items, m).ok) totalIssues++;
+  }));
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Menu Builder</h1>
+          <p className="text-gray-500 mt-1">Week of Jul 14 – 18, 2026</p>
+        </div>
+        <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700">
+          <Plus className="w-4 h-4" /> Add Item
+        </Link>
+      </div>
+      {totalIssues > 0 ? (
+        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-3 mb-5 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-red-700">{totalIssues} meals have missing CACFP components</p>
+        </div>
+      ) : (
+        <div className="bg-green-50 border border-green-100 rounded-2xl px-5 py-3 mb-5 flex items-center gap-3">
+          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-green-700">All meals meet CACFP requirements</p>
+        </div>
+      )}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto mb-6">
+        <table className="w-full text-xs min-w-[620px]">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="w-24 px-4 py-3 text-left font-semibold text-gray-500">Meal</th>
+              {DAYS.map(d => <th key={d} className="px-3 py-3 text-center font-semibold text-gray-700">{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {MEAL_TYPES.map(meal => (
+              <tr key={meal} className="border-b border-gray-50 last:border-0">
+                <td className="px-4 py-3 font-semibold text-gray-600 capitalize align-top">{meal}</td>
+                {DAYS.map(day => {
+                  const items = DEMO_MENU_GRID[day]?.[meal] ?? [];
+                  const { ok, missing } = validateMealDemo(items, meal);
+                  return (
+                    <td key={day} className={`px-3 py-3 align-top rounded-lg ${ok ? 'bg-green-50' : items.length ? 'bg-red-50' : 'bg-gray-50'}`}>
+                      {items.length === 0 ? (
+                        <span className="text-gray-300 italic">Empty</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {items.map((item, i) => (
+                            <div key={i} className="flex items-center gap-1">
+                              <span>{COMP_EMOJI[item.comp] ?? '🍽️'}</span>
+                              <span className={ok ? 'text-green-800' : 'text-red-800'}>{item.food}</span>
+                              {item.wgr && <span title="Whole Grain Rich" className="text-amber-500">🌾</span>}
+                            </div>
+                          ))}
+                          {!ok && <p className="text-red-500 font-semibold mt-1">Missing: {missing.join(', ')}</p>}
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center gap-4 text-xs text-gray-500 mb-6 flex-wrap">
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> Complete</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> Missing components</div>
+        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300" /> Empty</div>
+        <div className="flex items-center gap-1.5"><span>🌾</span> Whole Grain Rich (required daily)</div>
+      </div>
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Activity ─────────────────────────────────────────────────────────────────
+const SPONSOR_ACTIVITY = [
+  { icon:'📋', type:'application_submitted', title:'ABC Childcare submitted an application',     time:'9:42 AM',   group:'Today'     },
+  { icon:'🍽️', type:'meal_counts_submitted', title:'Sunshine Daycare submitted breakfast count', time:'8:15 AM',   group:'Today'     },
+  { icon:'✅', type:'task_completed',        title:'Maria Torres completed a compliance task',   time:'7:55 AM',   group:'Today'     },
+  { icon:'📄', type:'document_uploaded',     title:'Happy Hearts uploaded Insurance Certificate',time:'Yesterday', group:'Yesterday' },
+  { icon:'🔍', type:'inspection_logged',     title:'James Porter logged a monitoring visit',     time:'Yesterday', group:'Yesterday' },
+  { icon:'✅', type:'application_approved',  title:'Lincoln Kitchen application approved',       time:'Jul 19',    group:'Jul 19'    },
+  { icon:'⚠️', type:'document_expiring',     title:'Sunshine Daycare license expires in 25 days',time:'Jul 18',   group:'Jul 18'    },
+];
+const ACTIVITY_TYPE_COLOR = {
+  application_submitted: 'bg-blue-50 text-blue-600',
+  meal_counts_submitted: 'bg-green-50 text-green-600',
+  task_completed:        'bg-brand-50 text-brand-600',
+  document_uploaded:     'bg-teal-50 text-teal-600',
+  inspection_logged:     'bg-orange-50 text-orange-600',
+  application_approved:  'bg-green-50 text-green-600',
+  document_expiring:     'bg-yellow-50 text-yellow-600',
+};
+
+function ActivityPage({ activityData }) {
+  const items = activityData || SPONSOR_ACTIVITY;
+  const groups = [...new Set(items.map(i => i.group))];
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Activity Feed</h1>
+          <p className="text-gray-500 mt-1">Everything that happened across your program</p>
+        </div>
+      </div>
+      <div className="space-y-6 mb-6">
+        {groups.map(group => (
+          <div key={group}>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">{group}</p>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-50">
+              {items.filter(i => i.group === group).map((item, idx) => (
+                <div key={idx} className="px-5 py-3.5 flex items-start gap-3">
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${ACTIVITY_TYPE_COLOR[item.type] ?? 'bg-gray-50 text-gray-500'}`}>
+                    {item.icon}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800">{item.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <DemoCTA />
+    </>
+  );
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 function SettingsPage() {
   const [saved, setSaved] = useState(false);
@@ -1480,6 +1990,11 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/compliance'))   Page = () => <CompliancePage />;
   else if (pathname.startsWith('/demo/sponsor/sites'))        Page = () => <SitesPage />;
   else if (pathname.startsWith('/demo/sponsor/kitchens'))     Page = () => <KitchensPage />;
+  else if (pathname.startsWith('/demo/sponsor/children'))     Page = () => <ChildRosterPage />;
+  else if (pathname.startsWith('/demo/sponsor/tasks'))        Page = () => <TasksPage />;
+  else if (pathname.startsWith('/demo/sponsor/inspections'))  Page = () => <InspectionsPage />;
+  else if (pathname.startsWith('/demo/sponsor/menus'))        Page = () => <MenusPage />;
+  else if (pathname.startsWith('/demo/sponsor/activity'))     Page = () => <ActivityPage />;
   else if (pathname.startsWith('/demo/sponsor/delivery-plans')) Page = () => <DeliveryPlansPage />;
   else if (pathname.startsWith('/demo/sponsor/deliveries'))     Page = () => <DeliveriesPage onOpenOrder={() => setShowOrder(true)} />;
   else if (pathname.startsWith('/demo/sponsor/coordinators')) Page = () => <CoordinatorsPage />;
