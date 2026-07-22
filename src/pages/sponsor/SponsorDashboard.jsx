@@ -140,18 +140,19 @@ function ProactiveWarningsCard({ navigate }) {
   );
 }
 
-// ─── Claim Readiness Widget ───────────────────────────────────────────────────
-function ClaimReadinessWidget({ navigate }) {
-  const [claim,   setClaim]   = useState(null);
+// ─── Claim Intelligence Widget ────────────────────────────────────────────────
+// The hero feature: shows estimated reimbursement, money at risk, and a
+// prioritized list of issues with direct fix links. Updates on every load.
+function ClaimIntelligenceWidget({ navigate }) {
+  const [intel,   setIntel]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [noState, setNoState] = useState(false);
 
-  const month     = new Date().toISOString().slice(0, 7);
-  const monthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
-    api.get(`/claims?month=${month}`)
-      .then(({ data }) => setClaim(data))
+    api.get(`/claims/intelligence?month=${month}`)
+      .then(({ data }) => setIntel(data))
       .catch((err) => {
         if (err.response?.status === 400) setNoState(true);
       })
@@ -166,7 +167,7 @@ function ClaimReadinessWidget({ navigate }) {
         <div className="px-5 py-4 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">Set your state to enable the Claims Center</p>
+            <p className="text-sm font-semibold text-amber-800">Set your state to enable Claim Intelligence</p>
             <p className="text-xs text-amber-600 mt-0.5">Go to Settings → Organization → CACFP Program State</p>
           </div>
           <button onClick={() => navigate('/dashboard/sponsor/settings')} className="text-xs font-bold text-amber-700 hover:underline whitespace-nowrap">
@@ -177,56 +178,117 @@ function ClaimReadinessWidget({ navigate }) {
     );
   }
 
-  if (!claim) return null;
+  if (!intel) return null;
 
-  const score       = claim.readinessScore ?? 0;
-  const est         = claim.estimatedReimbursement ?? 0;
-  const atRisk      = claim.potentialLoss ?? 0;
-  const needsAttention = (claim.sitesNeedsReview ?? 0) + (claim.sitesCannotSubmit ?? 0);
-  const ready       = claim.sitesReady ?? 0;
-  const total       = ready + needsAttention;
+  const {
+    monthName, estimatedReimbursement, reimbursementAtRisk,
+    issueCount, deadline, issues = [], sitesReady, totalSites
+  } = intel;
 
-  const scoreColor  = score >= 90 ? 'bg-green-500'  : score >= 70 ? 'bg-brand-500' : 'bg-amber-400';
-  const textColor   = score >= 90 ? 'text-green-600' : score >= 70 ? 'text-brand-600' : 'text-amber-600';
+  const allClear   = issueCount === 0;
+  const topIssues  = issues.slice(0, 5);
+  const moreCount  = issues.length - topIssues.length;
 
   return (
-    <div
-      className="card mb-6 cursor-pointer hover:shadow-md transition-shadow"
-      onClick={() => navigate('/dashboard/sponsor/claims')}
-    >
-      <div className="px-5 py-4">
+    <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-brand-200">
+      {/* Purple gradient header */}
+      <div
+        className="px-5 py-4 bg-gradient-to-r from-brand-600 to-brand-700 cursor-pointer"
+        onClick={() => navigate('/dashboard/sponsor/claims')}
+      >
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">{monthName} Claim</p>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className={`text-2xl font-bold ${textColor}`}>{score}%</span>
-              <span className="text-sm text-gray-400 font-medium">ready</span>
+            <p className="text-xs font-bold text-brand-200 uppercase tracking-wide">Claim Intelligence</p>
+            <p className="text-base font-bold text-white mt-0.5">{monthName}</p>
+          </div>
+          {deadline && (
+            <div className={`text-right ${deadline.urgent ? 'text-red-300' : 'text-brand-200'}`}>
+              <p className="text-xs font-bold">⏰ {deadline.daysLeft} day{deadline.daysLeft !== 1 ? 's' : ''} left</p>
+              <p className="text-xs opacity-80">Due {deadline.label}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-xs text-brand-200 mb-0.5">Estimated Reimbursement</p>
+            <p className="text-2xl font-bold text-white">${(estimatedReimbursement || 0).toLocaleString()}</p>
+          </div>
+          {reimbursementAtRisk > 0 ? (
+            <div className="text-right">
+              <p className="text-xs font-bold text-red-300">Reimbursement at Risk</p>
+              <p className="text-2xl font-bold text-red-300">${(reimbursementAtRisk || 0).toLocaleString()}</p>
+            </div>
+          ) : (
+            <div className="text-right">
+              <p className="text-xs font-bold text-green-300">✓ $0 at risk</p>
+              <p className="text-xs text-brand-200">{sitesReady}/{totalSites} sites ready</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Issues / all-clear panel */}
+      <div className="bg-white px-5 py-4">
+        {allClear ? (
+          <div className="flex items-center gap-3 py-1">
+            <span className="text-xl">✅</span>
+            <div>
+              <p className="text-sm font-bold text-green-700">
+                All {totalSites} site{totalSites !== 1 ? 's' : ''} ready to submit
+              </p>
+              <p className="text-xs text-gray-400">No issues found — your claim is fully prepared.</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400 font-medium">Estimated</p>
-            <p className="text-lg font-bold text-gray-900">
-              ${est.toLocaleString()}
+        ) : (
+          <>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+              Fix {issueCount} issue{issueCount !== 1 ? 's' : ''} before {deadline?.label || 'month end'} to recover ${ (reimbursementAtRisk || 0).toLocaleString()}:
             </p>
-            {atRisk > 0 && (
-              <p className="text-xs text-red-500 font-semibold mt-0.5">${atRisk.toLocaleString()} at risk</p>
-            )}
-          </div>
-        </div>
+            <div className="space-y-2.5">
+              {topIssues.map((issue, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <span
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      issue.severity === 'error' ? 'bg-red-500' : 'bg-amber-400'
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-700 truncate">
+                      <span className="font-semibold">{issue.siteName}</span>
+                      {' — '}
+                      <span className="text-gray-500">{issue.code.replace(/_/g, ' ').toLowerCase()}</span>
+                    </p>
+                  </div>
+                  {issue.potentialLoss > 0 && (
+                    <span className="text-xs font-bold text-red-500 flex-shrink-0 tabular-nums">
+                      ${issue.potentialLoss.toLocaleString()}
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(issue.fixPath); }}
+                    className="text-xs font-bold text-brand-600 hover:underline whitespace-nowrap flex-shrink-0"
+                  >
+                    {issue.fixLabel} →
+                  </button>
+                </div>
+              ))}
+              {moreCount > 0 && (
+                <p className="text-xs text-gray-400 pl-4.5">
+                  +{moreCount} more issue{moreCount !== 1 ? 's' : ''} — see full Claims Center
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
-        {/* Progress bar */}
-        <div className="h-2 bg-gray-100 rounded-full mb-3 overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${scoreColor}`} style={{ width: `${score}%` }} />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            {ready}/{total} sites ready
-            {needsAttention > 0 && (
-              <span className="ml-2 font-semibold text-amber-600">· {needsAttention} need attention</span>
-            )}
-          </p>
-          <span className="text-xs font-bold text-brand-600">View Claim →</span>
+        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={() => navigate('/dashboard/sponsor/claims')}
+            className="text-xs font-bold text-brand-600 hover:underline"
+          >
+            View Full Claims Center →
+          </button>
         </div>
       </div>
     </div>
@@ -333,8 +395,8 @@ export default function SponsorDashboard() {
                 ]}
               />
 
-              {/* Claim readiness — always-visible snapshot of this month's claim */}
-              <ClaimReadinessWidget navigate={navigate} />
+              {/* Claim Intelligence — always-on financial guardian for this month's claim */}
+              <ClaimIntelligenceWidget navigate={navigate} />
 
               {/* Proactive warnings — surface issues before they become claim problems */}
               <ProactiveWarningsCard navigate={navigate} />

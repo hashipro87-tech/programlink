@@ -94,7 +94,7 @@ const VALIDATION_RULES = {
         code: 'MISSING_MENUS',
         message: 'Menus have not been submitted for this month. Required for claim submission.',
         severity: 'error',
-        potentialLoss: 0
+        potentialLoss: site.estimatedReimbursement || 0
       };
     }
     return null;
@@ -109,7 +109,20 @@ const VALIDATION_RULES = {
         code: 'REQUIRED_DOCUMENTS_MISSING',
         message: `Missing required documents: ${missing.join(', ')}.`,
         severity: 'error',
-        potentialLoss: 0
+        potentialLoss: site.estimatedReimbursement || 0
+      };
+    }
+    return null;
+  },
+
+  // Universal: runs for every site regardless of stateConfig
+  no_meal_counts_submitted: (site) => {
+    if (!site.hasMealCounts) {
+      return {
+        code: 'NO_MEAL_COUNTS',
+        message: 'No meal counts submitted this month. This site cannot be included in the claim.',
+        severity: 'error',
+        potentialLoss: site.estimatedReimbursement || 0
       };
     }
     return null;
@@ -158,10 +171,23 @@ function calculateSiteReimbursement(mealTotals, stateConfig) {
 
 // ─── Site Validation ──────────────────────────────────────────────────────────
 
+// Rules that always apply regardless of state config
+const UNIVERSAL_RULES = ['no_meal_counts_submitted'];
+
 function validateSite(site, stateConfig) {
   const errors = [];
 
+  // Universal rules first
+  for (const ruleName of UNIVERSAL_RULES) {
+    const ruleFn = VALIDATION_RULES[ruleName];
+    if (!ruleFn) continue;
+    const error = ruleFn(site, stateConfig);
+    if (error) errors.push(error);
+  }
+
+  // State-configured rules (skip any that were already run universally)
   for (const ruleName of stateConfig.validationRules) {
+    if (UNIVERSAL_RULES.includes(ruleName)) continue;
     const ruleFn = VALIDATION_RULES[ruleName];
     if (!ruleFn) continue;
     const error = ruleFn(site, stateConfig);
