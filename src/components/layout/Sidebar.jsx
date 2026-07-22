@@ -26,13 +26,29 @@ export default function Sidebar({ navItems = [], badgeCounts = {} }) {
 
       {/* Nav links */}
       <ul className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-        {navItems.map(({ label, path, icon: Icon }) => {
+        {navItems.map((item, idx) => {
+          // Section label divider
+          if (item.sectionLabel) {
+            return (
+              <li key={`section-${item.sectionLabel}`} className="px-3 pt-4 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                  {item.sectionLabel}
+                </span>
+              </li>
+            );
+          }
+          // Thin line divider (no label)
+          if (item.divider) {
+            return <li key={`divider-${idx}`} className="mx-3 my-2 border-t border-gray-100" />;
+          }
+          // Normal nav link
+          const { label, path, icon: Icon } = item;
           const badge = badgeCounts[path] ?? 0;
           return (
             <li key={path}>
               <NavLink
                 to={path}
-                end={navItems.some((n) => n.path !== path && path.startsWith(n.path))}
+                end={navItems.some((n) => n.path && n.path !== path && path.startsWith(n.path))}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${

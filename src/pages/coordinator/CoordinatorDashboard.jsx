@@ -34,14 +34,22 @@ import ActivityFeedPage          from '../activity/ActivityFeedPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/coordinator',               icon: CheckCircle     },
+
+  { sectionLabel: 'Assignments' },
   { label: 'Applications',   path: '/dashboard/coordinator/applications',  icon: ClipboardList   },
   { label: 'My Sites',       path: '/dashboard/coordinator/sites',         icon: Building2       },
   { label: 'My Kitchens',    path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
+
+  { sectionLabel: 'Program Data' },
   { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
   { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
+
+  { sectionLabel: 'Work' },
   { label: 'Tasks',          path: '/dashboard/coordinator/tasks',         icon: CheckSquare     },
-  { label: 'Inspections',   path: '/dashboard/coordinator/inspections',   icon: ShieldCheck     },
-  { label: 'Activity',     path: '/dashboard/coordinator/activity',      icon: Activity        },
+  { label: 'Inspections',    path: '/dashboard/coordinator/inspections',   icon: ShieldCheck     },
+  { label: 'Activity',       path: '/dashboard/coordinator/activity',      icon: Activity        },
+
+  { divider: true },
   { label: 'Messages',       path: '/dashboard/coordinator/messages',      icon: MessageSquare   },
   { label: 'Notifications',  path: '/dashboard/coordinator/notifications', icon: Bell            },
   { label: 'Settings',       path: '/dashboard/coordinator/settings',      icon: Settings        },

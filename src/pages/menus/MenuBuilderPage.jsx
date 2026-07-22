@@ -14,6 +14,8 @@ const DAYS = [
   { num: 3, short: 'Wed', label: 'Wednesday' },
   { num: 4, short: 'Thu', label: 'Thursday'  },
   { num: 5, short: 'Fri', label: 'Friday'    },
+  { num: 6, short: 'Sat', label: 'Saturday'  },
+  { num: 7, short: 'Sun', label: 'Sunday'    },
 ];
 
 const MEALS = [
@@ -110,7 +112,7 @@ function addWeeks(dateStr, n) {
 function formatWeek(weekStart) {
   const start = new Date(weekStart);
   const end   = new Date(weekStart);
-  end.setDate(end.getDate() + 4);
+  end.setDate(end.getDate() + 6);
   return `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
 }
 
@@ -484,7 +486,7 @@ export default function MenuBuilderPage() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 900 }}>
+            <table className="w-full border-collapse" style={{ minWidth: 1160 }}>
               <thead>
                 <tr>
                   <th className="w-24 p-2" />

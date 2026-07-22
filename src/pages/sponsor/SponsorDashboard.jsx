@@ -35,25 +35,37 @@ import api from '../../services/api';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/sponsor',              icon: CheckCircle },
+
+  { sectionLabel: 'Program' },
   { label: 'Applications',   path: '/dashboard/sponsor/applications', icon: ClipboardList },
-  { label: 'Claims',         path: '/dashboard/sponsor/claims',       icon: DollarSign },
   { label: 'Children',       path: '/dashboard/sponsor/children',     icon: Baby },
-  { label: 'Tasks',         path: '/dashboard/sponsor/tasks',        icon: CheckSquare },
-  { label: 'Inspections',  path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
-  { label: 'Menus',       path: '/dashboard/sponsor/menus',        icon: BookOpen },
-  { label: 'Activity',   path: '/dashboard/sponsor/activity',     icon: Activity },
-  { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Sites',          path: '/dashboard/sponsor/sites',        icon: Building2 },
   { label: 'Kitchens',       path: '/dashboard/sponsor/kitchens',     icon: Building2 },
-  { label: 'Deliveries',       path: '/dashboard/sponsor/meal-orders',      icon: Truck },
-  { label: 'Delivery Plans',   path: '/dashboard/sponsor/delivery-plans',   icon: Repeat },
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
+
+  { sectionLabel: 'Operations' },
   { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
-  { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
+  { label: 'Deliveries',     path: '/dashboard/sponsor/meal-orders',  icon: Truck },
+  { label: 'Delivery Plans', path: '/dashboard/sponsor/delivery-plans', icon: Repeat },
+  { label: 'Menus',          path: '/dashboard/sponsor/menus',        icon: BookOpen },
+
+  { sectionLabel: 'Finance' },
+  { label: 'Claims',         path: '/dashboard/sponsor/claims',       icon: DollarSign },
   { label: 'Reports',        path: '/dashboard/sponsor/reports',      icon: ClipboardList },
-  { label: 'Messages',       path: '/dashboard/sponsor/messages',       icon: MessageSquare },
-  { label: 'Notifications',  path: '/dashboard/sponsor/notifications',  icon: Bell },
-  { label: 'Settings',       path: '/dashboard/sponsor/settings',       icon: Settings },
+
+  { sectionLabel: 'Compliance' },
+  { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
+  { label: 'Inspections',    path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
+  { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
+
+  { sectionLabel: 'Tracking' },
+  { label: 'Tasks',          path: '/dashboard/sponsor/tasks',        icon: CheckSquare },
+  { label: 'Activity',       path: '/dashboard/sponsor/activity',     icon: Activity },
+
+  { divider: true },
+  { label: 'Messages',       path: '/dashboard/sponsor/messages',     icon: MessageSquare },
+  { label: 'Notifications',  path: '/dashboard/sponsor/notifications', icon: Bell },
+  { label: 'Settings',       path: '/dashboard/sponsor/settings',     icon: Settings },
 ];
 
 // ─── Proactive Warnings Card ──────────────────────────────────────────────────

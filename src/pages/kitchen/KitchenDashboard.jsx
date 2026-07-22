@@ -38,17 +38,23 @@ import ActivityTimeline    from '../../components/common/ActivityTimeline';
 
 const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',              icon: CheckCircle,    end: true },
+
+  { sectionLabel: 'Daily Ops' },
   { label: 'Deliveries',      path: '/dashboard/kitchen/deliveries',   icon: Truck },
   { label: 'Meal Counts',     path: '/dashboard/kitchen/meals',        icon: UtensilsCrossed },
+  { label: 'Menus',           path: '/dashboard/kitchen/menus',        icon: BookOpen },
+
+  { sectionLabel: 'Admin' },
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
   { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
-  { label: 'Tasks',           path: '/dashboard/kitchen/tasks',         icon: CheckSquare },
-  { label: 'Menus',          path: '/dashboard/kitchen/menus',         icon: BookOpen },
-  { label: 'Activity',      path: '/dashboard/kitchen/activity',      icon: Activity },
+  { label: 'Tasks',           path: '/dashboard/kitchen/tasks',        icon: CheckSquare },
+  { label: 'Activity',        path: '/dashboard/kitchen/activity',     icon: Activity },
   { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
-  { label: 'Messages',        path: '/dashboard/kitchen/messages',       icon: MessageSquare },
-  { label: 'Notifications',   path: '/dashboard/kitchen/notifications',  icon: Bell },
-  { label: 'Settings',        path: '/dashboard/kitchen/settings',       icon: Settings },
+
+  { divider: true },
+  { label: 'Messages',        path: '/dashboard/kitchen/messages',     icon: MessageSquare },
+  { label: 'Notifications',   path: '/dashboard/kitchen/notifications', icon: Bell },
+  { label: 'Settings',        path: '/dashboard/kitchen/settings',     icon: Settings },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -28,14 +28,20 @@ import ActivityFeedPage    from '../activity/ActivityFeedPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/site',              icon: CheckCircle    },
+
+  { sectionLabel: 'Daily Ops' },
   { label: 'Deliveries',     path: '/dashboard/site/deliveries',   icon: Truck          },
   { label: 'Meal Counts',    path: '/dashboard/site/meals',        icon: UtensilsCrossed },
-  { label: 'Enrollment',      path: '/dashboard/site/enrollment',   icon: Users2         },
+  { label: 'Enrollment',     path: '/dashboard/site/enrollment',   icon: Users2         },
+
+  { sectionLabel: 'Admin' },
   { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
   { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
   { label: 'Tasks',          path: '/dashboard/site/tasks',        icon: CheckSquare    },
-  { label: 'Activity',      path: '/dashboard/site/activity',     icon: Activity       },
+  { label: 'Activity',       path: '/dashboard/site/activity',     icon: Activity       },
   { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
+
+  { divider: true },
   { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
   { label: 'Notifications',  path: '/dashboard/site/notifications', icon: Bell          },
   { label: 'Settings',       path: '/dashboard/site/settings',     icon: Settings       },
