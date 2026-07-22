@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   CheckCircle, ClipboardList, AlertTriangle, Building2, Users, UtensilsCrossed,
@@ -1757,136 +1757,336 @@ function InspectionsPage() {
 }
 
 // ─── Menus ────────────────────────────────────────────────────────────────────
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const MEAL_TYPES = ['breakfast', 'lunch', 'snack'];
-const COMP_EMOJI = { milk:'🥛', grain:'🌾', protein:'🍗', fruit:'🍎', vegetable:'🥦', other:'🍽️' };
-const DEMO_MENU_GRID = {
+const MENU_DAYS   = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MEAL_TYPES  = ['breakfast','lunch','snack','supper'];
+const COMP_EMOJI  = { milk:'🥛', grain:'🌾', protein:'🍗', fruit:'🍎', vegetable:'🥦', formula:'🍼', other:'🍽️' };
+
+const MENU_GRID_BASE = {
   Mon: {
-    breakfast: [{ food:'Whole Wheat Toast', comp:'grain', wgr:true }, { food:'1% Milk', comp:'milk' }, { food:'Orange Juice', comp:'fruit' }],
-    lunch:     [{ food:'Turkey', comp:'protein' }, { food:'WG Bread', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Apple', comp:'fruit' }, { food:'Carrots', comp:'vegetable' }],
-    snack:     [{ food:'Graham Crackers', comp:'grain' }, { food:'Apple Juice', comp:'fruit' }],
+    breakfast:[{food:'Whole Wheat Toast',comp:'grain',wgr:true},{food:'1% Milk',comp:'milk'},{food:'Orange Juice',comp:'fruit'}],
+    lunch:    [{food:'Turkey Sandwich',comp:'protein'},{food:'WG Bread',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Apple Slices',comp:'fruit'},{food:'Carrots',comp:'vegetable'}],
+    snack:    [{food:'Graham Crackers',comp:'grain'},{food:'Apple Juice',comp:'fruit'}],
+    supper:   [],
   },
   Tue: {
-    breakfast: [{ food:'Oatmeal', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Banana', comp:'fruit' }],
-    lunch:     [{ food:'Chicken', comp:'protein' }, { food:'Brown Rice', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Peach Cup', comp:'fruit' }], // missing vegetable
-    snack:     [{ food:'Yogurt', comp:'milk' }], // needs 2nd component
+    breakfast:[{food:'Oatmeal',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Banana',comp:'fruit'}],
+    lunch:    [{food:'Chicken Strips',comp:'protein'},{food:'Brown Rice',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Peach Cup',comp:'fruit'}],
+    snack:    [{food:'Yogurt',comp:'milk'}],   // missing 2nd comp
+    supper:   [],
   },
   Wed: {
-    breakfast: [{ food:'Pancakes', comp:'grain' }, { food:'Milk', comp:'milk' }], // missing fruit/veg
-    lunch:     [{ food:'Bean Burrito', comp:'protein' }, { food:'Tortilla', comp:'grain' }, { food:'Milk', comp:'milk' }, { food:'Pineapple', comp:'fruit' }, { food:'Corn', comp:'vegetable' }],
-    snack:     [{ food:'Cheese', comp:'milk' }, { food:'Crackers', comp:'grain' }],
+    breakfast:[{food:'Pancakes',comp:'grain'},{food:'Milk',comp:'milk'}],  // missing fruit/veg
+    lunch:    [{food:'Bean Burrito',comp:'protein'},{food:'WG Tortilla',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Pineapple',comp:'fruit'},{food:'Corn',comp:'vegetable'}],
+    snack:    [{food:'String Cheese',comp:'milk'},{food:'WG Crackers',comp:'grain',wgr:true}],
+    supper:   [],
   },
   Thu: {
-    breakfast: [{ food:'Cereal', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Strawberries', comp:'fruit' }],
-    lunch:     [{ food:'Tuna', comp:'protein' }, { food:'WG Bread', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Grapes', comp:'fruit' }, { food:'Broccoli', comp:'vegetable' }],
-    snack:     [{ food:'Apple', comp:'fruit' }, { food:'Peanut Butter', comp:'protein' }],
+    breakfast:[{food:'Cereal',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Strawberries',comp:'fruit'}],
+    lunch:    [{food:'Tuna Salad',comp:'protein'},{food:'WG Bread',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Grapes',comp:'fruit'},{food:'Broccoli',comp:'vegetable'}],
+    snack:    [{food:'Apple',comp:'fruit'},{food:'Peanut Butter',comp:'protein'}],
+    supper:   [],
   },
   Fri: {
-    breakfast: [{ food:'French Toast', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'OJ', comp:'fruit' }],
-    lunch:     [{ food:'Salmon', comp:'protein' }, { food:'Brown Rice', comp:'grain', wgr:true }, { food:'Milk', comp:'milk' }, { food:'Mandarin', comp:'fruit' }, { food:'Green Beans', comp:'vegetable' }],
-    snack:     [{ food:'Crackers', comp:'grain' }, { food:'Hummus', comp:'protein' }],
+    breakfast:[{food:'French Toast',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'OJ',comp:'fruit'}],
+    lunch:    [{food:'Salmon Patty',comp:'protein'},{food:'Brown Rice',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Mandarin',comp:'fruit'},{food:'Green Beans',comp:'vegetable'}],
+    snack:    [{food:'WG Crackers',comp:'grain',wgr:true},{food:'Hummus',comp:'protein'}],
+    supper:   [],
+  },
+  Sat: {
+    breakfast:[{food:'Scrambled Eggs',comp:'protein'},{food:'WG Toast',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Melon',comp:'fruit'}],
+    lunch:    [{food:'Grilled Cheese',comp:'protein'},{food:'WG Bread',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Tomato Soup',comp:'vegetable'},{food:'Peach',comp:'fruit'}],
+    snack:    [{food:'Popcorn',comp:'grain'},{food:'Apple',comp:'fruit'}],
+    supper:   [{food:'Chicken',comp:'protein'},{food:'WG Pasta',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Peas',comp:'vegetable'},{food:'Orange',comp:'fruit'}],
+  },
+  Sun: {
+    breakfast:[{food:'Waffles',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Blueberries',comp:'fruit'}],
+    lunch:    [{food:'Turkey Meatballs',comp:'protein'},{food:'WG Spaghetti',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Marinara Veg',comp:'vegetable'},{food:'Grapes',comp:'fruit'}],
+    snack:    [{food:'Yogurt',comp:'milk'},{food:'Granola',comp:'grain',wgr:true}],
+    supper:   [{food:'Baked Fish',comp:'protein'},{food:'Brown Rice',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Broccoli',comp:'vegetable'},{food:'Peach',comp:'fruit'}],
   },
 };
 
-function validateMealDemo(items, type) {
+const AI_GENERATED_GRID = {
+  Mon:{breakfast:[{food:'WG English Muffin',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Apple',comp:'fruit'}],lunch:[{food:'Beef Taco',comp:'protein'},{food:'WG Tortilla',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Mango',comp:'fruit'},{food:'Peppers',comp:'vegetable'}],snack:[{food:'Cheese',comp:'milk'},{food:'WG Crackers',comp:'grain',wgr:true}],supper:[]},
+  Tue:{breakfast:[{food:'Cream of Wheat',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Raisins',comp:'fruit'}],lunch:[{food:'Pork Loin',comp:'protein'},{food:'WG Roll',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Applesauce',comp:'fruit'},{food:'Sweet Potato',comp:'vegetable'}],snack:[{food:'Hummus',comp:'protein'},{food:'Veggie Sticks',comp:'vegetable'}],supper:[]},
+  Wed:{breakfast:[{food:'WG Bagel',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Orange',comp:'fruit'}],lunch:[{food:'Chicken Soup',comp:'protein'},{food:'WG Noodles',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Pear',comp:'fruit'},{food:'Celery',comp:'vegetable'}],snack:[{food:'Milk',comp:'milk'},{food:'Graham Crackers',comp:'grain'}],supper:[]},
+  Thu:{breakfast:[{food:'Grits',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Peach',comp:'fruit'}],lunch:[{food:'Egg Salad',comp:'protein'},{food:'WG Bread',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Grapes',comp:'fruit'},{food:'Spinach',comp:'vegetable'}],snack:[{food:'Apple',comp:'fruit'},{food:'Cheese',comp:'milk'}],supper:[]},
+  Fri:{breakfast:[{food:'WG Pancakes',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Berries',comp:'fruit'}],lunch:[{food:'Salmon',comp:'protein'},{food:'Brown Rice',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Kiwi',comp:'fruit'},{food:'Zucchini',comp:'vegetable'}],snack:[{food:'Yogurt',comp:'milk'},{food:'WG Granola',comp:'grain',wgr:true}],supper:[]},
+  Sat:{breakfast:[{food:'Oatmeal',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Banana',comp:'fruit'}],lunch:[{food:'Turkey Chili',comp:'protein'},{food:'WG Cornbread',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Apple',comp:'fruit'},{food:'Tomatoes',comp:'vegetable'}],snack:[{food:'Popcorn',comp:'grain'},{food:'Juice',comp:'fruit'}],supper:[{food:'Baked Chicken',comp:'protein'},{food:'WG Mac',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Broccoli',comp:'vegetable'},{food:'Peach',comp:'fruit'}]},
+  Sun:{breakfast:[{food:'WG Cereal',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Strawberries',comp:'fruit'}],lunch:[{food:'Tuna Casserole',comp:'protein'},{food:'WG Pasta',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Green Beans',comp:'vegetable'},{food:'Orange',comp:'fruit'}],snack:[{food:'Cheese',comp:'milk'},{food:'Apple',comp:'fruit'}],supper:[{food:'Pork Loin',comp:'protein'},{food:'Brown Rice',comp:'grain',wgr:true},{food:'Milk',comp:'milk'},{food:'Carrots',comp:'vegetable'},{food:'Grapes',comp:'fruit'}]},
+};
+
+const MENU_TEMPLATES = [
+  { name:'Classic Weekday',   saved: true },
+  { name:'High-Protein Week', saved: true },
+  { name:'Vegetarian Pack',   saved: false },
+];
+
+function validateMenuMeal(items, type) {
   if (!items || items.length === 0) return { ok: false, missing: ['empty'] };
   const comps = new Set(items.map(i => i.comp));
   if (type === 'breakfast') {
-    const missing = [];
-    if (!comps.has('milk'))  missing.push('milk');
-    if (!comps.has('grain')) missing.push('grain');
-    if (!comps.has('fruit') && !comps.has('vegetable')) missing.push('fruit/veg');
-    return { ok: missing.length === 0, missing };
+    const m=[];
+    if (!comps.has('milk'))  m.push('milk');
+    if (!comps.has('grain')) m.push('grain');
+    if (!comps.has('fruit') && !comps.has('vegetable')) m.push('fruit/veg');
+    return { ok: m.length===0, missing: m };
   }
   if (type === 'lunch' || type === 'supper') {
-    const missing = [];
-    if (!comps.has('milk'))      missing.push('milk');
-    if (!comps.has('grain'))     missing.push('grain');
-    if (!comps.has('protein'))   missing.push('protein');
-    if (!comps.has('fruit'))     missing.push('fruit');
-    if (!comps.has('vegetable')) missing.push('vegetable');
-    return { ok: missing.length === 0, missing };
+    const m=[];
+    if (!comps.has('milk'))      m.push('milk');
+    if (!comps.has('grain'))     m.push('grain');
+    if (!comps.has('protein'))   m.push('protein');
+    if (!comps.has('fruit'))     m.push('fruit');
+    if (!comps.has('vegetable')) m.push('vegetable');
+    return { ok: m.length===0, missing: m };
   }
-  // snack: any 2 of 4
-  const snackComps = ['milk','grain','protein','fruit','vegetable'];
-  const present = snackComps.filter(c => comps.has(c));
-  return { ok: present.length >= 2, missing: present.length < 2 ? ['needs 2 components'] : [] };
+  const present = ['milk','grain','protein','fruit','vegetable'].filter(c => comps.has(c));
+  return { ok: present.length>=2, missing: present.length<2?['needs 2 components']:[] };
+}
+
+function dayValidation(grid, day) {
+  const meals = MEAL_TYPES.filter(m => (grid[day]?.[m]?.length??0) > 0 || m !== 'supper' || ['Sat','Sun'].includes(day));
+  let issues=0;
+  meals.forEach(m => { if (!(validateMenuMeal(grid[day]?.[m], m).ok)) issues++; });
+  return issues===0 ? 'green' : issues===1 ? 'yellow' : 'red';
+}
+
+function DayStatusDot({ color }) {
+  return (
+    <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+      color==='green' ? 'bg-green-400' : color==='yellow' ? 'bg-amber-400' : 'bg-red-400'
+    }`} />
+  );
 }
 
 function MenusPage() {
-  let totalIssues = 0;
-  DAYS.forEach(d => MEAL_TYPES.forEach(m => {
-    const items = DEMO_MENU_GRID[d]?.[m];
-    if (!validateMealDemo(items, m).ok) totalIssues++;
-  }));
+  const [grid,         setGrid]         = useState(MENU_GRID_BASE);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [showTemplates,setShowTemplates]= useState(false);
+  const [infantTrack,  setInfantTrack]  = useState(false);
+  const [panelDay,     setPanelDay]     = useState(null);
+  const templatesRef = useRef(null);
+
+  // Close templates on outside click
+  useEffect(() => {
+    function handle(e) { if (templatesRef.current && !templatesRef.current.contains(e.target)) setShowTemplates(false); }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const totalIssues = MENU_DAYS.reduce((acc, d) => {
+    return acc + MEAL_TYPES.filter(m => {
+      const items = grid[d]?.[m];
+      if (!items?.length) return false;
+      return !validateMenuMeal(items, m).ok;
+    }).length;
+  }, 0);
+
+  function handleAIGenerate() {
+    setAiGenerating(true);
+    setTimeout(() => {
+      setGrid(AI_GENERATED_GRID);
+      setAiGenerating(false);
+    }, 1800);
+  }
+
+  const activeMealTypes = infantTrack ? [...MEAL_TYPES, 'infant'] : MEAL_TYPES;
+
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Menu Builder</h1>
-          <p className="text-gray-500 mt-1">Week of Jul 14 – 18, 2026</p>
+          <p className="text-gray-500 mt-0.5 text-sm">Week of Jul 14 – 20, 2026</p>
         </div>
-        <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700">
-          <Plus className="w-4 h-4" /> Add Item
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Infant track */}
+          <button onClick={() => setInfantTrack(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+              infantTrack ? 'border-pink-300 bg-pink-50 text-pink-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}>
+            🍼 Infant Track {infantTrack ? 'ON' : 'OFF'}
+          </button>
+          {/* Copy previous week */}
+          <button className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+            ← Copy Prev Week
+          </button>
+          {/* Templates */}
+          <div className="relative" ref={templatesRef}>
+            <button onClick={() => setShowTemplates(v => !v)}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+              Templates ▾
+            </button>
+            {showTemplates && (
+              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-lg z-20 w-48 py-1">
+                <p className="text-[10px] font-bold text-gray-400 uppercase px-3 pt-2 pb-1">Saved Templates</p>
+                {MENU_TEMPLATES.filter(t => t.saved).map(t => (
+                  <button key={t.name} onClick={() => setShowTemplates(false)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 font-medium text-gray-700">
+                    {t.name}
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 mt-1 pt-1">
+                  <button className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 text-brand-600 font-semibold">
+                    + Save current as template
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* AI Generate */}
+          <button onClick={handleAIGenerate} disabled={aiGenerating}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-brand-600 to-violet-600 text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-60">
+            {aiGenerating ? (
+              <><span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Generating…</>
+            ) : (
+              <><span>✨</span> AI Generate</>
+            )}
+          </button>
+        </div>
       </div>
-      {totalIssues > 0 ? (
-        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-3 mb-5 flex items-center gap-3">
+
+      {/* Validation banner */}
+      {aiGenerating ? (
+        <div className="bg-brand-50 border border-brand-100 rounded-2xl px-5 py-3 mb-4 flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-brand-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <p className="text-sm font-semibold text-brand-700">AI is building a compliant 7-day menu plan…</p>
+        </div>
+      ) : totalIssues > 0 ? (
+        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-3 mb-4 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-sm font-semibold text-red-700">{totalIssues} meals have missing CACFP components</p>
+          <p className="text-sm font-semibold text-red-700">{totalIssues} meals have missing CACFP components — fix before submitting</p>
         </div>
       ) : (
-        <div className="bg-green-50 border border-green-100 rounded-2xl px-5 py-3 mb-5 flex items-center gap-3">
+        <div className="bg-green-50 border border-green-100 rounded-2xl px-5 py-3 mb-4 flex items-center gap-3">
           <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-          <p className="text-sm font-semibold text-green-700">All meals meet CACFP requirements</p>
+          <p className="text-sm font-semibold text-green-700">All meals meet CACFP requirements — ready to approve</p>
         </div>
       )}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto mb-6">
-        <table className="w-full text-xs min-w-[620px]">
-          <thead>
-            <tr className="border-b border-gray-100">
-              <th className="w-24 px-4 py-3 text-left font-semibold text-gray-500">Meal</th>
-              {DAYS.map(d => <th key={d} className="px-3 py-3 text-center font-semibold text-gray-700">{d}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {MEAL_TYPES.map(meal => (
-              <tr key={meal} className="border-b border-gray-50 last:border-0">
-                <td className="px-4 py-3 font-semibold text-gray-600 capitalize align-top">{meal}</td>
-                {DAYS.map(day => {
-                  const items = DEMO_MENU_GRID[day]?.[meal] ?? [];
-                  const { ok, missing } = validateMealDemo(items, meal);
+
+      <div className="flex gap-4">
+        {/* Grid */}
+        <div className="flex-1 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-x-auto">
+          <table className="w-full text-xs min-w-[780px]">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="w-20 px-3 py-3 text-left font-semibold text-gray-400 text-[11px] uppercase tracking-wide">Meal</th>
+                {MENU_DAYS.map(d => {
+                  const color = dayValidation(grid, d);
                   return (
-                    <td key={day} className={`px-3 py-3 align-top rounded-lg ${ok ? 'bg-green-50' : items.length ? 'bg-red-50' : 'bg-gray-50'}`}>
-                      {items.length === 0 ? (
-                        <span className="text-gray-300 italic">Empty</span>
-                      ) : (
-                        <div className="space-y-1">
-                          {items.map((item, i) => (
-                            <div key={i} className="flex items-center gap-1">
-                              <span>{COMP_EMOJI[item.comp] ?? '🍽️'}</span>
-                              <span className={ok ? 'text-green-800' : 'text-red-800'}>{item.food}</span>
-                              {item.wgr && <span title="Whole Grain Rich" className="text-amber-500">🌾</span>}
-                            </div>
-                          ))}
-                          {!ok && <p className="text-red-500 font-semibold mt-1">Missing: {missing.join(', ')}</p>}
-                        </div>
-                      )}
-                    </td>
+                    <th key={d} className="px-2 py-3 text-center">
+                      <button onClick={() => setPanelDay(panelDay===d ? null : d)}
+                        className={`w-full flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 transition-colors ${
+                          panelDay===d ? 'bg-brand-50' : 'hover:bg-gray-50'
+                        }`}>
+                        <span className="font-bold text-gray-700">{d}</span>
+                        <DayStatusDot color={color} />
+                        <span className="text-[10px] text-gray-400">~$3.42</span>
+                      </button>
+                    </th>
                   );
                 })}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {MEAL_TYPES.map(meal => (
+                <tr key={meal} className="border-b border-gray-50 last:border-0">
+                  <td className="px-3 py-2.5 font-semibold text-gray-500 capitalize align-top text-[11px]">{meal}</td>
+                  {MENU_DAYS.map(day => {
+                    const items = grid[day]?.[meal] ?? [];
+                    if (!items.length && (meal==='supper') && !['Sat','Sun'].includes(day)) {
+                      return <td key={day} className="px-2 py-2 align-top"><span className="text-gray-200 text-[10px]">–</span></td>;
+                    }
+                    const { ok, missing } = validateMenuMeal(items, meal);
+                    return (
+                      <td key={day} className={`px-2 py-2 align-top ${
+                        items.length===0 ? 'bg-gray-50' : ok ? 'bg-green-50' : 'bg-red-50'
+                      }`}>
+                        {items.length===0 ? (
+                          <span className="text-gray-300 italic text-[10px]">Empty</span>
+                        ) : (
+                          <div className="space-y-1">
+                            {items.map((item, i) => (
+                              <div key={i} className="flex items-center gap-0.5 flex-wrap">
+                                <span className="text-[11px]">{COMP_EMOJI[item.comp]??'🍽️'}</span>
+                                <span className={`text-[10px] leading-tight ${ok?'text-green-800':'text-red-800'}`}>{item.food}</span>
+                                {item.wgr && <span className="text-amber-400 text-[10px]">🌾</span>}
+                              </div>
+                            ))}
+                            {!ok && <p className="text-red-500 font-bold text-[9px] mt-0.5">⚠ {missing.join(', ')}</p>}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {/* Infant row if toggled */}
+              {infantTrack && (
+                <tr className="bg-pink-50 border-t border-pink-100">
+                  <td className="px-3 py-2 font-semibold text-pink-600 text-[11px] align-top">🍼 Infant</td>
+                  {MENU_DAYS.map(day => (
+                    <td key={day} className="px-2 py-2 text-[10px] text-pink-700 align-top">
+                      Formula + Iron-fortified cereal
+                    </td>
+                  ))}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Validation panel (appears when a day is clicked) */}
+        {panelDay && (
+          <div className="w-52 flex-shrink-0 bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-bold text-gray-900 text-sm">{panelDay} — Issues</p>
+              <button onClick={() => setPanelDay(null)} className="text-gray-300 hover:text-gray-500"><X className="w-3.5 h-3.5" /></button>
+            </div>
+            <div className="space-y-2">
+              {MEAL_TYPES.map(meal => {
+                const items = grid[panelDay]?.[meal] ?? [];
+                if (!items.length && meal==='supper' && !['Sat','Sun'].includes(panelDay)) return null;
+                const { ok, missing } = validateMenuMeal(items, meal);
+                return (
+                  <div key={meal} className={`rounded-lg p-2 text-xs ${ok ? 'bg-green-50' : items.length ? 'bg-red-50' : 'bg-gray-50'}`}>
+                    <div className="flex items-center gap-1.5 font-semibold capitalize mb-0.5">
+                      <DayStatusDot color={ok?'green': items.length?'red':'red'} />
+                      <span className={ok?'text-green-800':items.length?'text-red-700':'text-gray-400'}>{meal}</span>
+                    </div>
+                    {!ok && missing[0]!=='empty' && (
+                      <p className="text-red-500 text-[10px]">Missing: {missing.join(', ')}</p>
+                    )}
+                    {!ok && missing[0]==='empty' && (
+                      <p className="text-gray-400 text-[10px]">No items added</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <p className="text-[11px] text-gray-500 font-semibold mb-1.5">Est. reimbursement</p>
+              <p className="text-lg font-bold text-gray-900">$3.42 <span className="text-xs font-normal text-gray-400">/ child</span></p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Based on 28 enrolled × OH Tier 1</p>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-4 text-xs text-gray-500 mb-6 flex-wrap">
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> Complete</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> Missing components</div>
-        <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300" /> Empty</div>
-        <div className="flex items-center gap-1.5"><span>🌾</span> Whole Grain Rich (required daily)</div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-5 text-xs text-gray-400 mt-4 flex-wrap">
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" /> All components met</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> 1 issue</div>
+        <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> Multiple issues</div>
+        <div className="flex items-center gap-1.5"><span>🌾</span> Whole Grain Rich</div>
+        <span className="text-gray-300">· Click a day header to see details</span>
       </div>
-      <DemoCTA />
+
+      <div className="mt-6">
+        <DemoCTA />
+      </div>
     </>
   );
 }
