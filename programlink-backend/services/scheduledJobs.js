@@ -168,6 +168,63 @@ async function checkMealCountReminders() {
   }
 }
 
+// ─── Job 3: Enrollment expiry reminders ──────────────────────────────────────
+// Runs every day at 9:00am UTC.
+// Fires alerts for enrollment forms expiring in exactly 30 or 7 days.
+async function checkEnrollmentExpiry() {
+  console.log('[cron] Running enrollment expiry check…');
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        c.id, c.first_name, c.last_name, c.org_id, c.enrollment_expires,
+        o.name AS org_name, o.sponsor_id,
+        DATE_PART('day', c.enrollment_expires - NOW()) AS days_left
+      FROM children c
+      JOIN organizations o ON o.id = c.org_id
+      WHERE c.enrollment_expires IS NOT NULL
+        AND c.enrollment_expires > NOW()
+        AND c.form_status = 'approved'
+        AND DATE_PART('day', c.enrollment_expires - NOW()) IN (30, 7)
+    `);
+
+    if (!rows.length) { console.log('[cron] No enrollment forms expiring soon.'); return; }
+
+    for (const child of rows) {
+      const days  = Math.round(child.days_left);
+      const emoji = days <= 7 ? '🔴' : '🟠';
+      const title = `${emoji} Enrollment form expiring in ${days} days`;
+      const body  = `${child.first_name} ${child.last_name}'s enrollment form at ${child.org_name} expires in ${days} days. The site needs to resubmit.`;
+
+      // Notify site staff
+      const siteUsers = await pool.query(
+        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`, [child.org_id]
+      );
+      if (siteUsers.rows.length) {
+        await createNotification(siteUsers.rows.map(u => ({
+          userId: u.id, type: 'general', title, body,
+          actionUrl: '/dashboard/site/enrollment',
+        })));
+      }
+
+      // Notify sponsor
+      if (child.sponsor_id) {
+        const sponsorUsers = await pool.query(
+          `SELECT id FROM users WHERE org_id = $1 AND role = 'sponsor' AND is_active = TRUE`, [child.sponsor_id]
+        );
+        if (sponsorUsers.rows.length) {
+          await createNotification(sponsorUsers.rows.map(u => ({
+            userId: u.id, type: 'general', title, body,
+            actionUrl: '/dashboard/sponsor/children',
+          })));
+        }
+      }
+    }
+    console.log(`[cron] Enrollment expiry alerts sent for ${rows.length} children.`);
+  } catch (err) {
+    console.error('[cron] Enrollment expiry check failed:', err.message);
+  }
+}
+
 // ─── Self-ping: keeps Railway from sleeping ───────────────────────────────────
 // Pings /health every 5 minutes so Railway's free tier never idles the process.
 function selfPing() {
@@ -201,7 +258,12 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, meal reminders @ 4pm UTC)');
+  // Enrollment expiry reminders — 9:00am UTC every day
+  cron.schedule('0 9 * * *', checkEnrollmentExpiry, {
+    timezone: 'UTC',
+  });
+
+  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm UTC)');
 }
 
-module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, generateTodayDeliveries };
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries };

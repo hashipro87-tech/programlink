@@ -1,6 +1,6 @@
 // ChildRosterPage — Sponsor view of all children across sites/kitchens
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2 } from 'lucide-react';
+import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2, AlertCircle, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
 import api from '../../services/api';
 
 const STATUS_META = {
@@ -45,6 +45,7 @@ export default function ChildRosterPage() {
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [compliance, setCompliance]     = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -55,14 +56,16 @@ export default function ChildRosterPage() {
       if (filterOrg)    params.set('org_id', filterOrg);
       if (filterAge)    params.set('age_group', filterAge);
 
-      const [childRes, orgRes] = await Promise.all([
+      const [childRes, orgRes, compRes] = await Promise.all([
         api.get(`/children?${params}`),
         api.get('/organizations?limit=200'),
+        api.get('/children/compliance').catch(() => ({ data: null })),
       ]);
 
       setChildren(childRes.data.children || []);
       setTotal(childRes.data.total || 0);
       setOrgs(orgRes.data.organizations || []);
+      if (compRes.data) setCompliance(compRes.data);
     } catch {
       setError('Failed to load roster');
     } finally {
@@ -152,6 +155,81 @@ export default function ChildRosterPage() {
           <Plus className="w-4 h-4" /> Add Child
         </button>
       </div>
+
+      {/* Enrollment Compliance Panel */}
+      {compliance && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-brand-600" />
+              <h2 className="font-bold text-gray-900">Enrollment Compliance</h2>
+            </div>
+            <span className={`text-sm font-bold ${compliance.audit_ready_pct >= 90 ? 'text-green-600' : compliance.audit_ready_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {compliance.audit_ready_pct}% Audit-Ready
+            </span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full mb-5 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${compliance.audit_ready_pct >= 90 ? 'bg-green-500' : compliance.audit_ready_pct >= 70 ? 'bg-yellow-400' : 'bg-red-500'}`}
+              style={{ width: `${compliance.audit_ready_pct}%` }} />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-red-50 rounded-xl p-3 flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-red-700">{compliance.forms_incomplete}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Incomplete forms</p>
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3 flex items-start gap-3">
+              <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-blue-700">{compliance.forms_submitted}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Pending review</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-3 flex items-start gap-3">
+              <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-amber-700">{compliance.expiring_soon}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Expiring in 30 days</p>
+              </div>
+            </div>
+            <div className="bg-green-50 rounded-xl p-3 flex items-start gap-3">
+              <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-green-700">{compliance.forms_approved}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Approved</p>
+              </div>
+            </div>
+          </div>
+          {compliance.forms_submitted > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm font-semibold text-gray-900 mb-2">Pending Review</p>
+              <div className="space-y-1">
+                {(compliance.pending_review || []).map(c => (
+                  <div key={c.id} className="flex items-center justify-between py-1.5 text-sm">
+                    <span className="text-gray-800 font-medium">{c.first_name} {c.last_name}</span>
+                    <span className="text-xs text-gray-400">{c.org_name}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => api.post(`/children/${c.id}/review`, { action: 'approve' }).then(load)}
+                        className="text-xs font-semibold text-green-700 hover:text-green-800 px-2 py-1 bg-green-50 rounded-lg">
+                        Approve
+                      </button>
+                      <button onClick={() => {
+                        const reason = prompt('Reason for rejection (optional):') ?? '';
+                        api.post(`/children/${c.id}/review`, { action: 'reject', notes: reason }).then(load);
+                      }}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 bg-red-50 rounded-lg">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
