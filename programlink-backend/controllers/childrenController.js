@@ -387,8 +387,120 @@ async function getEnrollmentCompliance(req, res) {
   }
 }
 
+// ── POST /children/import/extract ─────────────────────────────────────────────
+// Accepts a PDF or image file, sends to Claude, returns structured child data
+async function extractEnrollment(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const PROMPT = `You are extracting child enrollment information from a CACFP childcare program document.
+
+Extract every child listed. For each child return EXACTLY this JSON structure:
+{
+  "first_name": string or null,
+  "last_name": string or null,
+  "birthdate": "YYYY-MM-DD" or null,
+  "parent_name": string or null,
+  "parent_phone": string or null,
+  "meal_types": comma-separated string using only these values: breakfast,lunch,snack,supper — or null,
+  "enrollment_date": "YYYY-MM-DD" or null,
+  "enrollment_expires": "YYYY-MM-DD" or null,
+  "income_tier": "tier1" or "tier2" or "tier3" (use tier1 if unclear)
+}
+
+Return ONLY a valid JSON array. No explanation. No markdown fences. Just the array.
+If no children are found, return [].`;
+
+    let content;
+
+    if (req.file.mimetype === 'application/pdf') {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(req.file.buffer);
+      content = [{ type: 'text', text: PROMPT + '\n\nDocument text:\n' + data.text }];
+    } else {
+      // Image (jpg, png, heic, webp)
+      const mediaType = req.file.mimetype === 'image/jpg' ? 'image/jpeg' : req.file.mimetype;
+      content = [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: req.file.buffer.toString('base64') } },
+        { type: 'text', text: PROMPT },
+      ];
+    }
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content }],
+    });
+
+    const raw     = message.content[0].text.trim();
+    const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const children = JSON.parse(jsonStr);
+
+    if (!Array.isArray(children)) throw new Error('Unexpected response format');
+
+    res.json({ children, count: children.length });
+  } catch (err) {
+    console.error('extractEnrollment error:', err);
+    res.status(500).json({ error: 'Failed to extract enrollment data', detail: err.message });
+  }
+}
+
+// ── POST /children/import/confirm ─────────────────────────────────────────────
+// Bulk-inserts the reviewed + confirmed children into the DB
+async function confirmImport(req, res) {
+  try {
+    const { organizationId, role } = req.user;
+    const { children, org_id } = req.body;
+
+    if (!Array.isArray(children) || !children.length) {
+      return res.status(400).json({ error: 'No children to import' });
+    }
+
+    // Sponsors can import to a specific site; sites import to themselves
+    const targetOrgId = (role === 'sponsor' || role === 'admin') && org_id ? org_id : organizationId;
+
+    const inserted = [];
+    for (const child of children) {
+      if (!child.first_name && !child.last_name) continue;
+      const ageGroup = calcAgeGroup(child.birthdate);
+      const { rows } = await pool.query(
+        `INSERT INTO children (
+           org_id, first_name, last_name, birthdate, parent_name, parent_phone,
+           meal_types, enrollment_date, enrollment_expires, income_tier,
+           age_group, enrollment_status, form_status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'enrolled','draft')
+         ON CONFLICT DO NOTHING
+         RETURNING *`,
+        [
+          targetOrgId,
+          (child.first_name || '').trim(),
+          (child.last_name  || '').trim(),
+          child.birthdate         || null,
+          child.parent_name       || null,
+          child.parent_phone      || null,
+          child.meal_types        || null,
+          child.enrollment_date   || null,
+          child.enrollment_expires|| null,
+          child.income_tier       || 'tier1',
+          ageGroup,
+        ]
+      );
+      if (rows[0]) inserted.push(rows[0]);
+    }
+
+    res.json({ imported: inserted.length, children: inserted });
+  } catch (err) {
+    console.error('confirmImport error:', err);
+    res.status(500).json({ error: 'Import failed', detail: err.message });
+  }
+}
+
 module.exports = {
   listChildren, createChild, updateChild, deleteChild,
   getChildrenSummary, getEnrollmentCompliance,
   submitEnrollmentForm, reviewEnrollmentForm,
+  extractEnrollment, confirmImport,
 };

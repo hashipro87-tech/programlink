@@ -653,6 +653,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 115 | Uptime monitoring + reliability copy — UptimeRobot free ping every 5 min to /health keeps Railway awake; homepage PerformanceSection enhanced with 3-card uptime block (All Systems Operational + green pulse, 99.9% uptime, <200ms p99), footer copy "monitored around the clock — always there when you need it most, including end of month" | ✅ |
 | 116 | Update all 4 demo pages — added Children, Tasks, Inspections, Menus, Activity sections to SponsorDemo; added Tasks, Inspections, Activity to CoordinatorDemo; added Menus, Tasks, Activity to KitchenDemo; added Tasks, Activity to SiteDemo | ✅ |
 | 117 | Enrollment compliance system — `enrollment_fields.sql` (add 8 new columns to children table); childrenController.js rewritten: REQUIRED_FIELDS validation, getMissingFields(), submitEnrollmentForm(), reviewEnrollmentForm(), getEnrollmentCompliance() (returns 4 counts + pending_review list); routes/children.js: 8 routes including /compliance, /:id/submit, /:id/review; SiteEnrollmentPage.jsx (site-facing form: child list with form_status badges, missing-field warnings, expandable detail, day/meal toggles, signature checkbox, submit-blocks until complete); ChildRosterPage.jsx: enrollment compliance panel at top (audit-ready %, 4 stat tiles, inline approve/reject for pending forms); scheduledJobs.js: enrollment expiry cron at 9am UTC (30-day + 7-day alerts to site staff + sponsor); SiteDashboard.jsx: Enrollment nav item + route wired | ✅ |
+| 118 | Enrollment roster import (AI scan) — POST /children/import/extract (multer memoryStorage, sends PDF text or image base64 to Claude claude-sonnet-5, returns structured JSON array); POST /children/import/confirm (bulk insert with ON CONFLICT DO NOTHING); ImportEnrollmentModal.jsx (4-step: upload drag-drop → extracting spinner → review editable child cards → done); "Import Roster" button on both SiteEnrollmentPage and ChildRosterPage; packages: @anthropic-ai/sdk + pdf-parse added to backend; requires ANTHROPIC_API_KEY in Railway env vars | ✅ |
 
 ---
 
@@ -733,6 +734,7 @@ All sourced from the official CDSS CACFP Day Care Home Sponsors directory.
 - `JWT_SECRET`
 - `RESEND_API_KEY` — for transactional email (Resend)
 - `AWS_*` or storage keys — for document uploads
+- `ANTHROPIC_API_KEY` — for enrollment roster import (Task #118 — AI extraction from PDF/image)
 
 ---
 

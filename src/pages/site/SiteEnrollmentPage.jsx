@@ -1,8 +1,9 @@
 // SiteEnrollmentPage.jsx — Site staff manage their child enrollment forms
 // Structured data entry with validation — prevents submission if required fields missing
 import { useState, useEffect } from 'react';
-import { Users2, Plus, CheckCircle, AlertTriangle, AlertCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users2, Plus, CheckCircle, AlertTriangle, AlertCircle, X, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import api from '../../services/api';
+import ImportEnrollmentModal from '../../components/enrollment/ImportEnrollmentModal';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const MEALS = ['Breakfast', 'Lunch', 'Snack', 'Supper'];
@@ -52,6 +53,7 @@ export default function SiteEnrollmentPage() {
   const [expanded, setExpanded]     = useState({});
   const [submitting, setSubmitting] = useState({});
   const [toast, setToast]           = useState(null);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -183,10 +185,16 @@ export default function SiteEnrollmentPage() {
           <h1 className="text-2xl font-bold text-gray-900">Child Enrollment</h1>
           <p className="text-gray-500 mt-1 text-sm">{total} children · Complete all required fields before submitting</p>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition-colors">
-          <Plus className="w-4 h-4" /> Add Child
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)}
+            className="flex items-center gap-1.5 px-4 py-2 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-semibold rounded-xl hover:bg-brand-100 transition-colors">
+            <Upload className="w-4 h-4" /> Import Roster
+          </button>
+          <button onClick={openAdd}
+            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition-colors">
+            <Plus className="w-4 h-4" /> Add Child
+          </button>
+        </div>
       </div>
 
       {/* Compliance Summary */}
@@ -472,6 +480,14 @@ export default function SiteEnrollmentPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <ImportEnrollmentModal
+          onClose={() => setShowImport(false)}
+          onImported={(count) => { load(); showToast(`${count} children imported`); setShowImport(false); }}
+        />
       )}
     </div>
   );

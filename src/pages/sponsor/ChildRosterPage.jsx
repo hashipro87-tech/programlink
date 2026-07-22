@@ -1,7 +1,8 @@
 // ChildRosterPage — Sponsor view of all children across sites/kitchens
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2, AlertCircle, Clock, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2, AlertCircle, Clock, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
 import api from '../../services/api';
+import ImportEnrollmentModal from '../../components/enrollment/ImportEnrollmentModal';
 
 const STATUS_META = {
   enrolled:  { label: 'Enrolled',  bg: 'bg-green-100',  text: 'text-green-700'  },
@@ -46,6 +47,8 @@ export default function ChildRosterPage() {
   const [error, setError]         = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [compliance, setCompliance]     = useState(null);
+  const [showImport, setShowImport]     = useState(false);
+  const [importOrg, setImportOrg]       = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -151,9 +154,15 @@ export default function ChildRosterPage() {
           <h1 className="text-2xl font-bold text-gray-900">Child Roster</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage enrolled children across all your sites and kitchens</p>
         </div>
-        <button onClick={openAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Add Child
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-semibold rounded-xl hover:bg-brand-100 transition-colors">
+            <Upload className="w-4 h-4" /> Import Roster
+          </button>
+          <button onClick={openAdd} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add Child
+          </button>
+        </div>
       </div>
 
       {/* Enrollment Compliance Panel */}
@@ -485,6 +494,15 @@ export default function ChildRosterPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <ImportEnrollmentModal
+          orgId={importOrg || filterOrg || undefined}
+          onClose={() => setShowImport(false)}
+          onImported={(count) => { load(); setShowImport(false); }}
+        />
       )}
     </div>
   );
