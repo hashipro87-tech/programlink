@@ -295,6 +295,102 @@ function Hero() {
   );
 }
 
+// ─── Claim Intelligence Section ──────────────────────────────────────────────
+
+function ClaimIntelligenceSection() {
+  const ISSUES = [
+    { site:'Happy Kids Site',    issue:'No meal counts submitted this month',  loss:'$820',  dot:'bg-red-500'   },
+    { site:'Lincoln Kitchen',    issue:'Insurance certificate expired',         loss:'$1,240', dot:'bg-red-500'   },
+    { site:'Eastside Daycare',   issue:'Missing income certs — 3 children',    loss:'$648',  dot:'bg-amber-400' },
+    { site:'Westview Site',      issue:'Menu pattern incomplete',               loss:'$820',  dot:'bg-amber-400' },
+    { site:'Northside Site',     issue:'Enrollment form not submitted',         loss:'$600',  dot:'bg-amber-400' },
+  ];
+
+  return (
+    <section className="py-20 px-6 bg-gray-950">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          {/* Left — copy */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-full mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+              <span className="text-xs font-semibold text-violet-300">Claim Intelligence — NEW</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white leading-tight mb-5">
+              Know exactly how much money you're about to receive —{' '}
+              <span className="text-violet-400">every single day.</span>
+            </h2>
+            <p className="text-gray-400 leading-relaxed mb-6 text-sm">
+              CACFPLink runs a financial analysis on your claim 24/7. Every meal count, every document,
+              every child enrolled — the system calculates your reimbursement instantly and flags every
+              dollar at risk before your submission deadline.
+            </p>
+            <div className="space-y-3 mb-8">
+              {[
+                { icon:'💰', text:'Estimated reimbursement updates in real time with every change' },
+                { icon:'⚠️', text:'Every issue shown with an exact dollar amount at risk' },
+                { icon:'🔗', text:'One click takes you to the exact fix for each issue' },
+                { icon:'📅', text:'Deadline countdown so you never scramble on the last day of the month' },
+              ].map((item) => (
+                <div key={item.text} className="flex items-start gap-3">
+                  <span className="text-lg leading-none flex-shrink-0 mt-0.5">{item.icon}</span>
+                  <span className="text-sm text-gray-300 leading-snug">{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-violet-400 italic leading-relaxed border-l-2 border-violet-500 pl-4">
+              "A sponsor paying $200/month who recovers $4,128 in prevented disallowances gets a 20x return.
+              You're not buying software. You're buying recovered money."
+            </p>
+          </div>
+
+          {/* Right — Claim Intelligence mockup */}
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Gradient header */}
+            <div className="bg-gradient-to-r from-violet-600 to-brand-600 px-5 py-4">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Claim Intelligence</span>
+                <span className="text-[10px] text-white/60">⏰ 9 days left · Due Jul 31</span>
+              </div>
+              <p className="text-white font-bold text-sm">July 2026</p>
+            </div>
+            <div className="p-5">
+              {/* Two key numbers */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+                  <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide mb-1">Estimated Reimbursement</p>
+                  <p className="text-xl font-black text-green-700">$214,873</p>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide mb-1">At Risk</p>
+                  <p className="text-xl font-black text-red-600">$4,128</p>
+                </div>
+              </div>
+              {/* Issues */}
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Fix these 5 issues to recover all $4,128</p>
+              <div className="space-y-1.5">
+                {ISSUES.map((issue) => (
+                  <div key={issue.site} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${issue.dot}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold text-gray-800 truncate">{issue.site}</p>
+                      <p className="text-[10px] text-gray-400">{issue.issue}</p>
+                    </div>
+                    <span className="text-[11px] text-red-600 font-bold flex-shrink-0">{issue.loss}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 bg-brand-600 rounded-xl px-4 py-2.5 text-center">
+                <span className="text-xs font-bold text-white">View Full Claims Center →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Performance Section ──────────────────────────────────────────────────────
 
 function PerformanceSection() {
@@ -377,7 +473,7 @@ function TryDemoSection() {
       color: 'border-indigo-100 hover:border-indigo-300 bg-white',
       dot: 'bg-indigo-500',
       iconBg: 'bg-indigo-50 text-indigo-600',
-      highlights: ['Compliance dashboard', 'Applications to review', 'Expiring documents', 'Program-wide messages'],
+      highlights: ['Claim Intelligence — reimbursement at risk', 'Compliance dashboard & bulk actions', 'AI Menu Builder with validation', 'Applications, children, income certs'],
     },
     {
       to: '/demo/kitchen',
@@ -820,10 +916,21 @@ function ProblemSolution() {
 
 const FEATURES = [
   {
-    icon: Camera,
-    title: 'AI Delivery Slip Scanning',
-    desc: 'Point your phone at any paper delivery slip. OCR reads the numbers and fills your meal count form instantly.',
-    tag: 'Most popular',
+    icon: BarChart2,
+    title: 'Claim Intelligence',
+    desc: 'See your estimated reimbursement every day. Every issue flagged with its exact dollar value — so you fix what matters before the deadline.',
+    tag: '✨ New',
+  },
+  {
+    icon: ClipboardList,
+    title: 'AI Menu Builder',
+    desc: 'Generate a full CACFP-compliant 7-day menu with one click. Instant meal pattern validation catches missing components before submission.',
+    tag: '✨ AI',
+  },
+  {
+    icon: Users,
+    title: 'Child Roster + Income Certs',
+    desc: 'Import your entire roster from a spreadsheet or PDF in seconds. Track enrollment, income eligibility, and recertification deadlines per child.',
   },
   {
     icon: ClipboardList,
@@ -831,34 +938,24 @@ const FEATURES = [
     desc: 'Breakfast, lunch, supper, snack — logged per day with automatic anomaly detection before counts are submitted.',
   },
   {
-    icon: Building2,
-    title: 'Multi-Site Management',
-    desc: 'Connect kitchens to the sites they serve. Coordinators see every relationship, every submission, in one view.',
-  },
-  {
     icon: ShieldCheck,
     title: 'Document Compliance',
     desc: 'W-9, Menu Plan, Insurance — tracked with expiry alerts so nothing lapses before your next USDA review.',
   },
   {
+    icon: Building2,
+    title: 'Multi-Site Management',
+    desc: 'Connect kitchens to the sites they serve. Coordinators see every relationship, every submission, in one view.',
+  },
+  {
     icon: Truck,
-    title: 'Delivery Coordination',
-    desc: 'Kitchens advance each delivery through Prepping → Ready → Picked Up → Delivered with one tap.',
+    title: 'Recurring Delivery Plans',
+    desc: 'Set weekly delivery schedules once. Sites see their 7-day delivery calendar automatically — no manual coordination needed.',
   },
   {
     icon: Users,
     title: 'Coordinator Oversight',
-    desc: 'Coordinators verify meal counts, manage site connections, and flag issues — without email chains.',
-  },
-  {
-    icon: BarChart2,
-    title: 'Real-Time Reporting',
-    desc: 'Monthly summaries, submission rates, unverified counts — ready for USDA reporting the moment you need them.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Role-Based Access',
-    desc: 'Sponsors, coordinators, kitchens, sites, delivery providers — each sees exactly what they need.',
+    desc: 'Coordinators get a daily work center: applications to review, inspections to log, sites needing attention — all in one place.',
   },
 ];
 
@@ -1931,6 +2028,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <ClaimIntelligenceSection />
       <PerformanceSection />
       <TryDemoSection />
       <DemoSection />
