@@ -15,6 +15,7 @@
 //      and sends a reminder to all active users in that org.
 
 const cron = require('node-cron');
+const https = require('https');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
 const { sendDocumentExpiryEmail } = require('./emailService');
@@ -167,8 +168,24 @@ async function checkMealCountReminders() {
   }
 }
 
+// ─── Self-ping: keeps Railway from sleeping ───────────────────────────────────
+// Pings /health every 5 minutes so Railway's free tier never idles the process.
+function selfPing() {
+  const url = process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/health`
+    : 'https://programlink-production.up.railway.app/health';
+  https.get(url, (res) => {
+    console.log(`[ping] /health → ${res.statusCode}`);
+  }).on('error', (err) => {
+    console.error('[ping] self-ping failed:', err.message);
+  });
+}
+
 // ─── Start all jobs ───────────────────────────────────────────────────────────
 function startScheduledJobs() {
+  // Self-ping every 5 minutes — keeps Railway awake, no third-party service needed
+  cron.schedule('*/5 * * * *', selfPing);
+
   // Delivery plan generation — 6:00am UTC every day
   cron.schedule('0 6 * * *', generateTodayDeliveries, {
     timezone: 'UTC',
@@ -184,7 +201,7 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (deliveries @ 6am, doc expiry @ 8am, meal reminders @ 4pm UTC)');
+  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, meal reminders @ 4pm UTC)');
 }
 
 module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, generateTodayDeliveries };
