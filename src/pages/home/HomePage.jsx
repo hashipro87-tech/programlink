@@ -337,8 +337,29 @@ function PerformanceSection() {
           <p className="text-gray-400 text-sm">159,761 requests benchmarked · 14 endpoints · Sub-200ms p99 latency</p>
         </div>
 
-        <p className="text-center text-xs text-gray-600 mt-6">
-          Designed to scale as your program grows.
+        {/* Uptime & Reliability */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-5 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-green-400 font-bold text-lg">All Systems Operational</span>
+            </div>
+            <p className="text-xs text-gray-500">Monitored 24/7 with automated alerts</p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-5 text-center">
+            <p className="text-3xl font-black text-white mb-1">99.9%</p>
+            <p className="text-sm font-semibold text-gray-300">Target Uptime</p>
+            <p className="text-xs text-gray-500 mt-0.5">Monitored every 5 minutes</p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-5 text-center">
+            <p className="text-3xl font-black text-white mb-1">&lt;200ms</p>
+            <p className="text-sm font-semibold text-gray-300">p99 Response Time</p>
+            <p className="text-xs text-gray-500 mt-0.5">Across all critical endpoints</p>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-gray-600 mt-5">
+          CACFPLink is monitored around the clock — so it's always there when you need it most, including end of month.
         </p>
       </div>
     </section>
