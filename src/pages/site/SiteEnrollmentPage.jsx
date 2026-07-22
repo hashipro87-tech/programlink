@@ -188,7 +188,7 @@ export default function SiteEnrollmentPage() {
         <div className="flex gap-2">
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-1.5 px-4 py-2 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-semibold rounded-xl hover:bg-brand-100 transition-colors">
-            <Upload className="w-4 h-4" /> Import Roster
+            <Upload className="w-4 h-4" /> Import Children
           </button>
           <button onClick={openAdd}
             className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition-colors">

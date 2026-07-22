@@ -1,6 +1,6 @@
 // ImportEnrollmentModal.jsx — Upload a PDF or photo, Claude extracts children, user reviews + imports
-import { useState, useRef } from 'react';
-import { X, Upload, FileText, Image, Loader2, CheckCircle, AlertTriangle, Trash2, Plus } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, Upload, FileText, Image, CheckCircle, AlertTriangle, Trash2, Plus, Table2 } from 'lucide-react';
 import api from '../../services/api';
 
 const BLANK_CHILD = {
@@ -11,6 +11,55 @@ const BLANK_CHILD = {
 };
 
 const MEALS = ['breakfast', 'lunch', 'snack', 'supper'];
+
+// Animated processing steps shown during extraction
+const PROCESS_STEPS = [
+  { label: 'Reading names…',            duration: 2200 },
+  { label: 'Reading dates of birth…',   duration: 2000 },
+  { label: 'Reading enrollment dates…', duration: 2000 },
+  { label: 'Reading meal eligibility…', duration: 2000 },
+  { label: 'Finalizing results…',       duration: null  },
+];
+
+function ProcessingSteps() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    let i = 0;
+    function advance() {
+      if (i >= PROCESS_STEPS.length - 1) return;
+      const d = PROCESS_STEPS[i].duration;
+      if (!d) return;
+      setTimeout(() => { i++; setCurrent(i); advance(); }, d);
+    }
+    advance();
+  }, []);
+
+  return (
+    <div className="py-10 px-4">
+      <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-6" />
+      <div className="space-y-3 max-w-xs mx-auto">
+        {PROCESS_STEPS.map((step, i) => (
+          <div key={i} className={`flex items-center gap-3 transition-all duration-500 ${
+            i < current  ? 'opacity-40' :
+            i === current ? 'opacity-100' : 'opacity-20'
+          }`}>
+            {i < current ? (
+              <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+            ) : i === current ? (
+              <div className="w-4 h-4 rounded-full border-2 border-brand-500 border-t-transparent animate-spin flex-shrink-0" />
+            ) : (
+              <div className="w-4 h-4 rounded-full border-2 border-gray-200 flex-shrink-0" />
+            )}
+            <p className={`text-sm font-medium ${i === current ? 'text-gray-900' : 'text-gray-400'}`}>
+              {step.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ChildCard({ child, index, onChange, onRemove }) {
   const meals = child.meal_types ? child.meal_types.split(',').filter(Boolean) : [];
@@ -26,7 +75,7 @@ function ChildCard({ child, index, onChange, onRemove }) {
     <div className={`border rounded-2xl p-4 bg-white ${missing ? 'border-red-200' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between mb-3">
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${missing ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600'}`}>
-          Child {index + 1} {missing ? '· Name required' : ''}
+          Child {index + 1}{missing ? ' · Name required' : ''}
         </span>
         <button onClick={() => onRemove(index)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
           <Trash2 className="w-3.5 h-3.5" />
@@ -169,6 +218,15 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
   const validCount = children.filter(c => c.first_name || c.last_name).length;
 
+  // Step label for header
+  const STEP_LABELS = {
+    upload:     'Step 1 — Upload',
+    extracting: 'Step 2 — Processing',
+    review:     'Step 3 — Review',
+    importing:  'Step 3 — Review',
+    done:       'Import Complete',
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -177,18 +235,62 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Import Enrollment Roster</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Upload a PDF or photo — CACFPLink extracts the children automatically</p>
+            <h2 className="text-lg font-bold text-gray-900">Import Children</h2>
+            <p className="text-xs text-gray-400 mt-0.5 font-medium">{STEP_LABELS[step]}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
+        {/* Step indicator */}
+        {step !== 'done' && (
+          <div className="px-6 pt-4">
+            <div className="flex items-center gap-2">
+              {['upload', 'extracting', 'review'].map((s, i) => {
+                const idx = ['upload','extracting','review'].indexOf(step === 'importing' ? 'review' : step);
+                const done = i < idx;
+                const active = i === idx;
+                return (
+                  <div key={s} className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                      done ? 'bg-green-500 text-white' : active ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      {done ? '✓' : i + 1}
+                    </div>
+                    <span className={`text-xs font-semibold ${active ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {['Upload', 'Process', 'Review'][i]}
+                    </span>
+                    {i < 2 && <div className={`flex-1 h-px w-8 ${done ? 'bg-green-300' : 'bg-gray-200'}`} />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Body */}
         <div className="px-6 py-5">
 
-          {/* ── Step: Upload ── */}
+          {/* ── Step 1: Upload ── */}
           {step === 'upload' && (
             <div>
+              {/* Format options */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="border-2 border-brand-400 bg-brand-50 rounded-xl p-3 text-center">
+                  <FileText className="w-5 h-5 text-brand-600 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-brand-700">PDF</p>
+                </div>
+                <div className="border-2 border-brand-400 bg-brand-50 rounded-xl p-3 text-center">
+                  <Image className="w-5 h-5 text-brand-600 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-brand-700">Photo</p>
+                </div>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 text-center opacity-50 cursor-not-allowed relative">
+                  <Table2 className="w-5 h-5 text-gray-400 mx-auto mb-1" />
+                  <p className="text-xs font-bold text-gray-400">Excel / CSV</p>
+                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full whitespace-nowrap">Coming soon</span>
+                </div>
+              </div>
+
+              {/* Drop zone */}
               <div
                 onDrop={handleDrop}
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
@@ -203,12 +305,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                 <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
                 {file ? (
                   <div>
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                      {file.type === 'application/pdf'
-                        ? <FileText className="w-4 h-4 text-brand-600" />
-                        : <Image className="w-4 h-4 text-brand-600" />}
-                      <p className="font-semibold text-gray-800 text-sm">{file.name}</p>
-                    </div>
+                    <p className="font-semibold text-gray-800 text-sm mb-0.5">{file.name}</p>
                     <p className="text-xs text-gray-400">{(file.size / 1024).toFixed(0)} KB · Click to change</p>
                   </div>
                 ) : (
@@ -228,25 +325,15 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
               <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
                 <p className="text-xs font-semibold text-amber-800 mb-1">Tips for best results</p>
-                <ul className="text-xs text-amber-700 space-y-0.5">
-                  <li>· Make sure names are clearly readable</li>
-                  <li>· Good lighting if taking a photo — avoid shadows</li>
-                  <li>· You'll review and correct everything before importing</li>
-                </ul>
+                <p className="text-xs text-amber-700">Make sure names are clearly readable. Good lighting if taking a photo — avoid shadows. You'll review and correct everything before importing.</p>
               </div>
             </div>
           )}
 
-          {/* ── Step: Extracting ── */}
-          {step === 'extracting' && (
-            <div className="py-12 text-center">
-              <Loader2 className="w-10 h-10 text-brand-500 mx-auto mb-4 animate-spin" />
-              <p className="font-semibold text-gray-800 mb-1">Reading your document…</p>
-              <p className="text-sm text-gray-400">This usually takes 5–10 seconds</p>
-            </div>
-          )}
+          {/* ── Step 2: Extracting (animated steps) ── */}
+          {step === 'extracting' && <ProcessingSteps />}
 
-          {/* ── Step: Review ── */}
+          {/* ── Step 3: Review ── */}
           {step === 'review' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -286,22 +373,22 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
             </div>
           )}
 
-          {/* ── Step: Importing ── */}
+          {/* ── Importing spinner ── */}
           {step === 'importing' && (
             <div className="py-12 text-center">
-              <Loader2 className="w-10 h-10 text-brand-500 mx-auto mb-4 animate-spin" />
+              <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
               <p className="font-semibold text-gray-800">Importing {validCount} children…</p>
             </div>
           )}
 
-          {/* ── Step: Done ── */}
+          {/* ── Done ── */}
           {step === 'done' && (
             <div className="py-12 text-center">
               <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
               <p className="text-xl font-bold text-gray-900 mb-1">{importedCount} children imported</p>
-              <p className="text-sm text-gray-500">Their enrollment forms are saved as drafts. Complete and submit each form to send for review.</p>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto">Their enrollment forms are saved as drafts. Complete and submit each form to send for review.</p>
             </div>
           )}
 

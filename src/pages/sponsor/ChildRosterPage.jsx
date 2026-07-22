@@ -157,7 +157,7 @@ export default function ChildRosterPage() {
         <div className="flex gap-2">
           <button onClick={() => setShowImport(true)}
             className="flex items-center gap-2 px-4 py-2 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-semibold rounded-xl hover:bg-brand-100 transition-colors">
-            <Upload className="w-4 h-4" /> Import Roster
+            <Upload className="w-4 h-4" /> Import Children
           </button>
           <button onClick={openAdd} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add Child
@@ -182,32 +182,32 @@ export default function ChildRosterPage() {
               style={{ width: `${compliance.audit_ready_pct}%` }} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-red-50 rounded-xl p-3 flex items-start gap-3">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-3">
+              <Users className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xl font-bold text-red-700">{compliance.forms_incomplete}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Incomplete forms</p>
-              </div>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-3 flex items-start gap-3">
-              <Clock className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xl font-bold text-blue-700">{compliance.forms_submitted}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Pending review</p>
-              </div>
-            </div>
-            <div className="bg-amber-50 rounded-xl p-3 flex items-start gap-3">
-              <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xl font-bold text-amber-700">{compliance.expiring_soon}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Expiring in 30 days</p>
+                <p className="text-xl font-bold text-gray-800">{Number(compliance.total || 0)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Total children</p>
               </div>
             </div>
             <div className="bg-green-50 rounded-xl p-3 flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-xl font-bold text-green-700">{compliance.forms_approved}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Approved</p>
+                <p className="text-xs text-gray-500 mt-0.5">Complete enrollments</p>
+              </div>
+            </div>
+            <div className="bg-red-50 rounded-xl p-3 flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-red-700">{compliance.forms_incomplete}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Missing income forms</p>
+              </div>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-3 flex items-start gap-3">
+              <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xl font-bold text-amber-700">{compliance.expiring_soon}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Expiring enrollments</p>
               </div>
             </div>
           </div>
