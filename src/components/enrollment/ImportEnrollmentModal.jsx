@@ -1,6 +1,7 @@
-// ImportEnrollmentModal.jsx — Upload a PDF or photo, Claude extracts children, user reviews + imports
+// ImportEnrollmentModal.jsx — Import children from PDF/photo (AI) or CSV/Excel (client-side parse)
 import { useState, useRef, useEffect } from 'react';
-import { X, Upload, FileText, Image, CheckCircle, AlertTriangle, Trash2, Plus, Table2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { X, Upload, FileText, Image, CheckCircle, AlertTriangle, Trash2, Plus, Table2, Sparkles } from 'lucide-react';
 import api from '../../services/api';
 
 const BLANK_CHILD = {
@@ -12,7 +13,78 @@ const BLANK_CHILD = {
 
 const MEALS = ['breakfast', 'lunch', 'snack', 'supper'];
 
-// Animated processing steps shown during extraction
+// ─── Column mapping for CSV/Excel ─────────────────────────────────────────────
+// Maps common spreadsheet column names → child field names
+
+const FIELD_ALIASES = {
+  first_name:          ['first_name','first name','firstname','given name','given_name','first','child first','student first'],
+  last_name:           ['last_name','last name','lastname','surname','family name','family_name','last','child last','student last'],
+  birthdate:           ['birthdate','birth_date','dob','date of birth','birthday','birth date','date_of_birth'],
+  parent_name:         ['parent_name','parent name','parent/guardian','guardian','contact name','parent guardian','guardian name','contact'],
+  parent_phone:        ['parent_phone','parent phone','phone','contact phone','guardian phone','phone number','telephone','mobile'],
+  enrollment_date:     ['enrollment_date','enrollment date','start date','enrolled date','enroll date','date enrolled','start_date'],
+  enrollment_expires:  ['enrollment_expires','enrollment expires','expiry','expiration','expiration date','expire date','expires','end date'],
+  income_tier:         ['income_tier','income tier','tier','income level','income','eligibility'],
+  meal_types:          ['meal_types','meal types','meals','meal type','meal eligibility'],
+};
+
+function detectColumnMap(headers) {
+  const mapped = {};
+  const used   = new Set();
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    for (const h of headers) {
+      if (used.has(h)) continue;
+      const key = h.toLowerCase().trim().replace(/[-_\s]+/g, ' ');
+      if (aliases.includes(key)) {
+        mapped[field] = h;
+        used.add(h);
+        break;
+      }
+    }
+  }
+  return mapped;
+}
+
+function normalizeDate(raw) {
+  if (!raw) return '';
+  // SheetJS may give us a Date object or a serial number or a string
+  if (raw instanceof Date) return raw.toISOString().split('T')[0];
+  if (typeof raw === 'number') {
+    // Excel date serial
+    const d = XLSX.SSF.parse_date_code(raw);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const d = new Date(raw);
+  if (!isNaN(d)) return d.toISOString().split('T')[0];
+  return String(raw);
+}
+
+function normalizeTier(raw) {
+  if (!raw) return 'tier1';
+  const s = String(raw).toLowerCase();
+  if (s.includes('2') || s.includes('reduce') || s.includes('paid')) return 'tier2';
+  return 'tier1';
+}
+
+function parseSheetsRows(rows, colMap) {
+  return rows
+    .filter(row => Object.values(row).some(v => v != null && String(v).trim() !== ''))
+    .map(row => {
+      const child = { ...BLANK_CHILD };
+      for (const [field, header] of Object.entries(colMap)) {
+        if (!header || row[header] == null) continue;
+        const raw = row[header];
+        if (field === 'income_tier')           child[field] = normalizeTier(raw);
+        else if (['birthdate','enrollment_date','enrollment_expires'].includes(field))
+                                               child[field] = normalizeDate(raw);
+        else                                   child[field] = String(raw).trim();
+      }
+      return child;
+    });
+}
+
+// ─── AI processing animation ──────────────────────────────────────────────────
+
 const PROCESS_STEPS = [
   { label: 'Reading names…',            duration: 2200 },
   { label: 'Reading dates of birth…',   duration: 2000 },
@@ -23,7 +95,6 @@ const PROCESS_STEPS = [
 
 function ProcessingSteps() {
   const [current, setCurrent] = useState(0);
-
   useEffect(() => {
     let i = 0;
     function advance() {
@@ -34,15 +105,13 @@ function ProcessingSteps() {
     }
     advance();
   }, []);
-
   return (
     <div className="py-10 px-4">
       <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-6" />
       <div className="space-y-3 max-w-xs mx-auto">
         {PROCESS_STEPS.map((step, i) => (
           <div key={i} className={`flex items-center gap-3 transition-all duration-500 ${
-            i < current  ? 'opacity-40' :
-            i === current ? 'opacity-100' : 'opacity-20'
+            i < current ? 'opacity-40' : i === current ? 'opacity-100' : 'opacity-20'
           }`}>
             {i < current ? (
               <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -60,6 +129,8 @@ function ProcessingSteps() {
     </div>
   );
 }
+
+// ─── Child review card ─────────────────────────────────────────────────────────
 
 function ChildCard({ child, index, onChange, onRemove }) {
   const meals = child.meal_types ? child.meal_types.split(',').filter(Boolean) : [];
@@ -81,7 +152,6 @@ function ChildCard({ child, index, onChange, onRemove }) {
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
-
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1">First Name *</label>
@@ -128,7 +198,6 @@ function ChildCard({ child, index, onChange, onRemove }) {
             className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm" />
         </div>
       </div>
-
       <div>
         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Meal Types</label>
         <div className="flex gap-1.5 flex-wrap">
@@ -146,19 +215,103 @@ function ChildCard({ child, index, onChange, onRemove }) {
   );
 }
 
+// ─── Column mapping preview (shown before review in CSV mode) ─────────────────
+
+function ColumnMapPreview({ colMap, headers, onConfirm, onBack }) {
+  const FIELD_LABELS = {
+    first_name: 'First Name', last_name: 'Last Name', birthdate: 'Date of Birth',
+    parent_name: 'Parent Name', parent_phone: 'Parent Phone',
+    enrollment_date: 'Enrollment Date', enrollment_expires: 'Enrollment Expires',
+    income_tier: 'Income Tier', meal_types: 'Meal Types',
+  };
+  const mapped   = Object.entries(colMap).filter(([,v]) => v);
+  const unmapped = headers.filter(h => !Object.values(colMap).includes(h));
+
+  return (
+    <div>
+      <p className="text-sm text-gray-600 mb-4">
+        CACFPLink detected the following columns. Review the mapping and click Continue to import.
+      </p>
+      <div className="space-y-1.5 mb-4 max-h-52 overflow-y-auto">
+        {mapped.map(([field, header]) => (
+          <div key={field} className="flex items-center gap-3 text-sm px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
+            <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+            <span className="text-gray-500 w-32 flex-shrink-0">"{header}"</span>
+            <span className="text-gray-300">→</span>
+            <span className="font-semibold text-gray-800">{FIELD_LABELS[field] || field}</span>
+          </div>
+        ))}
+        {unmapped.length > 0 && (
+          <div className="pt-2">
+            <p className="text-xs text-gray-400 mb-1.5">Columns not recognized (will be skipped):</p>
+            {unmapped.map(h => (
+              <div key={h} className="flex items-center gap-3 text-sm px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg mb-1">
+                <span className="text-gray-400 text-xs">"{h}"</span>
+                <span className="text-gray-200 text-xs ml-auto">skipped</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {mapped.length < 2 && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl mb-4">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700">
+            Only {mapped.length} column{mapped.length !== 1 ? 's' : ''} detected. Make sure your spreadsheet has columns named "First Name" and "Last Name". You can correct everything in the review step.
+          </p>
+        </div>
+      )}
+      <div className="flex gap-3">
+        <button onClick={onBack} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
+          Back
+        </button>
+        <button onClick={onConfirm} className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700">
+          Continue to Review
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Modal ───────────────────────────────────────────────────────────────
+
 export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
-  const [step, setStep]         = useState('upload');  // upload | extracting | review | importing | done
-  const [file, setFile]         = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [children, setChildren] = useState([]);
-  const [error, setError]       = useState('');
+  const [mode,    setMode]    = useState('ai');         // 'ai' | 'csv'
+  const [step,    setStep]    = useState('upload');      // upload | mapping | extracting | review | importing | done
+  const [file,    setFile]    = useState(null);
+  const [dragOver,setDragOver]= useState(false);
+  const [children,setChildren]= useState([]);
+  const [error,   setError]   = useState('');
   const [importedCount, setImportedCount] = useState(0);
+  const [colMap,  setColMap]  = useState({});
+  const [allHeaders, setAllHeaders] = useState([]);
+  const [rawRows, setRawRows] = useState([]);
   const inputRef = useRef();
+
+  // Reset state on mode change
+  function switchMode(m) {
+    setMode(m);
+    setFile(null);
+    setChildren([]);
+    setError('');
+    setStep('upload');
+    setColMap({});
+    setAllHeaders([]);
+    setRawRows([]);
+  }
+
+  // ── File acceptance ──────────────────────────────────────────────────────────
 
   function handleFile(f) {
     if (!f) return;
-    const ok = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'].includes(f.type);
-    if (!ok) { setError('Please upload a PDF or image (JPG, PNG, HEIC, WebP)'); return; }
+    if (mode === 'ai') {
+      const ok = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/heic'].includes(f.type);
+      if (!ok) { setError('Please upload a PDF or image (JPG, PNG, HEIC, WebP)'); return; }
+    } else {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const ok  = ['csv','xlsx','xls','tsv'].includes(ext);
+      if (!ok) { setError('Please upload a CSV, Excel (.xlsx/.xls), or TSV file'); return; }
+    }
     if (f.size > 10 * 1024 * 1024) { setError('File must be under 10 MB'); return; }
     setError('');
     setFile(f);
@@ -170,7 +323,9 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
     handleFile(e.dataTransfer.files[0]);
   }
 
-  async function extract() {
+  // ── AI extraction ────────────────────────────────────────────────────────────
+
+  async function extractWithAI() {
     if (!file) return;
     setStep('extracting');
     setError('');
@@ -188,17 +343,60 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
     }
   }
 
+  // ── CSV / Excel parsing ──────────────────────────────────────────────────────
+
+  async function parseSpreadsheet() {
+    if (!file) return;
+    setError('');
+    try {
+      const buf  = await file.arrayBuffer();
+      const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (rows.length === 0) {
+        setError('No data found in the file. Make sure the first row contains column headers.');
+        return;
+      }
+
+      const headers = Object.keys(rows[0]);
+      const map     = detectColumnMap(headers);
+
+      setAllHeaders(headers);
+      setColMap(map);
+      setRawRows(rows);
+      setStep('mapping');
+    } catch (e) {
+      console.error('Spreadsheet parse error:', e);
+      setError('Could not read the file. Make sure it\'s a valid CSV or Excel file and is not password-protected.');
+    }
+  }
+
+  function confirmColumnMap() {
+    const parsed = parseSheetsRows(rawRows, colMap);
+    setChildren(parsed);
+    setStep('review');
+  }
+
+  // Dispatch based on mode
+  function handleExtract() {
+    if (mode === 'ai') extractWithAI();
+    else               parseSpreadsheet();
+  }
+
+  // ── Review actions ───────────────────────────────────────────────────────────
+
   function updateChild(index, field, value) {
     setChildren(c => c.map((x, i) => i === index ? { ...x, [field]: value } : x));
   }
-
   function removeChild(index) {
     setChildren(c => c.filter((_, i) => i !== index));
   }
-
   function addBlank() {
     setChildren(c => [...c, { ...BLANK_CHILD }]);
   }
+
+  // ── Confirm import ────────────────────────────────────────────────────────────
 
   async function confirmImport() {
     const valid = children.filter(c => c.first_name || c.last_name);
@@ -218,14 +416,22 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
   const validCount = children.filter(c => c.first_name || c.last_name).length;
 
-  // Step label for header
   const STEP_LABELS = {
     upload:     'Step 1 — Upload',
+    mapping:    'Step 2 — Map Columns',
     extracting: 'Step 2 — Processing',
     review:     'Step 3 — Review',
     importing:  'Step 3 — Review',
     done:       'Import Complete',
   };
+
+  const showStepBar = step !== 'done';
+  const stepBarSteps = mode === 'csv'
+    ? ['Upload', 'Map Columns', 'Review']
+    : ['Upload', 'Process', 'Review'];
+  const stepBarIndex = mode === 'csv'
+    ? { upload: 0, mapping: 1, review: 2, importing: 2 }[step] ?? 0
+    : { upload: 0, extracting: 1, review: 2, importing: 2 }[step] ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto">
@@ -241,14 +447,13 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* Step indicator */}
-        {step !== 'done' && (
+        {/* Step progress */}
+        {showStepBar && (
           <div className="px-6 pt-4">
             <div className="flex items-center gap-2">
-              {['upload', 'extracting', 'review'].map((s, i) => {
-                const idx = ['upload','extracting','review'].indexOf(step === 'importing' ? 'review' : step);
-                const done = i < idx;
-                const active = i === idx;
+              {stepBarSteps.map((s, i) => {
+                const done   = i < stepBarIndex;
+                const active = i === stepBarIndex;
                 return (
                   <div key={s} className="flex items-center gap-2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
@@ -256,10 +461,8 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                     }`}>
                       {done ? '✓' : i + 1}
                     </div>
-                    <span className={`text-xs font-semibold ${active ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {['Upload', 'Process', 'Review'][i]}
-                    </span>
-                    {i < 2 && <div className={`flex-1 h-px w-8 ${done ? 'bg-green-300' : 'bg-gray-200'}`} />}
+                    <span className={`text-xs font-semibold ${active ? 'text-gray-900' : 'text-gray-400'}`}>{s}</span>
+                    {i < stepBarSteps.length - 1 && <div className={`h-px w-8 ${done ? 'bg-green-300' : 'bg-gray-200'}`} />}
                   </div>
                 );
               })}
@@ -270,24 +473,31 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
         {/* Body */}
         <div className="px-6 py-5">
 
-          {/* ── Step 1: Upload ── */}
+          {/* ── Upload step ── */}
           {step === 'upload' && (
             <div>
-              {/* Format options */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                <div className="border-2 border-brand-400 bg-brand-50 rounded-xl p-3 text-center">
-                  <FileText className="w-5 h-5 text-brand-600 mx-auto mb-1" />
-                  <p className="text-xs font-bold text-brand-700">PDF</p>
-                </div>
-                <div className="border-2 border-brand-400 bg-brand-50 rounded-xl p-3 text-center">
-                  <Image className="w-5 h-5 text-brand-600 mx-auto mb-1" />
-                  <p className="text-xs font-bold text-brand-700">Photo</p>
-                </div>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-3 text-center opacity-50 cursor-not-allowed relative">
-                  <Table2 className="w-5 h-5 text-gray-400 mx-auto mb-1" />
-                  <p className="text-xs font-bold text-gray-400">Excel / CSV</p>
-                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full whitespace-nowrap">Coming soon</span>
-                </div>
+              {/* Mode selector */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <button
+                  onClick={() => switchMode('ai')}
+                  className={`rounded-xl p-3 text-center border-2 transition-all ${
+                    mode === 'ai' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Sparkles className={`w-5 h-5 mx-auto mb-1 ${mode === 'ai' ? 'text-brand-600' : 'text-gray-400'}`} />
+                  <p className={`text-xs font-bold ${mode === 'ai' ? 'text-brand-700' : 'text-gray-500'}`}>AI Scan</p>
+                  <p className={`text-[10px] mt-0.5 ${mode === 'ai' ? 'text-brand-500' : 'text-gray-400'}`}>PDF or Photo</p>
+                </button>
+                <button
+                  onClick={() => switchMode('csv')}
+                  className={`rounded-xl p-3 text-center border-2 transition-all ${
+                    mode === 'csv' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <Table2 className={`w-5 h-5 mx-auto mb-1 ${mode === 'csv' ? 'text-brand-600' : 'text-gray-400'}`} />
+                  <p className={`text-xs font-bold ${mode === 'csv' ? 'text-brand-700' : 'text-gray-500'}`}>Spreadsheet</p>
+                  <p className={`text-[10px] mt-0.5 ${mode === 'csv' ? 'text-brand-500' : 'text-gray-400'}`}>CSV or Excel</p>
+                </button>
               </div>
 
               {/* Drop zone */}
@@ -298,10 +508,15 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                 onClick={() => inputRef.current?.click()}
                 className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors ${
                   dragOver ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50'
-                }`}>
-                <input ref={inputRef} type="file" className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
-                  onChange={e => handleFile(e.target.files[0])} />
+                }`}
+              >
+                <input
+                  ref={inputRef} type="file" className="hidden"
+                  accept={mode === 'ai'
+                    ? '.pdf,.jpg,.jpeg,.png,.webp,.heic'
+                    : '.csv,.xlsx,.xls,.tsv'}
+                  onChange={e => handleFile(e.target.files[0])}
+                />
                 <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
                 {file ? (
                   <div>
@@ -311,7 +526,10 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                 ) : (
                   <div>
                     <p className="font-semibold text-gray-600 mb-1">Drop your file here or click to browse</p>
-                    <p className="text-xs text-gray-400">PDF, JPG, PNG, HEIC, WebP · Max 10 MB</p>
+                    {mode === 'ai'
+                      ? <p className="text-xs text-gray-400">PDF, JPG, PNG, HEIC, WebP · Max 10 MB</p>
+                      : <p className="text-xs text-gray-400">CSV, Excel (.xlsx / .xls), TSV · Max 10 MB · First row must be column headers</p>
+                    }
                   </div>
                 )}
               </div>
@@ -323,17 +541,34 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                 </div>
               )}
 
-              <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                <p className="text-xs font-semibold text-amber-800 mb-1">Tips for best results</p>
-                <p className="text-xs text-amber-700">Make sure names are clearly readable. Good lighting if taking a photo — avoid shadows. You'll review and correct everything before importing.</p>
-              </div>
+              {mode === 'ai' ? (
+                <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-xs font-semibold text-amber-800 mb-1">Tips for best results</p>
+                  <p className="text-xs text-amber-700">Make sure names are clearly readable. Good lighting if taking a photo — avoid shadows. You'll review and correct everything before importing.</p>
+                </div>
+              ) : (
+                <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-800 mb-1">Column names CACFPLink recognizes</p>
+                  <p className="text-xs text-blue-700">First Name, Last Name, Date of Birth, Parent Name, Parent Phone, Enrollment Date, Income Tier. Columns that don't match will be skipped — you can fill them in during review.</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* ── Step 2: Extracting (animated steps) ── */}
+          {/* ── Column mapping (CSV mode) ── */}
+          {step === 'mapping' && (
+            <ColumnMapPreview
+              colMap={colMap}
+              headers={allHeaders}
+              onConfirm={confirmColumnMap}
+              onBack={() => setStep('upload')}
+            />
+          )}
+
+          {/* ── Extracting (AI mode) ── */}
           {step === 'extracting' && <ProcessingSteps />}
 
-          {/* ── Step 3: Review ── */}
+          {/* ── Review ── */}
           {step === 'review' && (
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -346,10 +581,9 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                   Upload different file
                 </button>
               </div>
-
               {children.length === 0 ? (
                 <div className="py-8 text-center text-gray-400">
-                  <p className="text-sm">No children were detected. Try a clearer image or add them manually.</p>
+                  <p className="text-sm">No children were detected. Try a clearer file or add them manually.</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
@@ -358,12 +592,10 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
                   ))}
                 </div>
               )}
-
               <button onClick={addBlank}
                 className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-semibold">
                 <Plus className="w-4 h-4" /> Add child manually
               </button>
-
               {error && (
                 <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
                   <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
@@ -415,9 +647,9 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
               <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
                 Cancel
               </button>
-              <button onClick={extract} disabled={!file}
+              <button onClick={handleExtract} disabled={!file}
                 className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 disabled:opacity-40">
-                Extract Data
+                {mode === 'ai' ? 'Extract Data' : 'Parse Spreadsheet'}
               </button>
             </>
           ) : null}
