@@ -1,13 +1,13 @@
 // menusController.js — CACFP weekly menu builder + meal pattern validation
 const pool = require('../config/database');
 const { logActivity, TYPES } = require('../services/activityService');
+const fs   = require('fs');
+const path = require('path');
 
 // ── CACFP Meal Pattern Rules ──────────────────────────────────────────────────
-// Returns array of missing component strings for a given meal
 function validateMeal(items, mealType) {
   const has = (comp) => items.some(i => i.component === comp);
   const missing = [];
-
   if (mealType === 'breakfast') {
     if (!has('milk'))                      missing.push('Milk');
     if (!has('grain'))                     missing.push('Grain/Bread');
@@ -19,50 +19,43 @@ function validateMeal(items, mealType) {
     if (!has('fruit'))      missing.push('Fruit');
     if (!has('vegetable'))  missing.push('Vegetable');
   } else if (mealType === 'snack') {
-    // Any 2 of 4 components
-    const present = ['milk','grain','protein','fruit','vegetable']
-      .filter(c => has(c)).length;
-    if (present < 2) missing.push(`${2 - present} more component${2 - present !== 1 ? 's' : ''} required (need any 2 of: Milk, Grain, Protein, Fruit/Vegetable)`);
+    const present = ['milk','grain','protein','fruit','vegetable'].filter(c => has(c)).length;
+    if (present < 2) missing.push(`${2 - present} more component${2 - present !== 1 ? 's' : ''} required`);
+  } else if (mealType === 'infant') {
+    if (!has('formula')) missing.push('Breast Milk / Formula');
   }
   return missing;
 }
 
-// Check if a day has WGR (at least one grain must be whole grain rich)
 function validateWGR(dayItems) {
   const grains = dayItems.filter(i => i.component === 'grain');
-  if (grains.length === 0) return true; // no grains = skip WGR check
+  if (grains.length === 0) return true;
   return grains.some(i => i.is_whole_grain);
 }
 
 // ── GET /menus ─────────────────────────────────────────────────────────────────
 async function listMenus(req, res) {
   try {
-    const { organizationId, id: userId, role } = req.user;
+    const { organizationId, role } = req.user;
     const { org_id, limit = 12, offset = 0 } = req.query;
-
     let where, params;
     if (role === 'sponsor' || role === 'admin') {
-      where = `WHERE m.org_id IN (SELECT id FROM organizations WHERE sponsor_id = (SELECT sponsor_id FROM organizations WHERE id = $1) UNION SELECT $1)`;
+      where  = `WHERE m.org_id IN (SELECT id FROM organizations WHERE sponsor_id = (SELECT sponsor_id FROM organizations WHERE id = $1) UNION SELECT $1)`;
       params = [organizationId];
     } else {
-      where = `WHERE m.org_id = $1`;
+      where  = `WHERE m.org_id = $1`;
       params = [organizationId];
     }
-
     let idx = params.length + 1;
     if (org_id) { where += ` AND m.org_id = $${idx++}`; params.push(org_id); }
-
     const { rows } = await pool.query(
       `SELECT m.*, o.name AS org_name,
          (SELECT COUNT(*) FROM menu_items WHERE menu_id = m.id) AS item_count
-       FROM menus m
-       JOIN organizations o ON o.id = m.org_id
-       ${where}
-       ORDER BY m.week_start DESC
-       LIMIT $${idx} OFFSET $${idx + 1}`,
+       FROM menus m JOIN organizations o ON o.id = m.org_id
+       ${where} ORDER BY m.week_start DESC
+       LIMIT $${idx} OFFSET $${idx+1}`,
       [...params, Number(limit), Number(offset)]
     );
-
     const countRes = await pool.query(`SELECT COUNT(*) FROM menus m ${where}`, params);
     res.json({ menus: rows, total: Number(countRes.rows[0].count) });
   } catch (err) {
@@ -71,40 +64,100 @@ async function listMenus(req, res) {
   }
 }
 
+// ── GET /menus/rates ───────────────────────────────────────────────────────────
+async function getEstimateRates(req, res) {
+  try {
+    const { organizationId } = req.user;
+    const orgRes = await pool.query('SELECT region FROM organizations WHERE id = $1', [organizationId]);
+    const state  = orgRes.rows[0]?.region;
+    if (!state) return res.json({ rates: null, state: null });
+    const configPath = path.join(__dirname, '../services/stateConfigs', `${state}.json`);
+    if (!fs.existsSync(configPath)) return res.json({ rates: null, state });
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    res.json({
+      state,
+      rates: {
+        breakfast: config.rates?.breakfast?.tier1 ?? 0,
+        lunch:     config.rates?.lunch?.tier1     ?? 0,
+        snack:     config.rates?.snack?.tier1     ?? 0,
+        supper:    config.rates?.supper?.tier1    ?? 0,
+      }
+    });
+  } catch (err) {
+    console.error('getEstimateRates error:', err);
+    res.json({ rates: null, state: null });
+  }
+}
+
+// ── GET /menus/templates ───────────────────────────────────────────────────────
+async function listTemplates(req, res) {
+  try {
+    const { organizationId } = req.user;
+    const { rows } = await pool.query(
+      `SELECT * FROM menu_templates WHERE org_id = $1 ORDER BY created_at DESC`,
+      [organizationId]
+    );
+    res.json({ templates: rows });
+  } catch (err) {
+    console.error('listTemplates error:', err);
+    res.status(500).json({ error: 'Failed to load templates' });
+  }
+}
+
+// ── POST /menus/templates ──────────────────────────────────────────────────────
+async function saveTemplate(req, res) {
+  try {
+    const { organizationId } = req.user;
+    const { name, meal_type, items } = req.body;
+    if (!name || !items) return res.status(400).json({ error: 'name and items required' });
+    const { rows } = await pool.query(
+      `INSERT INTO menu_templates (org_id, name, meal_type, items) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [organizationId, name, meal_type || null, JSON.stringify(items)]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('saveTemplate error:', err);
+    res.status(500).json({ error: 'Failed to save template' });
+  }
+}
+
+// ── DELETE /menus/templates/:id ────────────────────────────────────────────────
+async function deleteTemplate(req, res) {
+  try {
+    const { organizationId } = req.user;
+    await pool.query(
+      `DELETE FROM menu_templates WHERE id = $1 AND org_id = $2`,
+      [req.params.id, organizationId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteTemplate error:', err);
+    res.status(500).json({ error: 'Failed to delete template' });
+  }
+}
+
 // ── GET /menus/:id ─────────────────────────────────────────────────────────────
-// Returns menu + all items + validation report
 async function getMenu(req, res) {
   try {
     const { id } = req.params;
-    const { organizationId } = req.user;
-
     const menuRes = await pool.query(
       `SELECT m.*, o.name AS org_name FROM menus m
-       JOIN organizations o ON o.id = m.org_id
-       WHERE m.id = $1`,
-      [id]
+       JOIN organizations o ON o.id = m.org_id WHERE m.id = $1`, [id]
     );
     if (!menuRes.rows.length) return res.status(404).json({ error: 'Menu not found' });
-
     const itemsRes = await pool.query(
-      `SELECT * FROM menu_items WHERE menu_id = $1
-       ORDER BY day_of_week, meal_type, component`,
-      [id]
+      `SELECT * FROM menu_items WHERE menu_id = $1 ORDER BY day_of_week, meal_type, component`, [id]
     );
     const items = itemsRes.rows;
-
-    // Build validation report
-    const DAYS   = [1,2,3,4,5];
-    const MEALS  = ['breakfast','lunch','snack','supper'];
+    const DAYS  = [1,2,3,4,5,6,7];
+    const MEALS = ['breakfast','lunch','snack','supper','infant'];
     const report = {};
     let totalIssues = 0;
-
     DAYS.forEach(day => {
       const dayItems = items.filter(i => i.day_of_week === day);
       const wgrOk   = validateWGR(dayItems);
       report[day]   = { meals: {}, wgr_ok: wgrOk };
       if (!wgrOk) totalIssues++;
-
       MEALS.forEach(meal => {
         const mealItems = dayItems.filter(i => i.meal_type === meal);
         const missing   = validateMeal(mealItems, meal);
@@ -112,7 +165,6 @@ async function getMenu(req, res) {
         totalIssues += missing.length;
       });
     });
-
     res.json({ menu: menuRes.rows[0], items, validation: report, total_issues: totalIssues });
   } catch (err) {
     console.error('getMenu error:', err);
@@ -124,25 +176,18 @@ async function getMenu(req, res) {
 async function createMenu(req, res) {
   try {
     const { organizationId, id: userId } = req.user;
-    const { org_id, name, week_start, notes } = req.body;
+    const { org_id, name, week_start, notes, has_infant } = req.body;
     if (!week_start) return res.status(400).json({ error: 'week_start is required' });
-
     const targetOrg = org_id || organizationId;
-
     const { rows } = await pool.query(
-      `INSERT INTO menus (org_id, name, week_start, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (org_id, week_start) DO UPDATE SET name = $2, notes = $4, updated_at = NOW()
+      `INSERT INTO menus (org_id, name, week_start, notes, has_infant, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (org_id, week_start) DO UPDATE SET name=$2, notes=$4, has_infant=$5, updated_at=NOW()
        RETURNING *`,
-      [targetOrg, name || `Week of ${week_start}`, week_start, notes || null, userId]
+      [targetOrg, name || `Week of ${week_start}`, week_start, notes || null, has_infant || false, userId]
     );
-
-    await logActivity({
-      org_id: targetOrg, actor_id: userId,
-      type: 'menu_created', title: `Menu planned: ${rows[0].name}`,
-      link: `/dashboard/sponsor/menus`,
-    });
-
+    await logActivity({ org_id: targetOrg, actor_id: userId, type: 'menu_created',
+      title: `Menu planned: ${rows[0].name}`, link: `/dashboard/sponsor/menus` });
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('createMenu error:', err);
@@ -155,17 +200,16 @@ async function updateMenu(req, res) {
   try {
     const { id } = req.params;
     const { organizationId } = req.user;
-    const { name, status, notes } = req.body;
-
+    const { name, status, notes, has_infant } = req.body;
     const { rows } = await pool.query(
       `UPDATE menus SET
          name       = COALESCE($1, name),
          status     = COALESCE($2, status),
          notes      = COALESCE($3, notes),
+         has_infant = COALESCE($4, has_infant),
          updated_at = NOW()
-       WHERE id = $4 AND org_id = $5
-       RETURNING *`,
-      [name, status, notes, id, organizationId]
+       WHERE id=$5 AND org_id=$6 RETURNING *`,
+      [name, status, notes, has_infant, id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Menu not found' });
     res.json(rows[0]);
@@ -180,7 +224,7 @@ async function deleteMenu(req, res) {
   try {
     const { id } = req.params;
     const { organizationId } = req.user;
-    await pool.query(`DELETE FROM menus WHERE id = $1 AND org_id = $2`, [id, organizationId]);
+    await pool.query(`DELETE FROM menus WHERE id=$1 AND org_id=$2`, [id, organizationId]);
     res.json({ success: true });
   } catch (err) {
     console.error('deleteMenu error:', err);
@@ -194,25 +238,16 @@ async function upsertItem(req, res) {
     const { id: menu_id } = req.params;
     const { organizationId } = req.user;
     const { day_of_week, meal_type, food_item, component, is_whole_grain = false, quantity } = req.body;
-
     if (!day_of_week || !meal_type || !food_item || !component)
       return res.status(400).json({ error: 'day_of_week, meal_type, food_item, and component are required' });
-
-    // Verify menu belongs to org
-    const check = await pool.query(`SELECT id FROM menus WHERE id = $1 AND org_id = $2`, [menu_id, organizationId]);
+    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND org_id=$2`, [menu_id, organizationId]);
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
-
     const { rows } = await pool.query(
       `INSERT INTO menu_items (menu_id, day_of_week, meal_type, food_item, component, is_whole_grain, quantity)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING *`,
       [menu_id, day_of_week, meal_type, food_item.trim(), component, is_whole_grain, quantity || null]
     );
-
-    // Touch parent menu updated_at
-    await pool.query(`UPDATE menus SET updated_at = NOW() WHERE id = $1`, [menu_id]);
-
+    await pool.query(`UPDATE menus SET updated_at=NOW() WHERE id=$1`, [menu_id]);
     res.status(201).json(rows[0] || { menu_id, day_of_week, meal_type, food_item, component });
   } catch (err) {
     console.error('upsertItem error:', err);
@@ -225,12 +260,9 @@ async function deleteItem(req, res) {
   try {
     const { item_id } = req.params;
     const { organizationId } = req.user;
-
-    // Verify via join
     await pool.query(
-      `DELETE FROM menu_items mi
-       USING menus m
-       WHERE mi.id = $1 AND mi.menu_id = m.id AND m.org_id = $2`,
+      `DELETE FROM menu_items mi USING menus m
+       WHERE mi.id=$1 AND mi.menu_id=m.id AND m.org_id=$2`,
       [item_id, organizationId]
     );
     res.json({ success: true });
@@ -240,4 +272,128 @@ async function deleteItem(req, res) {
   }
 }
 
-module.exports = { listMenus, getMenu, createMenu, updateMenu, deleteMenu, upsertItem, deleteItem };
+// ── POST /menus/:id/generate ───────────────────────────────────────────────────
+async function generateMenu(req, res) {
+  try {
+    const { id: menuId } = req.params;
+    const { organizationId, id: userId } = req.user;
+    const { preferences = '' } = req.body;
+
+    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND org_id=$2`, [menuId, organizationId]);
+    if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prefNote = preferences ? `\nAdditional preferences: ${preferences}` : '';
+    const prompt = `You are a CACFP meal planner for a childcare center. Generate a complete, varied 7-day weekly menu (Monday through Sunday).${prefNote}
+
+CACFP meal pattern REQUIREMENTS (must be followed exactly):
+- Breakfast: Milk + Grain/Bread + (Fruit OR Vegetable)
+- Lunch & Supper: Milk + Grain/Bread + Meat/Protein + Fruit + Vegetable
+- Snack: any 2 of {Milk, Grain/Bread, Meat/Protein, Fruit, Vegetable}
+- At least one grain per day must be Whole Grain Rich (≥51% whole grain, is_whole_grain=true)
+
+Return ONLY a valid JSON array. No markdown, no explanation, no extra text.
+Each item: { "day_of_week": number, "meal_type": string, "food_item": string, "component": string, "is_whole_grain": boolean, "quantity": string }
+
+Rules:
+- day_of_week: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+- meal_type: "breakfast", "lunch", "snack", or "supper"
+- component: "milk", "grain", "protein", "fruit", "vegetable", or "other"
+- quantity: realistic child-sized portion (e.g., "1 cup", "2 oz", "1 slice", "1/2 cup")
+- Vary foods across the week — no repeats on consecutive days for main items
+- Use common, kid-friendly, easy-to-prepare foods`;
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    let text = response.content[0].text.trim();
+    text = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+    const menuItems = JSON.parse(text);
+
+    // Clear existing items
+    await pool.query(`DELETE FROM menu_items WHERE menu_id=$1`, [menuId]);
+
+    // Bulk insert
+    const inserted = [];
+    for (const item of menuItems) {
+      if (!item.day_of_week || !item.meal_type || !item.food_item || !item.component) continue;
+      const r = await pool.query(
+        `INSERT INTO menu_items (menu_id, day_of_week, meal_type, food_item, component, is_whole_grain, quantity)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING *`,
+        [menuId, item.day_of_week, item.meal_type, item.food_item, item.component,
+         item.is_whole_grain || false, item.quantity || null]
+      );
+      if (r.rows[0]) inserted.push(r.rows[0]);
+    }
+
+    await pool.query(`UPDATE menus SET updated_at=NOW() WHERE id=$1`, [menuId]);
+    res.json({ items: inserted, count: inserted.length });
+  } catch (err) {
+    console.error('generateMenu error:', err);
+    res.status(500).json({ error: 'AI generation failed — try again' });
+  }
+}
+
+// ── GET /menus/:id/comments ────────────────────────────────────────────────────
+async function listComments(req, res) {
+  try {
+    const { id: menuId } = req.params;
+    const { rows } = await pool.query(
+      `SELECT mc.*, u.name AS author_name
+       FROM menu_comments mc
+       LEFT JOIN users u ON u.id = mc.created_by
+       WHERE mc.menu_id=$1
+       ORDER BY mc.day_of_week, mc.meal_type, mc.created_at DESC`,
+      [menuId]
+    );
+    res.json({ comments: rows });
+  } catch (err) {
+    console.error('listComments error:', err);
+    res.status(500).json({ error: 'Failed to load comments' });
+  }
+}
+
+// ── POST /menus/:id/comments ───────────────────────────────────────────────────
+async function addComment(req, res) {
+  try {
+    const { id: menuId } = req.params;
+    const { id: userId } = req.user;
+    const { day_of_week, meal_type, comment } = req.body;
+    if (!comment?.trim()) return res.status(400).json({ error: 'comment is required' });
+    const { rows } = await pool.query(
+      `INSERT INTO menu_comments (menu_id, day_of_week, meal_type, comment, created_by)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [menuId, day_of_week || null, meal_type || null, comment.trim(), userId]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('addComment error:', err);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+}
+
+// ── DELETE /menus/:id/comments/:commentId ─────────────────────────────────────
+async function deleteComment(req, res) {
+  try {
+    const { id: userId } = req.user;
+    await pool.query(
+      `DELETE FROM menu_comments WHERE id=$1 AND created_by=$2`,
+      [req.params.commentId, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteComment error:', err);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+}
+
+module.exports = {
+  listMenus, getMenu, createMenu, updateMenu, deleteMenu, upsertItem, deleteItem,
+  getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
+  generateMenu, listComments, addComment, deleteComment,
+};
