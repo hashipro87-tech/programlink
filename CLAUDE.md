@@ -540,10 +540,11 @@ UPDATE organizations SET region = 'OH' WHERE id = 'paste-uuid-here';
 ## Real Signups (2026-07-09) 🔥
 
 **Charles@cacfpsolutions.com** — role: sponsor — signed up 2026-06-29, `is_verified = true` ✅
+- **State: Texas** 🤠 — build Texas state config/export first, not Ohio
 - Last login: 2026-06-29 19:41:54 (hasn't logged back in since losing the link)
 - Outreach email sent 2026-07-09, replied "Yeah, still here. Still interested. Can you give me that login link again?"
 - Sent login link (https://cacfplink.com/login) + instructions to set state in Settings
-- Still needs: Settings → Organization → pick state → Save → re-login for Claims Center to work
+- Still needs: Settings → Organization → pick state (Texas) → Save → re-login for Claims Center to work
 
 **deborah.wilson@gansi.org** — role: sponsor (Deborah Gillison-Wilson, GANSI) — signed up 2026-07-09, `is_verified = true` ✅ (manually verified via Railway)
 - Last login: NULL — has never logged in
@@ -665,6 +666,17 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 129 | Monthly sponsor report email — `sendMonthlyReportEmail()` in emailService.js (branded HTML: purple header, 3 stat boxes est. reimbursement/sites ready/meal counts, issue table with site + message + at-risk $, green all-clear when 0 issues, View Claims Center CTA); `sendMonthlyReports()` cron in scheduledJobs.js (queries all active verified sponsors with region set, loads stateConfig rates per sponsor, computes estimated reimbursement from per-type meal counts, flags sites with no counts + expired docs as issues, sends email per sponsor); cron `0 9 28 * *` fires at 9am UTC on the 28th of each month — before most state CACFP claim deadlines | ✅ |
 | 123 | Income Eligibility form — SiteIncomePage.jsx (site-facing); children listed by cert status (valid/expiring/expired/missing); summary cards (certified/need action/expiring/total); red callout when certs missing; inline per-child cert form (cert date auto-fills 12-month expiry, tier selector, recertify button); filter tabs + search; sorted by urgency (missing → expired → expiring → valid); uses existing PUT /children/:id; wired into SiteDashboard nav + route as "Income Certs" | ✅ |
 | 122 | Claims Rules Engine + Claim Intelligence — claimsEngine.js: added universal `no_meal_counts_submitted` rule (always runs, potentialLoss=site estimated $), fixed potentialLoss for `documents_not_expired` and `menus_meet_meal_pattern` (was 0, now site.estimatedReimbursement); claimsController.js: full refactor with `_loadClaimData` helper — now queries real hasMenus (menus table), hasEnrollment (children form_status=approved), hasIncomeEligibility (income_cert_date+expires); new `getIntelligence` endpoint returns flat issues list with fixPath/fixLabel per error code + calcDeadline helper; routes/claims.js: GET /intelligence added; SponsorDashboard.jsx: ClaimReadinessWidget → ClaimIntelligenceWidget (purple gradient header with month + deadline countdown, estimated $ + at-risk $, issues list with red/amber dots + dollar amounts + direct fix links, green all-clear when 0 issues) | ✅ |
+| 129 | Monthly sponsor report email — `sendMonthlyReportEmail()` in emailService.js; `sendMonthlyReports()` cron fires at 9am UTC on the 28th of each month | ✅ |
+| 130 | Remove AI Generate menu (costs money, unreliable) — replaced with Compliance Assistant panel; `generateMenu` endpoint now returns 503 gracefully if key missing | ✅ |
+| 131 | Compliance Assistant panel — ShieldCheck button in Menu Builder header toggles right-side panel; expandable sections: Meal Component Guide (per meal emoji + components + tip), WGR Guide, Milk by Age, Infant Meals, Common CACFP Errors (8 entries), Non-Creditable Foods (8 entries), food search; `showHelp` + `helpContext` state; contextual — `openCell()` sets `helpContext` to the meal type so panel auto-focuses relevant section | ✅ |
+| 132 | Compliance Assistant enhancements — severity system 🟥 Critical / 🟨 Warning / 🟦 Info; USDA 7 CFR Part 226 citations on every rule; live issue detection (runs `validateMealClient` + `getDayWGROk` over all items, surfaces issues by day+meal); clickable errors open exact meal cell (onOpenCell prop); smart natural-language Q&A search (15-entry QA_DB, matched by keyword, layered with food library + non-creditable results); button renamed "Compliance Assistant"; NON_CREDITABLE / SEVERITY / MEAL_GUIDE / COMMON_ERRORS / QA_DB constants added to MenuBuilderPage.jsx | ✅ |
+| 133 | Compliance Assistant — State Resources tab: two-tab panel (USDA Compliance / State Resources), TX full data (agency TDA, SquareMeals portal, phone/email, 3 deadlines, 6 required forms, 3 tips), minimal data for CA/OH/VA/CO, graceful fallback when no state set, state pulled from /menus/rates | ✅ |
+| 139 | Update CACFPLink homepage — FEATURES expanded 8→12 (added Inspection Dashboard, Task System, Activity Feed, One-Click Audit Mode; updated AI Menu Builder → Menu Builder + Compliance Assistant); demo role highlights updated for all 4 roles; WhyCACFPLink table 8→12 rows; Hero subtitle updated | ✅ |
+| 134 | Production Records — digital meal production logs, auto-fill from menus | ⏳ |
+| 135 | Renewal Wizard — one-click annual paperwork renewal for sites | ⏳ |
+| 136 | Training tracking + expiration reminders — staff certificates | ⏳ |
+| 137 | Forms pre-fill — generate/pre-fill state forms from existing data | ⏳ |
+| 138 | State export adapters — TX-specific claim export format (defer until Charles actively needs it) | ⏳ |
 
 ---
 
@@ -746,6 +758,117 @@ All sourced from official Virginia CACFP Sponsors Association directory and Colo
 
 ---
 
+## Compliance Assistant (Tasks #131–#132) ✅ LIVE
+
+### What it is
+A built-in CACFP guidance panel inside the Menu Builder. Replaced the AI Generate Weekly Menu button (removed — costs money, unreliable). The panel is CACFPLink's differentiator: no other platform has an inline compliance reference that knows what you're currently editing.
+
+### Files
+- `src/pages/menus/MenuBuilderPage.jsx` — all logic lives here (no backend changes needed)
+
+### Architecture
+- `showHelp` state — toggles the panel open/closed
+- `helpContext` state — set to the current meal key (`'breakfast'`, `'lunch'`, `'snack'`, `'supper'`, `'infant'`) whenever `openCell()` is called — panel auto-expands that meal's section
+- `ComplianceAssistantPanel({ open, onClose, contextMeal, items, onOpenCell })` — pure UI component, receives items + openCell callback
+
+### Constants added to MenuBuilderPage.jsx
+```js
+NON_CREDITABLE   // 8 foods that don't count (condiments, fruit snacks, etc.)
+SEVERITY         // { critical, warning, info } → { dot, bg, border, text, fixText, label }
+MEAL_GUIDE       // per meal: emoji, label, required components array, tip
+COMMON_ERRORS    // 9 entries: { severity, icon, text, fix, citation }
+QA_DB            // 15 natural-language Q&A entries: { q: [keywords], a, severity, citation }
+```
+
+### Live issue detection
+Inside the panel, `liveIssues` is computed from the current `items` prop by running `validateMealClient()` + `getDayWGROk()` across all days and meals. Each issue is a clickable button that calls `onOpenCell(dayNum, mealKey)` to open the exact cell.
+
+### Severity system
+- 🟥 Critical — missing required component, wrong milk type
+- 🟨 Warning — WGR not met, expiring soon
+- 🟦 Info — substitution guidance, clarifications
+
+### Smart search
+Search input tries QA_DB keyword match first → then CACFP_FOODS food library → then NON_CREDITABLE. Returns answer + citation if QA match, food card if food match, "not creditable" warning if non-creditable match.
+
+### Next: Task #133 — State Resources tab
+Split panel into two tabs: **USDA Compliance** (current content, universal) + **State Resources** (state-specific: agency name, deadlines, portal link, required forms). Texas first (Charles is TX). Config data only — no engine changes.
+
+---
+
+## State Engine Architecture
+
+### The key insight
+CACFP meal pattern rules are **federal** — identical in all 50 states. Only the following change per state:
+- Reimbursement rates (tier 1/2 breakfast/lunch/snack/supper)
+- Claim deadlines (e.g., Texas: 60 days after month end via TDA / SquareMeals)
+- State agency name + portal URL
+- Required forms/exports
+
+### What's already built
+- 50 state config JSON files in `programlink-backend/programlink-backend/services/stateConfigs/` (AL.json through WY.json)
+- Each currently has: `name`, `rates` (tier1/tier2 × meal types), `agency` stub
+- Universal engine in `claimsEngine.js` — reads rates from config, applies to any state
+
+### What's deferred
+- Deadlines, portal links, required forms per state (just data, no code change)
+- State-specific export/PDF format adapters (defer until a real sponsor needs it — Charles/Texas first)
+- State-specific validation rules (almost none exist — USDA is the authority)
+
+### Build order for state engine
+1. ✅ Done — universal engine + 50 rate configs
+2. ✅ Done — state picker in registration + settings
+3. ✅ Done — state PDF export (generic format, branded per state)
+4. ⏳ Next — add deadlines + portal links to TX.json first, surface in State Resources tab (Task #133)
+5. ⏳ Later — TX-specific claim export format (Task #138), only when Charles needs it
+
+### Priority: Texas first
+Charles (cacfpsolutions.com) is from Texas. Texas CACFP is administered by Texas Department of Agriculture (TDA). Claims submitted via SquareMeals portal (squaremeals.org). TX-UNPS is the legacy claim system.
+
+No Ohio sponsor exists yet — do not prioritize Ohio.
+
+---
+
+## Facebook CACFP Group Feedback (Backlog — build after real sponsor confirms)
+
+These pain points came from a real Facebook CACFP group thread. Treat as confirmed real gaps — but **wait for sponsor feedback before building**.
+
+| Pain Point | What They Said | Task |
+|---|---|---|
+| Production records | "We have to log every meal we produce separately" | #134 — digital meal production logs, auto-fill from menus |
+| Annual renewals | "Every year we redo all the same paperwork" | #135 — renewal wizard, one-click re-use of previous year's data |
+| Staff training tracking | "We track certificate expiry in a spreadsheet" | #136 — training log + expiry reminders |
+| Forms pre-fill | "I fill in the same info on 6 different forms" | #137 — auto-generate/pre-fill state forms from existing data |
+
+**Rule:** Don't build these speculatively. Build when a sponsor or Alexia confirms it's blocking them.
+
+---
+
+## NCA Research Framework (Alexia's lens for future conversations)
+
+When talking to Alexia or any NCA contact, look for friction in these 4 areas:
+
+| Category | What to listen for |
+|---|---|
+| Technical Compliance | Meal pattern errors, WGR tracking, milk age rules, documentation gaps |
+| Operations | Production records, staff training, site inspections, annual renewals |
+| Training | New staff onboarding, CACFP certification, recurring compliance training |
+| Advocacy | State policy changes, USDA rule updates, audit preparation |
+
+For each pain point: ask "Is this something sponsors handle manually today?" If yes → it's a feature.
+
+---
+
+## Permanent Build Rules (set by Hashi — never override)
+
+- **Build tasks sequentially. No need to ask what's next — just start the next task.**
+- **No outreach emails on Friday, Saturday, Sunday.**
+- **Don't chase Charles or Deborah** — they'll reach out when ready. Only contact them if they message first.
+- **Ship improvements in days, not months.** Don't gold-plate. Build, push, move on.
+- **Build for Texas first** — Charles is the first real sponsor. Ohio is not a priority (no sponsor there yet).
+
+---
+
 ## Env Vars
 
 **Vercel (frontend):**
@@ -756,7 +879,7 @@ All sourced from official Virginia CACFP Sponsors Association directory and Colo
 - `JWT_SECRET`
 - `RESEND_API_KEY` — for transactional email (Resend)
 - `AWS_*` or storage keys — for document uploads
-- `ANTHROPIC_API_KEY` — for enrollment roster import (Task #118 — AI extraction from PDF/image)
+- `ANTHROPIC_API_KEY` — for enrollment roster import (Task #118 — AI extraction from PDF/image). Key IS set in Railway with a real value. AI Generate menu was intentionally removed (Task #130) — costs money per call. The key only powers the PDF/image roster scan in `/children/import/extract`.
 
 ---
 
