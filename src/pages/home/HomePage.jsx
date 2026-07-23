@@ -229,12 +229,12 @@ function Hero() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-5">
-              Stop managing CACFP with{' '}
-              <span className="text-brand-600">spreadsheets, emails, and phone calls.</span>
+              Run your entire CACFP program{' '}
+              <span className="text-brand-600">with confidence.</span>
             </h1>
 
             <p className="text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
-              Meal counts, claims, menus, child enrollment, documents, deliveries, inspections — all in one platform built for USDA food programs. Know your reimbursement status every single day.
+              Catch compliance issues early. Keep documents current. Build USDA-compliant menus. Validate claims before submission. Everything sponsors need — in one platform.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">
@@ -258,8 +258,8 @@ function Hero() {
             {/* Social proof chips */}
             <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-6">
               {[
-                'Built specifically for CACFP sponsors, kitchens, and meal sites',
-                'Designed around real compliance and reporting workflows',
+                'Catch compliance issues before they become rejected claims',
+                'Know your reimbursement status every single day',
                 'No credit card required',
               ].map((item) => (
                 <span key={item} className="flex items-center gap-1.5">
@@ -340,8 +340,7 @@ function ClaimIntelligenceSection() {
               ))}
             </div>
             <p className="text-xs text-violet-400 italic leading-relaxed border-l-2 border-violet-500 pl-4">
-              "A sponsor paying $200/month who recovers $4,128 in prevented disallowances gets a 20x return.
-              You're not buying software. You're buying recovered money."
+              "The goal isn't to help you file claims. It's to help you maximize every reimbursement dollar you're entitled to receive."
             </p>
           </div>
 
@@ -1771,39 +1770,25 @@ function PricingSection() {
 }
 
 // ─── ROI Calculator ──────────────────────────────────────────────────────────
-// CACFP FY2025 Tier 1 rates (approximate; used for illustration)
-const STATE_RATES = {
-  OH: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  TX: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  CA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  NY: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  FL: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  GA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  IL: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  PA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  NC: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  VA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  WA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  AZ: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  CO: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  IA: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
-  MN: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+// CACFP FY2025 federal reimbursement rates (USDA-set, same in all states)
+const TIER_RATES = {
+  tier1: { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 },
+  tier2: { breakfast: 0.36, lunch: 1.72, snack: 0.10, supper: 1.72 },
 };
-const DEFAULT_RATES = { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 };
 const OPERATING_DAYS = 20;
 
 function ROICalculator() {
   const [sites,       setSites]       = useState(5);
   const [enrollment,  setEnrollment]  = useState(30);
-  const [state,       setState]       = useState('OH');
+  const [tier,        setTier]        = useState('tier1');
   const [meals,       setMeals]       = useState({ breakfast: true, lunch: true, snack: true, supper: false });
 
   const { monthly, annual, daily } = useMemo(() => {
-    const rates  = STATE_RATES[state] ?? DEFAULT_RATES;
+    const rates  = TIER_RATES[tier] ?? TIER_RATES.tier1;
     const perDay = Object.entries(meals).reduce((sum, [m, on]) => on ? sum + (rates[m] ?? 0) : sum, 0);
     const monthly = Math.round(sites * enrollment * OPERATING_DAYS * perDay);
     return { monthly, annual: monthly * 12, daily: Math.round(sites * enrollment * perDay) };
-  }, [sites, enrollment, state, meals]);
+  }, [sites, enrollment, tier, meals]);
 
   function toggleMeal(m) {
     setMeals(prev => ({ ...prev, [m]: !prev[m] }));
@@ -1881,39 +1866,51 @@ function ROICalculator() {
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { key:'breakfast', label:'Breakfast', rate:1.70 },
-                    { key:'lunch',     label:'Lunch',     rate:3.22 },
-                    { key:'snack',     label:'Snack',     rate:0.96 },
-                    { key:'supper',    label:'Supper',    rate:3.22 },
-                  ].map(({ key, label, rate }) => (
-                    <button key={key} onClick={() => toggleMeal(key)}
-                      className={`flex flex-col items-center px-3 py-2 rounded-xl border-2 text-xs font-bold transition-colors ${
-                        meals[key]
-                          ? 'border-brand-400 bg-brand-50 text-brand-700'
-                          : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                      }`}>
-                      <span className="capitalize">{label}</span>
-                      <span className={`text-[10px] font-normal mt-0.5 ${meals[key] ? 'text-brand-500' : 'text-gray-300'}`}>
-                        ${rate.toFixed(2)}/child
-                      </span>
-                    </button>
-                  ))}
+                    { key:'breakfast', label:'Breakfast' },
+                    { key:'lunch',     label:'Lunch'     },
+                    { key:'snack',     label:'Snack'     },
+                    { key:'supper',    label:'Supper'    },
+                  ].map(({ key, label }) => {
+                    const rate = (TIER_RATES[tier] ?? TIER_RATES.tier1)[key];
+                    return (
+                      <button key={key} onClick={() => toggleMeal(key)}
+                        className={`flex flex-col items-center px-3 py-2 rounded-xl border-2 text-xs font-bold transition-colors ${
+                          meals[key]
+                            ? 'border-brand-400 bg-brand-50 text-brand-700'
+                            : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                        }`}>
+                        <span className="capitalize">{label}</span>
+                        <span className={`text-[10px] font-normal mt-0.5 ${meals[key] ? 'text-brand-500' : 'text-gray-300'}`}>
+                          ${rate.toFixed(2)}/child
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* State */}
+              {/* Program Tier */}
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-                  State
+                  Program Tier
                 </label>
-                <select value={state} onChange={e => setState(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400">
-                  {Object.keys(STATE_RATES).map(s => (
-                    <option key={s} value={s}>{s}</option>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'tier1', label: 'Tier 1', sub: 'Income-eligible sites' },
+                    { value: 'tier2', label: 'Tier 2', sub: 'All other sites' },
+                  ].map(({ value, label, sub }) => (
+                    <button key={value} onClick={() => setTier(value)}
+                      className={`flex flex-col items-start px-4 py-3 rounded-xl border-2 text-left transition-colors ${
+                        tier === value
+                          ? 'border-brand-400 bg-brand-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                      <span className={`text-sm font-bold ${tier === value ? 'text-brand-700' : 'text-gray-600'}`}>{label}</span>
+                      <span className={`text-[10px] mt-0.5 ${tier === value ? 'text-brand-500' : 'text-gray-400'}`}>{sub}</span>
+                    </button>
                   ))}
-                  <option value="OTHER">Other state</option>
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1.5">Rates shown are FY2025 Tier 1 estimates for illustration purposes.</p>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">Based on USDA FY2025 federal reimbursement rates. All states use the same federal rates.</p>
               </div>
             </div>
 
