@@ -354,6 +354,108 @@ async function sendMonthlyReportEmail(to, name, data) {
   });
 }
 
+// ── Weekly sponsor digest ─────────────────────────────────────────────────────
+// Sent every Monday at 7am UTC — a quick "here's where your claim stands" pulse.
+// Shorter than the monthly report; focused on immediate action items.
+async function sendWeeklyDigestEmail(to, name, {
+  weekOf,
+  monthName,
+  estimatedReimbursement,
+  sitesReady,
+  totalSites,
+  issueCount,
+  issues = [],         // [{ site, message, potentialLoss }]
+  claimsUrl,
+}) {
+  const fmt = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+  const atRisk = issues.reduce((sum, i) => sum + (i.potentialLoss || 0), 0);
+
+  const issueRows = issues.slice(0, 3).map(i => `
+    <tr>
+      <td style="padding:10px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">
+        <span style="color:#ef4444;font-weight:600;">●</span>&nbsp; ${i.site}
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">${i.message}</div>
+      </td>
+      <td style="padding:10px 12px;font-size:13px;font-weight:700;color:#ef4444;border-bottom:1px solid #f3f4f6;text-align:right;white-space:nowrap;">
+        ${fmt(i.potentialLoss || 0)} at risk
+      </td>
+    </tr>
+  `).join('');
+
+  const bodyContent = issueCount === 0
+    ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:20px;text-align:center;margin:20px 0;">
+        <div style="font-size:28px;margin-bottom:8px;">✅</div>
+        <p style="font-weight:700;color:#15803d;margin:0 0 4px;">All clear this week!</p>
+        <p style="color:#16a34a;font-size:13px;margin:0;">No issues flagged. Your program is on track for full reimbursement.</p>
+       </div>`
+    : `<p style="font-size:13px;color:#6b7280;margin:0 0 10px;">
+        <strong style="color:#374151;">${issueCount} issue${issueCount !== 1 ? 's' : ''} need attention</strong>
+        — fix ${issueCount === 1 ? 'it' : 'them'} before month-end to recover <strong style="color:#ef4444;">${fmt(atRisk)}</strong>.
+       </p>
+       <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;border-collapse:collapse;">
+         ${issueRows}
+         ${issues.length > 3 ? `<tr><td colspan="2" style="padding:8px 12px;font-size:12px;color:#6b7280;text-align:center;">+ ${issues.length - 3} more in the Claims Center</td></tr>` : ''}
+       </table>`;
+
+  return sendEmail({
+    to,
+    subject: `Your CACFP program — ${weekOf} | ${issueCount === 0 ? '✅ All clear' : `${issueCount} issue${issueCount !== 1 ? 's' : ''} to fix`}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#111;">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:24px 32px;border-radius:12px 12px 0 0;">
+          <p style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;">Weekly Program Pulse</p>
+          <h1 style="color:white;margin:0;font-size:20px;">CACFPLink</h1>
+          <p style="color:rgba(255,255,255,0.65);font-size:12px;margin:6px 0 0;">Week of ${weekOf} · ${monthName} claim in progress</p>
+        </div>
+
+        <!-- Body -->
+        <div style="border:1px solid #e5e7eb;border-top:none;padding:28px 32px;border-radius:0 0 12px 12px;background:#fff;">
+          <p style="font-size:15px;margin-top:0;">Hi ${name || 'there'},</p>
+          <p style="color:#6b7280;font-size:14px;">Here's a quick look at where your ${monthName} claim stands right now.</p>
+
+          <!-- 3 stat boxes -->
+          <div style="display:flex;gap:12px;margin:20px 0;">
+            <div style="flex:1;background:#f5f3ff;border:1px solid #ede9fe;border-radius:10px;padding:14px 12px;text-align:center;">
+              <p style="font-size:10px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">Est. Reimbursement</p>
+              <p style="font-size:20px;font-weight:800;color:#4f46e5;margin:0;">${fmt(estimatedReimbursement)}</p>
+              <p style="font-size:10px;color:#a78bfa;margin:4px 0 0;">this month so far</p>
+            </div>
+            <div style="flex:1;background:${issueCount === 0 ? '#f0fdf4' : '#fff7ed'};border:1px solid ${issueCount === 0 ? '#bbf7d0' : '#fed7aa'};border-radius:10px;padding:14px 12px;text-align:center;">
+              <p style="font-size:10px;font-weight:600;color:${issueCount === 0 ? '#15803d' : '#c2410c'};text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">Issues</p>
+              <p style="font-size:20px;font-weight:800;color:${issueCount === 0 ? '#16a34a' : '#ea580c'};margin:0;">${issueCount}</p>
+              <p style="font-size:10px;color:${issueCount === 0 ? '#4ade80' : '#f97316'};margin:4px 0 0;">${issueCount === 0 ? 'none found' : 'need attention'}</p>
+            </div>
+            <div style="flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 12px;text-align:center;">
+              <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 4px;">Sites Ready</p>
+              <p style="font-size:20px;font-weight:800;color:#0f172a;margin:0;">${sitesReady}<span style="font-size:13px;font-weight:400;color:#94a3b8;">/${totalSites}</span></p>
+              <p style="font-size:10px;color:#94a3b8;margin:4px 0 0;">meal counts submitted</p>
+            </div>
+          </div>
+
+          ${bodyContent}
+
+          <!-- CTA -->
+          <div style="text-align:center;margin:24px 0 16px;">
+            <a href="${claimsUrl}"
+               style="display:inline-block;background:#4f46e5;color:white;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">
+              Open Claims Center →
+            </a>
+          </div>
+
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+          <p style="color:#9ca3af;font-size:11px;margin:0;text-align:center;">
+            — Hashi at CACFPLink<br/>
+            <a href="${FRONTEND_URL}/login" style="color:#6366f1;">Dashboard</a> ·
+            <a href="${claimsUrl}" style="color:#6366f1;">Claims Center</a>
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 // Backwards-compatible alias
 const sendKitchenInviteEmail = (to, contactName, orgName, inviteUrl) =>
   sendInviteEmail(to, contactName, orgName, 'kitchen manager', inviteUrl);
@@ -366,4 +468,5 @@ module.exports = {
   sendInviteEmail,
   sendKitchenInviteEmail,
   sendMonthlyReportEmail,
+  sendWeeklyDigestEmail,
 };

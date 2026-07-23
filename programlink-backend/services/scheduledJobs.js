@@ -14,7 +14,14 @@
 //      Finds sites/kitchens that haven't submitted a count for today
 //      and sends a reminder to all active users in that org.
 //
-//   4. Monthly sponsor report  — 9am UTC on the 28th of each month
+//   4. Enrollment expiry alerts — 9am daily
+//      Fires alerts for enrollment forms expiring in exactly 30 or 7 days.
+//
+//   5. Weekly sponsor digest   — 7am UTC every Monday
+//      Short "where your claim stands" pulse email: estimated reimbursement,
+//      issues to fix, sites ready. Keeps sponsors engaged between monthly reports.
+//
+//   6. Monthly sponsor report  — 9am UTC on the 28th of each month
 //      Sends every active sponsor a program summary: estimated reimbursement,
 //      sites ready, flagged issues — before most state CACFP claim deadlines.
 
@@ -24,7 +31,7 @@ const fs   = require('fs');
 const path = require('path');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
-const { sendDocumentExpiryEmail, sendMonthlyReportEmail } = require('./emailService');
+const { sendDocumentExpiryEmail, sendMonthlyReportEmail, sendWeeklyDigestEmail } = require('./emailService');
 const { generateTodayDeliveries } = require('../controllers/deliveryPlansController');
 
 // ─── Job 1: Document expiry alerts ───────────────────────────────────────────
@@ -413,6 +420,150 @@ async function sendMonthlyReports() {
   }
 }
 
+// ─── Job 5: Weekly sponsor digest email ──────────────────────────────────────
+// Runs every Monday at 7:00am UTC.
+// Sends each active sponsor a quick "where your claim stands" pulse —
+// shorter than the monthly report, focused on immediate action items.
+
+async function sendWeeklyDigests() {
+  console.log('[cron] Running weekly sponsor digest job…');
+
+  const now       = new Date();
+  const year      = now.getFullYear();
+  const month     = now.getMonth() + 1;
+  const monthStr  = `${year}-${String(month).padStart(2, '0')}`;
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthStart = `${monthStr}-01`;
+  const monthEnd   = new Date(year, month, 1).toISOString().split('T')[0];
+
+  // "Week of Jul 21, 2026" label
+  const weekOf = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  function getStateRates(region) {
+    try {
+      const cfgPath = path.join(__dirname, 'stateConfigs', `${region}.json`);
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const t1 = cfg.rates?.tier1 ?? cfg.rates;
+      return {
+        breakfast: t1?.breakfast ?? 1.70,
+        lunch:     t1?.lunch     ?? 3.22,
+        snack:     t1?.snack     ?? 0.96,
+        supper:    t1?.supper    ?? 3.22,
+      };
+    } catch {
+      return { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 };
+    }
+  }
+
+  try {
+    const sponsorsRes = await pool.query(`
+      SELECT DISTINCT ON (u.org_id)
+        u.id AS user_id, u.email, u.name,
+        o.id AS org_id, o.name AS org_name, o.region
+      FROM users u
+      JOIN organizations o ON u.org_id = o.id
+      WHERE u.role = 'sponsor'
+        AND u.is_active  = TRUE
+        AND u.is_verified = TRUE
+        AND o.region IS NOT NULL
+        AND o.region != ''
+      ORDER BY u.org_id, u.created_at ASC
+    `);
+
+    if (!sponsorsRes.rows.length) {
+      console.log('[cron] No active sponsors with state configured. Skipping weekly digests.');
+      return;
+    }
+
+    let sent = 0;
+
+    for (const sponsor of sponsorsRes.rows) {
+      try {
+        const rates = getStateRates(sponsor.region);
+
+        const sitesRes = await pool.query(
+          `SELECT id, name FROM organizations WHERE sponsor_id = $1 AND type = 'site' AND status = 'active'`,
+          [sponsor.org_id]
+        );
+        const allSites   = sitesRes.rows;
+        const totalSites = allSites.length;
+        if (totalSites === 0) continue;
+
+        const siteIds = allSites.map(s => s.id);
+
+        const countsRes = await pool.query(`
+          SELECT org_id,
+            SUM(breakfast) AS b, SUM(lunch) AS l, SUM(snack) AS s, SUM(supper) AS sp
+          FROM meal_counts
+          WHERE org_id = ANY($1) AND date >= $2 AND date < $3
+          GROUP BY org_id
+        `, [siteIds, monthStart, monthEnd]);
+
+        const countsByOrg = {};
+        for (const r of countsRes.rows) {
+          countsByOrg[r.org_id] = {
+            breakfast: Number(r.b) || 0, lunch: Number(r.l) || 0,
+            snack: Number(r.s) || 0,     supper: Number(r.sp) || 0,
+          };
+        }
+
+        let estimatedReimbursement = 0;
+        const issues = [];
+        let sitesReady = 0;
+
+        for (const site of allSites) {
+          const c = countsByOrg[site.id];
+          if (c) {
+            estimatedReimbursement +=
+              c.breakfast * rates.breakfast + c.lunch * rates.lunch +
+              c.snack * rates.snack + c.supper * rates.supper;
+            sitesReady++;
+          } else {
+            const potential = Math.round(20 * 30 * (rates.breakfast + rates.lunch + rates.snack));
+            issues.push({ site: site.name, message: 'No meal counts submitted this month', potentialLoss: potential });
+          }
+        }
+
+        const expiredDocsRes = await pool.query(`
+          SELECT o.name AS org_name, d.label, d.status
+          FROM documents d
+          JOIN organizations o ON d.org_id = o.id
+          WHERE d.org_id = ANY($1) AND d.status IN ('expired', 'missing')
+          ORDER BY o.name LIMIT 3
+        `, [siteIds]);
+
+        for (const doc of expiredDocsRes.rows) {
+          issues.push({
+            site:         doc.org_name,
+            message:      `${doc.status === 'expired' ? 'Expired' : 'Missing'} document: ${doc.label}`,
+            potentialLoss: Math.round(estimatedReimbursement / Math.max(totalSites, 1)),
+          });
+        }
+
+        const claimsUrl = `${process.env.FRONTEND_URL || 'https://cacfplink.com'}/dashboard/sponsor/claims`;
+
+        await sendWeeklyDigestEmail(sponsor.email, sponsor.name || 'there', {
+          weekOf, monthName,
+          estimatedReimbursement: Math.round(estimatedReimbursement),
+          sitesReady, totalSites,
+          issueCount: issues.length,
+          issues,
+          claimsUrl,
+        });
+
+        sent++;
+        console.log(`[cron] Weekly digest sent → ${sponsor.email}`);
+      } catch (sponsorErr) {
+        console.error(`[cron] Weekly digest failed for ${sponsor.email}:`, sponsorErr.message);
+      }
+    }
+
+    console.log(`[cron] Weekly digests done — sent to ${sent}/${sponsorsRes.rows.length} sponsors.`);
+  } catch (err) {
+    console.error('[cron] Weekly digest job failed:', err.message);
+  }
+}
+
 // ─── Self-ping: keeps Railway from sleeping ───────────────────────────────────
 // Pings /health every 5 minutes so Railway's free tier never idles the process.
 function selfPing() {
@@ -451,12 +602,17 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
+  // Weekly sponsor digest — 7:00am UTC every Monday
+  cron.schedule('0 7 * * 1', sendWeeklyDigests, {
+    timezone: 'UTC',
+  });
+
   // Monthly sponsor report — 9:00am UTC on the 28th of each month
   cron.schedule('0 9 28 * *', sendMonthlyReports, {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm, monthly report @ 28th UTC)');
+  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm, weekly digest @ Mon 7am, monthly report @ 28th UTC)');
 }
 
-module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries, sendMonthlyReports };
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries, sendMonthlyReports, sendWeeklyDigests };
