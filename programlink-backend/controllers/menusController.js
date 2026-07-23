@@ -279,6 +279,11 @@ async function generateMenu(req, res) {
     const { organizationId, id: userId } = req.user;
     const { preferences = '' } = req.body;
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('generateMenu: ANTHROPIC_API_KEY is not set in environment variables');
+      return res.status(503).json({ error: 'AI generation is not configured. Contact support.' });
+    }
+
     const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND org_id=$2`, [menuId, organizationId]);
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
 
@@ -334,7 +339,7 @@ Rules:
     await pool.query(`UPDATE menus SET updated_at=NOW() WHERE id=$1`, [menuId]);
     res.json({ items: inserted, count: inserted.length });
   } catch (err) {
-    console.error('generateMenu error:', err);
+    console.error('generateMenu error:', err.message, err.status ?? '', err.error ?? '');
     res.status(500).json({ error: 'AI generation failed — try again' });
   }
 }
