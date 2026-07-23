@@ -35,6 +35,11 @@ export default function Login() {
       const destination = ROLE_ROUTES[user.role] || '/dashboard';
       navigate(destination, { replace: true });
     } catch (err) {
+      // If email isn't verified, send them to CheckEmailPage with a resend button
+      if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        navigate('/check-email', { state: { email } });
+        return;
+      }
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);

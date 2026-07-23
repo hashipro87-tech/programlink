@@ -733,6 +733,17 @@ California outreach (2026-07-15): 10 sponsor emails drafted and sent:
 
 All sourced from the official CDSS CACFP Day Care Home Sponsors directory.
 
+Virginia + Colorado outreach (2026-07-23): 7 sponsor emails drafted — saved to Desktop/outputs/outreach-va-co-july-2026.md:
+1. ChildSavers (Richmond, VA) — CACFP@childsavers.org — Hali Riley — covers Richmond + central/southern VA
+2. Child Care Resources, Inc. (Richmond, VA) — Support@ccresourcesinc.org — Donald Reese Goff — covers nearly all of Virginia
+3. The Planning Council (Norfolk, VA) — llyons@theplanningcouncil.org — Lisa Lyons — Hampton Roads/Norfolk region
+4. Kids' Nutrition Company (Lakewood, CO) — kidsnutritionco@kncinc.org — Deirdre Byerly — Denver metro + front range
+5. Southwest Food Program, Inc. (Colorado Springs, CO) — southwestcacfp@gmail.com — Carrie Dyster — covers most of Colorado
+6. Kidcare Nutrition Sponsor (Greeley, CO) — kidcarenutrition@yahoo.com — Laura McCabe — northern Colorado + Denver metro
+7. Colorado Food Cluster (Denver metro) — kristen.collins@coloradofoodcluster.com — Kristen Collins — Denver area + delivers to home providers
+
+All sourced from official Virginia CACFP Sponsors Association directory and Colorado CDPHE FCCH Sponsor Contact List.
+
 ---
 
 ## Env Vars
