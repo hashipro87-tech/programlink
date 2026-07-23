@@ -6,7 +6,7 @@ import {
   UtensilsCrossed, Plus, X, ChevronLeft, ChevronRight,
   CheckCircle2, AlertCircle, AlertTriangle, Wheat, Copy,
   FileCheck, Loader2, CopyCheck, Star, MessageSquare,
-  Trash2, BookOpen, Baby, DollarSign, Search, HelpCircle,
+  Trash2, BookOpen, Baby, DollarSign, Search,
   ChevronDown, ChevronUp, ShieldCheck, AlertOctagon,
 } from 'lucide-react';
 import api from '../../services/api';
@@ -188,15 +188,71 @@ const MEAL_GUIDE = {
   },
 };
 
+const SEVERITY = {
+  critical: { dot: '🟥', bg: 'bg-red-50',   border: 'border-red-200',   text: 'text-red-800',   fixText: 'text-red-600',   label: 'Critical' },
+  warning:  { dot: '🟨', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', fixText: 'text-amber-600', label: 'Warning'  },
+  info:     { dot: '🟦', bg: 'bg-blue-50',  border: 'border-blue-200',  text: 'text-blue-800',  fixText: 'text-blue-600',  label: 'Info'     },
+};
+
 const COMMON_ERRORS = [
-  { icon: '🥦', text: 'Missing vegetable at lunch/supper', fix: 'Add a vegetable item (even ¼ cup counts)' },
-  { icon: '🥛', text: 'Wrong milk type for age group', fix: 'Age 1 = whole milk · Age 2+ = low-fat or fat-free' },
-  { icon: '🌾', text: 'No Whole Grain Rich grain in the day', fix: 'At least 1 grain per day must be WGR — check the WGR box when adding it' },
-  { icon: '🍎', text: 'Same food counted as fruit AND vegetable', fix: 'Fruit and vegetable must be different foods at lunch/supper' },
-  { icon: '🥩', text: 'Missing meat/meat alternate at lunch or supper', fix: 'Eggs, cheese, yogurt, beans, peanut butter, and tofu all qualify' },
-  { icon: '🧃', text: 'Juice served more than once per day', fix: '100% juice is creditable but limited to 1 serving per day per child' },
-  { icon: '🍽️', text: 'Snack has only 1 component instead of 2', fix: 'Snacks require any 2 of the 5 components' },
-  { icon: '🍼', text: 'Infant meal missing formula/breast milk', fix: 'Breast milk or iron-fortified formula is required for all infant meals' },
+  { severity: 'critical', icon: '🥦', text: 'Missing vegetable at lunch/supper',       fix: 'Add a vegetable item (even ¼ cup counts).', citation: '7 CFR §226.20(a)' },
+  { severity: 'critical', icon: '🥛', text: 'Wrong milk type for age group',             fix: 'Age 1: whole milk · Age 2+: low-fat (1%) or fat-free.', citation: '7 CFR §226.20(a)(1)' },
+  { severity: 'critical', icon: '🥩', text: 'Missing meat/meat alternate at lunch/supper', fix: 'Eggs, cheese, yogurt, beans, peanut butter, and tofu all qualify.', citation: '7 CFR §226.20(a)' },
+  { severity: 'critical', icon: '🍎', text: 'Same food counted as fruit AND vegetable', fix: 'Fruit and vegetable must be two different foods.', citation: '7 CFR §226.20(a)' },
+  { severity: 'critical', icon: '🍼', text: 'Infant meal missing formula/breast milk',  fix: 'Breast milk or iron-fortified formula is required for all infant meals.', citation: '7 CFR §226.20(b)' },
+  { severity: 'warning',  icon: '🌾', text: 'No Whole Grain Rich grain for the day',    fix: 'At least 1 grain per day must be WGR — check the 🌾 box when adding it.', citation: 'USDA CACFP WGR Criteria' },
+  { severity: 'warning',  icon: '🍽️', text: 'Snack has only 1 component',              fix: 'Snacks require any 2 of the 5 components (Milk, Grain, Protein, Fruit, Vegetable).', citation: '7 CFR §226.20(a)' },
+  { severity: 'info',     icon: '🧃', text: 'Juice can only count once per day',        fix: '100% juice is creditable as fruit but is limited to 1 serving per day per child.', citation: '7 CFR §226.20(a)' },
+  { severity: 'info',     icon: '🫘', text: 'Beans/legumes — count as protein OR vegetable, not both', fix: 'Choose one role per meal. They cannot fill two components simultaneously.', citation: '7 CFR §226.20(a)' },
+];
+
+// ── Smart Q&A Search Database ─────────────────────────────────────────────────
+const QA_DB = [
+  { q: ['yogurt','can yogurt','yogurt count'],
+    a: 'Yes — plain or flavored yogurt is creditable as Meat/Meat Alternate. 4 oz (½ cup) = 1 oz equivalent.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['what milk','milk age','milk for 2','milk for 3','milk year','toddler milk','whole milk','low fat milk'],
+    a: 'Age 1: whole milk required. Ages 2+: low-fat (1%) or fat-free milk required. Whole milk is NOT allowed for age 2+.',
+    severity: 'critical', citation: '7 CFR §226.20(a)(1)' },
+  { q: ['beans','can beans','beans twice','legumes','count twice'],
+    a: 'No — beans and legumes count as either Protein OR Vegetable in a single meal. They cannot fill both components.',
+    severity: 'critical', citation: '7 CFR §226.20(a)' },
+  { q: ['whole grain','wgr','whole grain rich','what qualifies','grain qualify'],
+    a: 'A grain is WGR when ≥51% of the grain ingredients are whole grain, listed first on the label. Examples: whole wheat bread, oatmeal, brown rice.',
+    severity: 'info', citation: 'USDA CACFP WGR Criteria' },
+  { q: ['juice','can juice','juice count','orange juice','apple juice'],
+    a: '100% fruit juice counts as a fruit component but only once per day per child. Whole fruit is always preferred.',
+    severity: 'warning', citation: '7 CFR §226.20(a)' },
+  { q: ['peanut butter','can peanut'],
+    a: '2 tablespoons of peanut butter = 1 oz meat alternate. Creditable at lunch, supper, or snack.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['eggs','can eggs','egg count'],
+    a: '1 large egg = 1 oz meat alternate. Creditable at any meal.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['tofu','can tofu'],
+    a: '4 oz (½ cup) of tofu = 1 oz meat alternate. Must be firm enough to measure by volume.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['cheese','can cheese'],
+    a: '1 oz of natural cheese = 1 oz meat alternate. Creditable at any CACFP meal.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['infant cereal','baby food','infant'],
+    a: 'Iron-fortified infant cereal is creditable only for infants (under 12 months). For children 1+, use regular grain products.',
+    severity: 'critical', citation: '7 CFR §226.20(b)' },
+  { q: ['snack','how many snack','snack components'],
+    a: 'Snacks require any 2 of 5 components: Milk · Grain/Bread · Meat/Meat Alternate · Fruit · Vegetable.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['chocolate milk','flavored milk'],
+    a: 'Low-fat flavored milk (e.g. chocolate) is creditable only for children 6 years and older.',
+    severity: 'critical', citation: '7 CFR §226.20(a)(1)' },
+  { q: ['ketchup','condiment','sauce','pickle'],
+    a: 'Ketchup, condiments, and pickles do NOT count as a vegetable. Only whole or minimally processed vegetables are creditable.',
+    severity: 'critical', citation: 'USDA CACFP Creditable Foods Guide' },
+  { q: ['hummus'],
+    a: 'Hummus (chickpea-based) is creditable as a Meat/Meat Alternate. 2 oz (¼ cup) = 1 oz equivalent.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
+  { q: ['cottage cheese'],
+    a: '4 oz (½ cup) of cottage cheese = 1 oz meat alternate.',
+    severity: 'info', citation: '7 CFR §226.20(a)' },
 ];
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -368,125 +424,209 @@ function DuplicateDayModal({ fromDay, onConfirm, onClose, busy }) {
 }
 
 // ── Compliance Assistant Panel ────────────────────────────────────────────────
-function ComplianceAssistantPanel({ open, onClose, contextMeal }) {
-  const [search, setSearch]     = useState('');
-  const [expanded, setExpanded] = useState({ meals: true, wgr: false, milk: false, infant: false, errors: false });
+function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOpenCell }) {
+  const [search, setSearch]       = useState('');
+  const [expanded, setExpanded]   = useState({ issues: true, meals: false, wgr: false, milk: false, infant: false, errors: false, claims: false });
   const [activeMeal, setActiveMeal] = useState(null);
-  const mealRef = useRef(null);
 
-  // Auto-expand meal section when a cell is opened
   useEffect(() => {
     if (contextMeal && open) {
-      setExpanded(e => ({ ...e, meals: true }));
       setActiveMeal(contextMeal);
+      setExpanded(e => ({ ...e, meals: true }));
     }
   }, [contextMeal, open]);
 
   const toggle = (key) => setExpanded(e => ({ ...e, [key]: !e[key] }));
 
-  // Search across creditable + non-creditable foods
-  const searchResults = search.length > 1 ? [
-    ...CACFP_FOODS
-      .filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-      .slice(0, 8)
-      .map(f => ({ ...f, creditable: true })),
-    ...NON_CREDITABLE
-      .filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-      .map(f => ({ ...f, creditable: false })),
-  ] : [];
+  // ── Compute live issues from current menu items ──────────────────────────────
+  const liveIssues = [];
+  if (items.length > 0) {
+    DAYS.forEach(day => {
+      const dayItems = items.filter(i => i.day_of_week === day.num);
+      if (!dayItems.length) return;
+      MEALS.forEach(meal => {
+        const mealItems = dayItems.filter(i => i.meal_type === meal.key);
+        if (!mealItems.length) return;
+        validateMealClient(mealItems, meal.key).forEach(missing => {
+          liveIssues.push({ dayNum: day.num, dayLabel: day.short, mealKey: meal.key, mealLabel: meal.label, missing, severity: 'critical', citation: '7 CFR §226.20(a)' });
+        });
+      });
+      if (getDayWGROk(dayItems) === false) {
+        liveIssues.push({ dayNum: day.num, dayLabel: day.short, mealKey: 'breakfast', mealLabel: 'Breakfast', missing: 'Whole Grain Rich grain', severity: 'warning', citation: 'USDA CACFP WGR Criteria' });
+      }
+    });
+  }
 
-  const compEmoji = (comp) => {
-    const map = { milk: '🥛', grain: '🌾', protein: '🥩', fruit: '🍎', vegetable: '🥦', other: '➕' };
-    return map[comp] || '🍽️';
-  };
+  // ── Prevent Claim Issues checklist ──────────────────────────────────────────
+  const hasItems = items.length > 0;
+  const criticalCount = liveIssues.filter(i => i.severity === 'critical').length;
+  const warnCount     = liveIssues.filter(i => i.severity === 'warning').length;
+  const checks = [
+    { label: 'Meal components complete',      ok: hasItems && criticalCount === 0 },
+    { label: 'Whole Grain Rich met daily',    ok: hasItems && warnCount === 0 },
+    { label: 'No duplicate fruit/vegetable',  ok: hasItems },
+    { label: 'All meals have required items', ok: hasItems && criticalCount === 0 },
+    { label: 'Ready for reimbursement',       ok: hasItems && criticalCount === 0 && warnCount === 0 },
+  ];
+
+  // ── Smart search: Q&A → creditable foods → non-creditable ───────────────────
+  const q = search.trim().toLowerCase();
+  const qaHits   = q.length > 1 ? QA_DB.filter(entry => entry.q.some(kw => kw.includes(q) || q.includes(kw))) : [];
+  const foodHits = q.length > 1 ? CACFP_FOODS.filter(f => f.name.toLowerCase().includes(q)).slice(0, 6) : [];
+  const badHits  = q.length > 1 ? NON_CREDITABLE.filter(f => f.name.toLowerCase().includes(q)) : [];
+  const hasResults = qaHits.length || foodHits.length || badHits.length;
+
+  const compEmoji = (c) => ({ milk:'🥛', grain:'🌾', protein:'🥩', fruit:'🍎', vegetable:'🥦' }[c] || '➕');
 
   if (!open) return null;
 
   return (
     <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
+
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 flex-shrink-0 bg-brand-600">
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 flex-shrink-0 bg-brand-600">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-white" />
+          <ShieldCheck className="w-4 h-4 text-white" />
           <h2 className="font-bold text-white text-sm">Compliance Assistant</h2>
         </div>
-        <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+        <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-4 h-4" /></button>
       </div>
 
-      {/* Search */}
+      {/* Smart Search */}
       <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder='Search any food (e.g. "yogurt")…'
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-brand-400"
-          />
-          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X className="w-3.5 h-3.5" /></button>}
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder='Ask anything — "yogurt", "milk age 2", "beans twice"…'
+            className="w-full pl-9 pr-8 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-brand-400" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X className="w-3 h-3" /></button>}
         </div>
 
-        {/* Search results */}
-        {searchResults.length > 0 && (
-          <div className="mt-2 space-y-1.5 max-h-52 overflow-y-auto">
-            {searchResults.map((f, i) => (
-              <div key={i} className={`rounded-xl px-3 py-2 text-xs ${f.creditable ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'}`}>
-                <div className="flex items-center gap-2">
-                  <span>{f.creditable ? '✅' : '❌'}</span>
-                  <span className="font-semibold text-gray-800">{f.name}</span>
-                  {f.creditable && f.wgr && <span className="ml-auto text-amber-600 font-semibold">🌾 WGR</span>}
+        {q.length > 1 && (
+          <div className="mt-2 space-y-1.5 max-h-56 overflow-y-auto">
+            {/* Q&A answers first */}
+            {qaHits.map((hit, i) => {
+              const s = SEVERITY[hit.severity];
+              return (
+                <div key={i} className={`rounded-xl border px-3 py-2 ${s.bg} ${s.border}`}>
+                  <p className="text-xs font-semibold text-gray-800">{s.dot} {hit.a}</p>
+                  <p className="text-xs text-gray-400 mt-1">Source: USDA CACFP · {hit.citation}</p>
                 </div>
-                {f.creditable ? (
-                  <p className="mt-0.5 text-gray-500 pl-6">{compEmoji(f.component)} {f.component?.replace('_', '/')} component</p>
-                ) : (
-                  <p className="mt-0.5 text-red-600 pl-6">{f.reason}</p>
-                )}
+              );
+            })}
+            {/* Creditable foods */}
+            {foodHits.map((f, i) => (
+              <div key={i} className="rounded-xl border border-green-100 bg-green-50 px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span>✅</span>
+                  <span className="text-xs font-semibold text-gray-800">{f.name}</span>
+                  {f.wgr && <span className="ml-auto text-xs text-amber-600 font-semibold">🌾 WGR</span>}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5 pl-5">{compEmoji(f.component)} {f.component} component</p>
               </div>
             ))}
+            {/* Non-creditable */}
+            {badHits.map((f, i) => (
+              <div key={i} className="rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+                <div className="flex items-center gap-1.5"><span>❌</span><span className="text-xs font-semibold text-gray-800">{f.name}</span></div>
+                <p className="text-xs text-red-600 mt-0.5 pl-5">{f.reason}</p>
+              </div>
+            ))}
+            {!hasResults && <p className="text-xs text-gray-400 text-center py-2">No results — try "yogurt", "milk age", "can beans count twice"</p>}
           </div>
-        )}
-        {search.length > 1 && searchResults.length === 0 && (
-          <p className="text-xs text-gray-400 mt-2 text-center">No results — try a different term</p>
         )}
       </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+
+        {/* Live Issues (this week) */}
+        <div>
+          <button onClick={() => toggle('issues')}
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
+            <span className="flex items-center gap-2">
+              <AlertOctagon className="w-3.5 h-3.5 text-red-500" />
+              This Week's Issues
+              {liveIssues.length > 0 && <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{liveIssues.length}</span>}
+            </span>
+            {expanded.issues ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+          </button>
+          {expanded.issues && (
+            <div className="px-4 pb-3 space-y-1.5">
+              {liveIssues.length === 0 && (
+                <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-3 text-center">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-green-700">{hasItems ? 'No issues detected' : 'Add meals to check compliance'}</p>
+                </div>
+              )}
+              {liveIssues.map((issue, i) => {
+                const s = SEVERITY[issue.severity];
+                return (
+                  <button key={i} onClick={() => { onOpenCell?.(issue.dayNum, issue.mealKey); }}
+                    className={`w-full text-left rounded-xl border px-3 py-2 ${s.bg} ${s.border} hover:opacity-80 transition-opacity group`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-xs font-semibold ${s.text}`}>{s.dot} {issue.dayLabel} {issue.mealLabel} — missing {issue.missing}</p>
+                      <span className="text-xs text-gray-400 group-hover:text-brand-600 flex-shrink-0">Fix →</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">{issue.citation}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Prevent Claim Issues */}
+        <div>
+          <button onClick={() => toggle('claims')}
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Prevent Claim Issues</span>
+            {expanded.claims ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+          </button>
+          {expanded.claims && (
+            <div className="px-4 pb-3 space-y-1">
+              {checks.map((c, i) => (
+                <div key={i} className={`flex items-center gap-2.5 py-2 border-b border-gray-50 last:border-0`}>
+                  {c.ok
+                    ? <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    : <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                  <span className={`text-xs font-medium ${c.ok ? 'text-green-700' : 'text-gray-500'}`}>{c.label}</span>
+                </div>
+              ))}
+              <p className="text-xs text-gray-400 text-center pt-2">USDA CACFP Meal Pattern · 7 CFR Part 226</p>
+            </div>
+          )}
+        </div>
 
         {/* Meal Components */}
-        <div className="border-b border-gray-100">
+        <div>
           <button onClick={() => toggle('meals')}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
             <span>🍽️ Meal Components</span>
-            {expanded.meals ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded.meals ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
           {expanded.meals && (
             <div className="px-4 pb-3 space-y-2">
               {Object.entries(MEAL_GUIDE).map(([mealKey, guide]) => (
-                <div key={mealKey} className={`rounded-xl border overflow-hidden ${
-                  activeMeal === mealKey ? 'border-brand-300 bg-brand-50' : 'border-gray-100'
-                }`}>
-                  <button
-                    onClick={() => setActiveMeal(activeMeal === mealKey ? null : mealKey)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+                <div key={mealKey} className={`rounded-xl border overflow-hidden ${activeMeal === mealKey ? 'border-brand-300 bg-brand-50' : 'border-gray-100'}`}>
+                  <button onClick={() => setActiveMeal(activeMeal === mealKey ? null : mealKey)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50">
                     <span>{guide.emoji} {guide.label}</span>
-                    {activeMeal === mealKey ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+                    {activeMeal === mealKey ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
                   </button>
                   {activeMeal === mealKey && (
                     <div className="px-3 pb-3 space-y-1.5">
                       {guide.components.map((c, i) => (
                         <div key={i} className="flex items-start gap-2">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-green-500 mt-0.5 text-xs flex-shrink-0">✓</span>
                           <div>
                             <p className="text-xs font-semibold text-gray-800">{c.name}</p>
                             {c.note && <p className="text-xs text-gray-500">{c.note}</p>}
                           </div>
                         </div>
                       ))}
-                      {guide.tip && (
-                        <div className="mt-2 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 text-xs text-amber-800">
-                          💡 {guide.tip}
-                        </div>
-                      )}
+                      {guide.tip && <div className="mt-2 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 text-xs text-amber-800">💡 {guide.tip}</div>}
+                      <p className="text-xs text-gray-400 pt-1">Source: USDA CACFP Meal Pattern · 7 CFR §226.20</p>
                     </div>
                   )}
                 </div>
@@ -496,116 +636,113 @@ function ComplianceAssistantPanel({ open, onClose, contextMeal }) {
         </div>
 
         {/* Whole Grain Rich */}
-        <div className="border-b border-gray-100">
+        <div>
           <button onClick={() => toggle('wgr')}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
             <span>🌾 Whole Grain Rich</span>
-            {expanded.wgr ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded.wgr ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
           {expanded.wgr && (
             <div className="px-4 pb-4 space-y-3">
-              <p className="text-xs text-gray-600">A food is Whole Grain Rich when <strong>≥51% of the grain ingredients are whole grain</strong>, and it's listed first on the ingredient label.</p>
+              <p className="text-xs text-gray-600">A food is WGR when <strong>≥51% of grain ingredients are whole grain</strong>, listed first on the label.</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-green-50 border border-green-100 rounded-xl p-2.5">
-                  <p className="text-xs font-bold text-green-700 mb-1.5">✅ WGR Examples</p>
-                  {['Whole wheat bread', 'Oatmeal', 'Brown rice', 'Whole grain tortilla', 'Whole wheat pasta', 'Whole grain cereal'].map(f => (
-                    <p key={f} className="text-xs text-green-700">• {f}</p>
-                  ))}
+                  <p className="text-xs font-bold text-green-700 mb-1">✅ WGR</p>
+                  {['Whole wheat bread','Oatmeal','Brown rice','Whole grain tortilla','Whole wheat pasta'].map(f => <p key={f} className="text-xs text-green-700">• {f}</p>)}
                 </div>
                 <div className="bg-red-50 border border-red-100 rounded-xl p-2.5">
-                  <p className="text-xs font-bold text-red-700 mb-1.5">❌ Not WGR</p>
-                  {['White bread', 'White rice', 'Saltine crackers', 'Dinner roll', 'Cornbread', 'Biscuit'].map(f => (
-                    <p key={f} className="text-xs text-red-700">• {f}</p>
-                  ))}
+                  <p className="text-xs font-bold text-red-700 mb-1">❌ Not WGR</p>
+                  {['White bread','White rice','Saltine crackers','Dinner roll','Cornbread'].map(f => <p key={f} className="text-xs text-red-700">• {f}</p>)}
                 </div>
               </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800">
-                💡 <strong>Rule:</strong> At least 1 grain per day must be WGR. Check the 🌾 box when adding that item.
-              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 text-xs text-amber-800">🟨 At least 1 grain per day must be WGR.</div>
+              <p className="text-xs text-gray-400">Source: USDA CACFP WGR Criteria</p>
             </div>
           )}
         </div>
 
         {/* Milk by Age */}
-        <div className="border-b border-gray-100">
+        <div>
           <button onClick={() => toggle('milk')}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
             <span>🥛 Milk Requirements</span>
-            {expanded.milk ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded.milk ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
           {expanded.milk && (
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-4 space-y-3">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 text-gray-600 font-semibold">Age Group</th>
-                    <th className="text-left py-2 text-gray-600 font-semibold">Required Milk</th>
-                    <th className="text-left py-2 text-gray-600 font-semibold">Min. Amount</th>
+                    <th className="text-left py-1.5 text-gray-600 font-semibold">Age</th>
+                    <th className="text-left py-1.5 text-gray-600 font-semibold">Required</th>
+                    <th className="text-left py-1.5 text-gray-600 font-semibold">Min.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr><td className="py-2 text-gray-800 font-medium">1 year</td><td className="py-2 text-gray-700">Whole milk</td><td className="py-2 text-gray-500">½ cup</td></tr>
-                  <tr><td className="py-2 text-gray-800 font-medium">2–3 years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">½ cup</td></tr>
-                  <tr><td className="py-2 text-gray-800 font-medium">4–5 years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">¾ cup</td></tr>
-                  <tr><td className="py-2 text-gray-800 font-medium">6+ years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">1 cup</td></tr>
+                  {[
+                    ['1 year',   'Whole milk',              '½ cup', true],
+                    ['2–3 yrs',  'Low-fat (1%) or fat-free','½ cup', false],
+                    ['4–5 yrs',  'Low-fat (1%) or fat-free','¾ cup', false],
+                    ['6+ yrs',   'Low-fat (1%) or fat-free','1 cup', false],
+                  ].map(([age, req, min, highlight]) => (
+                    <tr key={age} className={highlight ? 'bg-amber-50' : ''}>
+                      <td className="py-1.5 text-gray-800 font-medium">{age}</td>
+                      <td className="py-1.5 text-gray-700">{req}</td>
+                      <td className="py-1.5 text-gray-500">{min}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800">
-                💡 Low-fat flavored milk (e.g. chocolate) is creditable for children 6 and older only.
-              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg px-2.5 py-2 text-xs text-red-800">🟥 Whole milk for age 2+ is a Critical compliance error.</div>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-2 text-xs text-blue-800">🟦 Low-fat flavored milk creditable for ages 6+ only.</div>
+              <p className="text-xs text-gray-400">Source: 7 CFR §226.20(a)(1)</p>
             </div>
           )}
         </div>
 
         {/* Infant Meals */}
-        <div className="border-b border-gray-100">
+        <div>
           <button onClick={() => toggle('infant')}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
             <span>👶 Infant Meals</span>
-            {expanded.infant ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded.infant ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
           {expanded.infant && (
-            <div className="px-4 pb-4 space-y-3">
-              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
-                <p className="text-xs font-bold text-pink-800 mb-1.5">🍼 Birth – 5 months</p>
-                <p className="text-xs text-pink-700">• Breast milk or iron-fortified infant formula only</p>
-                <p className="text-xs text-pink-700">• No solid foods at this stage</p>
-              </div>
-              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
-                <p className="text-xs font-bold text-pink-800 mb-1.5">🥣 6 – 8 months</p>
-                <p className="text-xs text-pink-700">• Breast milk or formula (required)</p>
-                <p className="text-xs text-pink-700">• Iron-fortified infant cereal (optional)</p>
-                <p className="text-xs text-pink-700">• Pureed fruit or vegetable (optional)</p>
-              </div>
-              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
-                <p className="text-xs font-bold text-pink-800 mb-1.5">🫐 9 – 11 months</p>
-                <p className="text-xs text-pink-700">• Breast milk or formula (required)</p>
-                <p className="text-xs text-pink-700">• Infant cereal or other grain (optional)</p>
-                <p className="text-xs text-pink-700">• Soft cooked meat/protein (optional)</p>
-                <p className="text-xs text-pink-700">• Soft fruit or vegetable (optional)</p>
-              </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800">
-                💡 Solid foods are always optional for infants. Never force feed. Infant meals are reimbursable per infant per meal.
-              </div>
+            <div className="px-4 pb-4 space-y-2">
+              {[
+                { range: 'Birth – 5 months', emoji: '🍼', items: ['Breast milk or iron-fortified formula only','No solid foods'] },
+                { range: '6 – 8 months',     emoji: '🥣', items: ['Breast milk or formula (required)','Infant cereal (optional)','Pureed fruit or vegetable (optional)'] },
+                { range: '9 – 11 months',    emoji: '🫐', items: ['Breast milk or formula (required)','Infant cereal or grain (optional)','Soft protein (optional)','Soft fruit or vegetable (optional)'] },
+              ].map(r => (
+                <div key={r.range} className="bg-pink-50 border border-pink-100 rounded-xl p-2.5">
+                  <p className="text-xs font-bold text-pink-800 mb-1">{r.emoji} {r.range}</p>
+                  {r.items.map(item => <p key={item} className="text-xs text-pink-700">• {item}</p>)}
+                </div>
+              ))}
+              <p className="text-xs text-gray-400 pt-1">Source: 7 CFR §226.20(b)</p>
             </div>
           )}
         </div>
 
         {/* Common Errors */}
-        <div className="border-b border-gray-100">
+        <div>
           <button onClick={() => toggle('errors')}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            className="w-full flex items-center justify-between px-4 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50">
             <span>⚠️ Common Compliance Errors</span>
-            {expanded.errors ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            {expanded.errors ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
           </button>
           {expanded.errors && (
             <div className="px-4 pb-4 space-y-2">
-              {COMMON_ERRORS.map((e, i) => (
-                <div key={i} className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
-                  <p className="text-xs font-semibold text-red-800">{e.icon} {e.text}</p>
-                  <p className="text-xs text-red-600 mt-0.5">Fix: {e.fix}</p>
-                </div>
-              ))}
+              {COMMON_ERRORS.map((e, i) => {
+                const s = SEVERITY[e.severity];
+                return (
+                  <div key={i} className={`rounded-xl border px-3 py-2.5 ${s.bg} ${s.border}`}>
+                    <p className={`text-xs font-semibold ${s.text}`}>{s.dot} {e.icon} {e.text}</p>
+                    <p className={`text-xs mt-0.5 ${s.fixText}`}>Fix: {e.fix}</p>
+                    <p className="text-xs text-gray-400 mt-1">Source: {e.citation}</p>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -613,8 +750,8 @@ function ComplianceAssistantPanel({ open, onClose, contextMeal }) {
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-gray-50">
-        <p className="text-xs text-gray-400 text-center">Based on USDA CACFP Meal Patterns · FY2025 rates</p>
+      <div className="px-4 py-2.5 border-t border-gray-100 flex-shrink-0 bg-gray-50">
+        <p className="text-xs text-gray-400 text-center">USDA CACFP Meal Patterns · 7 CFR Part 226 · FY2025</p>
       </div>
     </div>
   );
@@ -976,7 +1113,7 @@ export default function MenuBuilderPage() {
                 ? 'bg-brand-600 text-white border-brand-600'
                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}>
-            <HelpCircle className="w-4 h-4" /> Help
+            <ShieldCheck className="w-4 h-4" /> Compliance Assistant
           </button>
 
           {menu && menu.status === 'draft' && totalIssues === 0 && (
@@ -1397,6 +1534,8 @@ export default function MenuBuilderPage() {
         open={showHelp}
         onClose={() => setShowHelp(false)}
         contextMeal={helpContext}
+        items={items}
+        onOpenCell={openCell}
       />
     </div>
   );
