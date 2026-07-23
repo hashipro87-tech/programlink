@@ -1,12 +1,13 @@
 // MenuBuilderPage — CACFP Weekly Menu Builder
-// Features: meal templates, USDA food library, AI generate, infant validation,
+// Features: meal templates, USDA food library, compliance assistant, infant validation,
 //           daily reimbursement estimate, per-cell comments
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   UtensilsCrossed, Plus, X, ChevronLeft, ChevronRight,
   CheckCircle2, AlertCircle, AlertTriangle, Wheat, Copy,
-  FileCheck, Loader2, CopyCheck, Sparkles, Star, MessageSquare,
-  Trash2, BookOpen, Baby, DollarSign, Search,
+  FileCheck, Loader2, CopyCheck, Star, MessageSquare,
+  Trash2, BookOpen, Baby, DollarSign, Search, HelpCircle,
+  ChevronDown, ChevronUp, ShieldCheck, AlertOctagon,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -129,6 +130,73 @@ const CACFP_FOODS = [
   { name: 'Bell pepper strips',       component: 'vegetable', wgr: false },
   { name: 'Squash (cooked)',          component: 'vegetable', wgr: false },
   { name: 'Mashed potatoes',          component: 'vegetable', wgr: false },
+];
+
+// ── Non-creditable foods (for compliance search) ──────────────────────────────
+const NON_CREDITABLE = [
+  { name: 'Ketchup / condiments',   reason: 'Condiments do not count as a vegetable component.' },
+  { name: 'Fruit snacks / gummies', reason: 'Must be real fruit — processed fruit snacks are not creditable.' },
+  { name: 'Pudding / gelatin',      reason: 'Not creditable for any CACFP meal component.' },
+  { name: 'Juice (>1 serving/day)', reason: '100% juice is creditable but only once per day per child.' },
+  { name: 'Flavored sweetened milk',reason: 'Only low-fat flavored milk (e.g. chocolate) is creditable for ages 6+.' },
+  { name: 'Beans counted twice',    reason: 'Beans/legumes may count as protein OR vegetable — never both in the same meal.' },
+  { name: 'Iceberg lettuce',        reason: 'Creditable as vegetable but very low nutrient density. USDA discourages overuse.' },
+  { name: 'Pickle / olives',        reason: 'High sodium — creditable as vegetable but discouraged for young children.' },
+  { name: 'Infant cereal for toddlers', reason: 'Infant cereal (iron-fortified) is only creditable for infants, not for children 1+.' },
+  { name: 'Whole milk for 2+ year olds', reason: 'Ages 2+ require low-fat (1%) or fat-free milk. Whole milk is only for age 1.' },
+];
+
+// ── Compliance Guide data ─────────────────────────────────────────────────────
+const MEAL_GUIDE = {
+  breakfast: {
+    emoji: '🌅', label: 'Breakfast',
+    components: [
+      { name: 'Milk', note: 'Age 1: whole milk · Age 2+: low-fat or fat-free' },
+      { name: 'Grain/Bread', note: 'At least 1 grain per day must be Whole Grain Rich (≥51% whole grain)' },
+      { name: 'Fruit or Vegetable', note: '¼ cup minimum · 100% juice counts but only once per day' },
+    ],
+    tip: 'Fruit and vegetable are interchangeable at breakfast — only one is required.',
+  },
+  lunch: {
+    emoji: '☀️', label: 'Lunch',
+    components: [
+      { name: 'Milk', note: 'Age 1: whole milk · Age 2+: low-fat or fat-free' },
+      { name: 'Grain/Bread', note: 'Enriched or whole grain' },
+      { name: 'Meat/Meat Alternate', note: 'Chicken, beef, fish, eggs, cheese, yogurt, beans, peanut butter, tofu' },
+      { name: 'Fruit', note: 'Must be separate from the vegetable component' },
+      { name: 'Vegetable', note: 'Cannot use the same food for both fruit and vegetable' },
+    ],
+    tip: 'Beans/legumes count as either protein OR vegetable — not both in the same meal.',
+  },
+  snack: {
+    emoji: '🍎', label: 'Snack',
+    components: [
+      { name: 'Choose any 2 components', note: 'From: Milk · Grain/Bread · Meat/Meat Alternate · Fruit · Vegetable' },
+    ],
+    tip: 'Children who receive 3 meals per day are only reimbursable for 1 snack, and vice versa.',
+  },
+  supper: {
+    emoji: '🌙', label: 'Supper',
+    components: [
+      { name: 'Milk', note: 'Same requirements as Lunch' },
+      { name: 'Grain/Bread', note: 'Enriched or whole grain' },
+      { name: 'Meat/Meat Alternate', note: 'Same creditable items as Lunch' },
+      { name: 'Fruit', note: 'Required — separate from vegetable' },
+      { name: 'Vegetable', note: 'Required — separate from fruit' },
+    ],
+    tip: 'Supper is only reimbursable in certain CACFP programs (e.g. at-risk afterschool care, shelters).',
+  },
+};
+
+const COMMON_ERRORS = [
+  { icon: '🥦', text: 'Missing vegetable at lunch/supper', fix: 'Add a vegetable item (even ¼ cup counts)' },
+  { icon: '🥛', text: 'Wrong milk type for age group', fix: 'Age 1 = whole milk · Age 2+ = low-fat or fat-free' },
+  { icon: '🌾', text: 'No Whole Grain Rich grain in the day', fix: 'At least 1 grain per day must be WGR — check the WGR box when adding it' },
+  { icon: '🍎', text: 'Same food counted as fruit AND vegetable', fix: 'Fruit and vegetable must be different foods at lunch/supper' },
+  { icon: '🥩', text: 'Missing meat/meat alternate at lunch or supper', fix: 'Eggs, cheese, yogurt, beans, peanut butter, and tofu all qualify' },
+  { icon: '🧃', text: 'Juice served more than once per day', fix: '100% juice is creditable but limited to 1 serving per day per child' },
+  { icon: '🍽️', text: 'Snack has only 1 component instead of 2', fix: 'Snacks require any 2 of the 5 components' },
+  { icon: '🍼', text: 'Infant meal missing formula/breast milk', fix: 'Breast milk or iron-fortified formula is required for all infant meals' },
 ];
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -299,35 +367,254 @@ function DuplicateDayModal({ fromDay, onConfirm, onClose, busy }) {
   );
 }
 
-function GenerateMenuModal({ onConfirm, onClose, busy }) {
-  const [prefs, setPrefs] = useState('');
+// ── Compliance Assistant Panel ────────────────────────────────────────────────
+function ComplianceAssistantPanel({ open, onClose, contextMeal }) {
+  const [search, setSearch]     = useState('');
+  const [expanded, setExpanded] = useState({ meals: true, wgr: false, milk: false, infant: false, errors: false });
+  const [activeMeal, setActiveMeal] = useState(null);
+  const mealRef = useRef(null);
+
+  // Auto-expand meal section when a cell is opened
+  useEffect(() => {
+    if (contextMeal && open) {
+      setExpanded(e => ({ ...e, meals: true }));
+      setActiveMeal(contextMeal);
+    }
+  }, [contextMeal, open]);
+
+  const toggle = (key) => setExpanded(e => ({ ...e, [key]: !e[key] }));
+
+  // Search across creditable + non-creditable foods
+  const searchResults = search.length > 1 ? [
+    ...CACFP_FOODS
+      .filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+      .slice(0, 8)
+      .map(f => ({ ...f, creditable: true })),
+    ...NON_CREDITABLE
+      .filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+      .map(f => ({ ...f, creditable: false })),
+  ] : [];
+
+  const compEmoji = (comp) => {
+    const map = { milk: '🥛', grain: '🌾', protein: '🥩', fruit: '🍎', vegetable: '🥦', other: '➕' };
+    return map[comp] || '🍽️';
+  };
+
+  if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-brand-600" />
-            <h2 className="font-bold text-gray-900">AI Generate Menu</h2>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+    <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 flex-shrink-0 bg-brand-600">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-white" />
+          <h2 className="font-bold text-white text-sm">Compliance Assistant</h2>
         </div>
-        <div className="px-5 py-4 space-y-3">
-          <p className="text-sm text-gray-600">Claude will generate a complete compliant 7-day menu. <strong>Existing items will be replaced.</strong></p>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Preferences (optional)</label>
-            <input className="input w-full" placeholder="e.g. No peanuts, more fish, vegetarian Fridays…"
-              value={prefs} onChange={e => setPrefs(e.target.value)} />
-          </div>
+        <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+      </div>
+
+      {/* Search */}
+      <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder='Search any food (e.g. "yogurt")…'
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-brand-400"
+          />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X className="w-3.5 h-3.5" /></button>}
         </div>
-        <div className="flex gap-3 px-5 pb-5">
-          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-          <button onClick={() => onConfirm(prefs)} disabled={busy}
-            className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 disabled:opacity-40 flex items-center justify-center gap-1.5">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {busy ? 'Generating…' : 'Generate'}
+
+        {/* Search results */}
+        {searchResults.length > 0 && (
+          <div className="mt-2 space-y-1.5 max-h-52 overflow-y-auto">
+            {searchResults.map((f, i) => (
+              <div key={i} className={`rounded-xl px-3 py-2 text-xs ${f.creditable ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'}`}>
+                <div className="flex items-center gap-2">
+                  <span>{f.creditable ? '✅' : '❌'}</span>
+                  <span className="font-semibold text-gray-800">{f.name}</span>
+                  {f.creditable && f.wgr && <span className="ml-auto text-amber-600 font-semibold">🌾 WGR</span>}
+                </div>
+                {f.creditable ? (
+                  <p className="mt-0.5 text-gray-500 pl-6">{compEmoji(f.component)} {f.component?.replace('_', '/')} component</p>
+                ) : (
+                  <p className="mt-0.5 text-red-600 pl-6">{f.reason}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {search.length > 1 && searchResults.length === 0 && (
+          <p className="text-xs text-gray-400 mt-2 text-center">No results — try a different term</p>
+        )}
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+
+        {/* Meal Components */}
+        <div className="border-b border-gray-100">
+          <button onClick={() => toggle('meals')}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span>🍽️ Meal Components</span>
+            {expanded.meals ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
+          {expanded.meals && (
+            <div className="px-4 pb-3 space-y-2">
+              {Object.entries(MEAL_GUIDE).map(([mealKey, guide]) => (
+                <div key={mealKey} className={`rounded-xl border overflow-hidden ${
+                  activeMeal === mealKey ? 'border-brand-300 bg-brand-50' : 'border-gray-100'
+                }`}>
+                  <button
+                    onClick={() => setActiveMeal(activeMeal === mealKey ? null : mealKey)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50">
+                    <span>{guide.emoji} {guide.label}</span>
+                    {activeMeal === mealKey ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+                  </button>
+                  {activeMeal === mealKey && (
+                    <div className="px-3 pb-3 space-y-1.5">
+                      {guide.components.map((c, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-gray-800">{c.name}</p>
+                            {c.note && <p className="text-xs text-gray-500">{c.note}</p>}
+                          </div>
+                        </div>
+                      ))}
+                      {guide.tip && (
+                        <div className="mt-2 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 text-xs text-amber-800">
+                          💡 {guide.tip}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Whole Grain Rich */}
+        <div className="border-b border-gray-100">
+          <button onClick={() => toggle('wgr')}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span>🌾 Whole Grain Rich</span>
+            {expanded.wgr ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {expanded.wgr && (
+            <div className="px-4 pb-4 space-y-3">
+              <p className="text-xs text-gray-600">A food is Whole Grain Rich when <strong>≥51% of the grain ingredients are whole grain</strong>, and it's listed first on the ingredient label.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-green-50 border border-green-100 rounded-xl p-2.5">
+                  <p className="text-xs font-bold text-green-700 mb-1.5">✅ WGR Examples</p>
+                  {['Whole wheat bread', 'Oatmeal', 'Brown rice', 'Whole grain tortilla', 'Whole wheat pasta', 'Whole grain cereal'].map(f => (
+                    <p key={f} className="text-xs text-green-700">• {f}</p>
+                  ))}
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl p-2.5">
+                  <p className="text-xs font-bold text-red-700 mb-1.5">❌ Not WGR</p>
+                  {['White bread', 'White rice', 'Saltine crackers', 'Dinner roll', 'Cornbread', 'Biscuit'].map(f => (
+                    <p key={f} className="text-xs text-red-700">• {f}</p>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800">
+                💡 <strong>Rule:</strong> At least 1 grain per day must be WGR. Check the 🌾 box when adding that item.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Milk by Age */}
+        <div className="border-b border-gray-100">
+          <button onClick={() => toggle('milk')}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span>🥛 Milk Requirements</span>
+            {expanded.milk ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {expanded.milk && (
+            <div className="px-4 pb-4">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 text-gray-600 font-semibold">Age Group</th>
+                    <th className="text-left py-2 text-gray-600 font-semibold">Required Milk</th>
+                    <th className="text-left py-2 text-gray-600 font-semibold">Min. Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-2 text-gray-800 font-medium">1 year</td><td className="py-2 text-gray-700">Whole milk</td><td className="py-2 text-gray-500">½ cup</td></tr>
+                  <tr><td className="py-2 text-gray-800 font-medium">2–3 years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">½ cup</td></tr>
+                  <tr><td className="py-2 text-gray-800 font-medium">4–5 years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">¾ cup</td></tr>
+                  <tr><td className="py-2 text-gray-800 font-medium">6+ years</td><td className="py-2 text-gray-700">Low-fat (1%) or fat-free</td><td className="py-2 text-gray-500">1 cup</td></tr>
+                </tbody>
+              </table>
+              <div className="mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800">
+                💡 Low-fat flavored milk (e.g. chocolate) is creditable for children 6 and older only.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Infant Meals */}
+        <div className="border-b border-gray-100">
+          <button onClick={() => toggle('infant')}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span>👶 Infant Meals</span>
+            {expanded.infant ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {expanded.infant && (
+            <div className="px-4 pb-4 space-y-3">
+              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
+                <p className="text-xs font-bold text-pink-800 mb-1.5">🍼 Birth – 5 months</p>
+                <p className="text-xs text-pink-700">• Breast milk or iron-fortified infant formula only</p>
+                <p className="text-xs text-pink-700">• No solid foods at this stage</p>
+              </div>
+              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
+                <p className="text-xs font-bold text-pink-800 mb-1.5">🥣 6 – 8 months</p>
+                <p className="text-xs text-pink-700">• Breast milk or formula (required)</p>
+                <p className="text-xs text-pink-700">• Iron-fortified infant cereal (optional)</p>
+                <p className="text-xs text-pink-700">• Pureed fruit or vegetable (optional)</p>
+              </div>
+              <div className="bg-pink-50 border border-pink-100 rounded-xl p-3">
+                <p className="text-xs font-bold text-pink-800 mb-1.5">🫐 9 – 11 months</p>
+                <p className="text-xs text-pink-700">• Breast milk or formula (required)</p>
+                <p className="text-xs text-pink-700">• Infant cereal or other grain (optional)</p>
+                <p className="text-xs text-pink-700">• Soft cooked meat/protein (optional)</p>
+                <p className="text-xs text-pink-700">• Soft fruit or vegetable (optional)</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-800">
+                💡 Solid foods are always optional for infants. Never force feed. Infant meals are reimbursable per infant per meal.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Common Errors */}
+        <div className="border-b border-gray-100">
+          <button onClick={() => toggle('errors')}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span>⚠️ Common Compliance Errors</span>
+            {expanded.errors ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {expanded.errors && (
+            <div className="px-4 pb-4 space-y-2">
+              {COMMON_ERRORS.map((e, i) => (
+                <div key={i} className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                  <p className="text-xs font-semibold text-red-800">{e.icon} {e.text}</p>
+                  <p className="text-xs text-red-600 mt-0.5">Fix: {e.fix}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-gray-50">
+        <p className="text-xs text-gray-400 text-center">Based on USDA CACFP Meal Patterns · FY2025 rates</p>
       </div>
     </div>
   );
@@ -373,9 +660,9 @@ export default function MenuBuilderPage() {
   const [dupDay, setDupDay]             = useState(null);
   const [dupBusy, setDupBusy]           = useState(false);
 
-  // AI generate
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [generating, setGenerating]     = useState(false);
+  // Compliance assistant
+  const [showHelp, setShowHelp]         = useState(false);
+  const [helpContext, setHelpContext]   = useState(null); // meal type user last opened
 
   // Load orgs + rates + templates on mount
   useEffect(() => {
@@ -436,6 +723,8 @@ export default function MenuBuilderPage() {
     setDrawerTab('add');
     setItemForm({ food_item: '', component: meal === 'infant' ? 'formula' : 'grain', is_whole_grain: false, quantity: '' });
     setFormError(''); setFoodSearch(''); setNewComment('');
+    // Update help context so the panel highlights this meal's requirements
+    setHelpContext(meal);
   }
   function closeCell() { setActiveCell(null); setFormError(''); }
 
@@ -603,21 +892,6 @@ export default function MenuBuilderPage() {
     finally { setDupBusy(false); }
   }
 
-  // ── AI Generate ──────────────────────────────────────────────────────────────
-  async function handleGenerate(prefs) {
-    setGenerating(true);
-    try {
-      const m = await ensureMenu();
-      const res = await api.post(`/menus/${m.id}/generate`, { preferences: prefs });
-      await loadMenu();
-      setCopyMsg(`Generated ${res.data.count} menu items`);
-      setTimeout(() => setCopyMsg(''), 4000);
-      setShowGenerate(false);
-    } catch (e) {
-      setCopyMsg(e.response?.data?.error || 'Generation failed — try again');
-    } finally { setGenerating(false); }
-  }
-
   // ── Derived values ───────────────────────────────────────────────────────────
   const cellItems   = (day, meal) => items.filter(i => i.day_of_week === day && i.meal_type === meal);
   const totalIssues = (() => {
@@ -672,7 +946,7 @@ export default function MenuBuilderPage() {
   const allMealsToRender = [...MEALS, ...(hasInfant ? [{ key: 'infant', label: 'Infant', color: 'pink' }] : [])];
 
   return (
-    <div className="p-6 max-w-full">
+    <div className={`p-6 max-w-full transition-all ${showHelp ? 'pr-84' : ''}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
@@ -695,10 +969,14 @@ export default function MenuBuilderPage() {
             Copy Prev Week
           </button>
 
-          {/* AI Generate */}
-          <button onClick={() => setShowGenerate(true)}
-            className="flex items-center gap-1.5 text-sm bg-brand-600 text-white px-3 py-1.5 rounded-lg hover:bg-brand-700">
-            <Sparkles className="w-4 h-4" /> AI Generate
+          {/* Compliance Assistant */}
+          <button onClick={() => setShowHelp(h => !h)}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+              showHelp
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}>
+            <HelpCircle className="w-4 h-4" /> Help
           </button>
 
           {menu && menu.status === 'draft' && totalIssues === 0 && (
@@ -1114,10 +1392,12 @@ export default function MenuBuilderPage() {
         <DuplicateDayModal fromDay={dupDay} onConfirm={duplicateDay} onClose={() => setDupDay(null)} busy={dupBusy} />
       )}
 
-      {/* AI Generate Modal */}
-      {showGenerate && (
-        <GenerateMenuModal onConfirm={handleGenerate} onClose={() => setShowGenerate(false)} busy={generating} />
-      )}
+      {/* Compliance Assistant Panel */}
+      <ComplianceAssistantPanel
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        contextMeal={helpContext}
+      />
     </div>
   );
 }
