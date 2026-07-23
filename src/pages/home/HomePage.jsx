@@ -7,6 +7,7 @@ import {
   Camera, FileText, Building2, Users, BarChart2, ShieldCheck,
   ClipboardList, Truck, CheckCircle, AlertTriangle, ArrowRight,
   Zap, Clock, X, Menu, UtensilsCrossed, MapPin, Shield, RefreshCw,
+  Activity, Eye, ListTodo, Baby,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import DemoPlayer from '../../components/common/DemoPlayer';
@@ -233,7 +234,7 @@ function Hero() {
             </h1>
 
             <p className="text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
-              Manage meal counts, compliance documents, kitchens, sites, and coordinators in one platform built for USDA food programs.
+              Meal counts, claims, menus, child enrollment, documents, deliveries, inspections — all in one platform built for USDA food programs. Know your reimbursement status every single day.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">
@@ -473,7 +474,7 @@ function TryDemoSection() {
       color: 'border-indigo-100 hover:border-indigo-300 bg-white',
       dot: 'bg-indigo-500',
       iconBg: 'bg-indigo-50 text-indigo-600',
-      highlights: ['Claim Intelligence — reimbursement at risk', 'Compliance dashboard & bulk actions', 'AI Menu Builder with validation', 'Applications, children, income certs'],
+      highlights: ['Claim Intelligence — reimbursement at risk every day', 'Compliance dashboard, bulk actions, expiry alerts', 'Menu Builder + Compliance Assistant', 'Child roster, income certs, enrollment', 'Inspection dashboard, task system, activity feed'],
     },
     {
       to: '/demo/kitchen',
@@ -482,7 +483,7 @@ function TryDemoSection() {
       color: 'border-emerald-100 hover:border-emerald-300 bg-white',
       dot: 'bg-emerald-500',
       iconBg: 'bg-emerald-50 text-emerald-600',
-      highlights: ['Production records', 'Document uploads', 'Messages from sponsor', 'Meal count history'],
+      highlights: ["Today's production schedule per site", 'Menu Builder with CACFP validation', 'Recurring delivery calendar', 'Tasks, documents, activity feed'],
     },
     {
       to: '/demo/site',
@@ -491,7 +492,7 @@ function TryDemoSection() {
       color: 'border-sky-100 hover:border-sky-300 bg-white',
       dot: 'bg-sky-500',
       iconBg: 'bg-sky-50 text-sky-600',
-      highlights: ['Meal count submission', "Today's tasks", 'Reporting history', 'Compliance documents'],
+      highlights: ['Meal count entry — 4 meal types, 60 seconds', 'Enrollment form + income cert tracking', '7-day delivery schedule', 'Tasks, documents, compliance status'],
     },
     {
       to: '/demo/coordinator',
@@ -500,7 +501,7 @@ function TryDemoSection() {
       color: 'border-orange-100 hover:border-orange-300 bg-white',
       dot: 'bg-orange-500',
       iconBg: 'bg-orange-50 text-orange-600',
-      highlights: ['Organization oversight', 'Approval workflows', 'Active alerts', 'Site compliance status'],
+      highlights: ['Daily work center — applications, sites, alerts', 'Inline approve / reject / request changes', 'Inspection logging + findings tracking', 'Tasks, activity feed, site compliance status'],
     },
   ];
 
@@ -779,14 +780,18 @@ function WorkflowDiagram() {
 
 function WhyCACFPLink() {
   const rows = [
-    { before: 'Paper forms and spreadsheets',         after: 'Fully digital workflows' },
-    { before: 'Email reminders that get ignored',     after: 'Automatic alerts before deadlines' },
-    { before: 'Chasing sites for meal count updates', after: 'Real-time submission tracking' },
-    { before: 'Documents expire without warning',     after: '30-day expiry reminders, automatically' },
-    { before: 'Generic software you had to adapt',    after: 'Built only for CACFP programs' },
-    { before: 'Complicated demos and long sales calls',after: 'Try it instantly — no account needed' },
-    { before: 'No visibility across sites',           after: 'Full compliance dashboard, one screen' },
-    { before: 'Coordinators manage via email threads', after: 'Coordinator assignment + broadcast messaging' },
+    { before: 'Paper forms and spreadsheets',              after: 'Fully digital workflows' },
+    { before: 'Email reminders that get ignored',          after: 'Automatic alerts before deadlines' },
+    { before: 'Chasing sites for meal count updates',      after: 'Real-time submission tracking' },
+    { before: 'Documents expire without warning',          after: '30-day expiry reminders, automatically' },
+    { before: 'No idea what you\'ll get reimbursed until month-end', after: 'Claim Intelligence shows your estimated reimbursement every single day' },
+    { before: 'Menu planning done on paper with no validation', after: 'Menu Builder flags missing CACFP components before you submit' },
+    { before: 'Child enrollment tracked in spreadsheets', after: 'Child roster with income certs, enrollment compliance, and import from spreadsheet' },
+    { before: 'Inspections and findings tracked in email', after: 'Inspection dashboard with findings, corrective actions, and auto-close' },
+    { before: 'Generic software you had to adapt',         after: 'Built only for CACFP programs' },
+    { before: 'Complicated demos and long sales calls',    after: 'Try it instantly — no account needed' },
+    { before: 'No visibility across sites',                after: 'Full compliance dashboard, one screen' },
+    { before: 'Coordinators manage via email threads',     after: 'Coordinator assignment + broadcast messaging' },
   ];
 
   return (
@@ -918,44 +923,67 @@ const FEATURES = [
   {
     icon: BarChart2,
     title: 'Claim Intelligence',
-    desc: 'See your estimated reimbursement every day. Every issue flagged with its exact dollar value — so you fix what matters before the deadline.',
-    tag: '✨ New',
+    desc: 'See your estimated reimbursement every day. Every issue flagged with its exact dollar value — fix what matters before the deadline.',
+    tag: '✨ Core',
   },
   {
-    icon: ClipboardList,
-    title: 'AI Menu Builder',
-    desc: 'Generate a full CACFP-compliant 7-day menu with one click. Instant meal pattern validation catches missing components before submission.',
-    tag: '✨ AI',
+    icon: ShieldCheck,
+    title: 'Menu Builder + Compliance Assistant',
+    desc: 'Build a 7-day CACFP menu with real-time meal pattern validation. Built-in Compliance Assistant answers any question instantly — milk age rules, WGR, infant meals.',
   },
   {
-    icon: Users,
+    icon: Baby,
     title: 'Child Roster + Income Certs',
-    desc: 'Import your entire roster from a spreadsheet or PDF in seconds. Track enrollment, income eligibility, and recertification deadlines per child.',
+    desc: 'Import rosters from spreadsheets or PDFs in seconds. Track enrollment status, income eligibility tiers, and recertification deadlines per child.',
   },
   {
     icon: ClipboardList,
     title: 'Daily Meal Count Tracking',
-    desc: 'Breakfast, lunch, supper, snack — logged per day with automatic anomaly detection before counts are submitted.',
+    desc: 'Breakfast, lunch, supper, snack — per site, per day. Anomaly detection flags unusual counts before submission.',
   },
   {
-    icon: ShieldCheck,
+    icon: FileText,
     title: 'Document Compliance',
-    desc: 'W-9, Menu Plan, Insurance — tracked with expiry alerts so nothing lapses before your next USDA review.',
+    desc: 'W-9, Menu Plan, Insurance — tracked with 30-day expiry alerts so nothing lapses quietly before your next USDA review.',
+  },
+  {
+    icon: AlertTriangle,
+    title: 'Inspection Dashboard',
+    desc: 'Log monitoring visits, findings, and corrective actions. Track due dates and auto-close inspections when all findings are resolved.',
+    tag: '✨ New',
   },
   {
     icon: Building2,
     title: 'Multi-Site Management',
-    desc: 'Connect kitchens to the sites they serve. Coordinators see every relationship, every submission, in one view.',
+    desc: 'Connect kitchens to the sites they serve. Coordinators see every relationship, every submission, and every alert in one place.',
   },
   {
     icon: Truck,
     title: 'Recurring Delivery Plans',
-    desc: 'Set weekly delivery schedules once. Sites see their 7-day delivery calendar automatically — no manual coordination needed.',
+    desc: 'Set weekly delivery schedules once. Sites see their 7-day calendar automatically. Bulk-create plans for 15 sites in one click.',
+  },
+  {
+    icon: ListTodo,
+    title: 'Task System',
+    desc: 'Assign tasks across your program with priorities and due dates. Every role sees their own work queue. Nothing falls through the cracks.',
+    tag: '✨ New',
   },
   {
     icon: Users,
     title: 'Coordinator Oversight',
-    desc: 'Coordinators get a daily work center: applications to review, inspections to log, sites needing attention — all in one place.',
+    desc: 'Coordinators get a daily work center: pending applications, inspections to review, sites needing attention — organized by priority.',
+  },
+  {
+    icon: Activity,
+    title: 'Activity Feed',
+    desc: 'Every submission, approval, and action logged in real time. Know what changed, who changed it, and when — across all sites and kitchens.',
+    tag: '✨ New',
+  },
+  {
+    icon: Eye,
+    title: 'One-Click Audit Mode',
+    desc: 'Generate a secure read-only audit portal with one click. Share a link with your state agency — no login required, 30-day expiry, fully self-contained.',
+    tag: '✨ New',
   },
 ];
 
