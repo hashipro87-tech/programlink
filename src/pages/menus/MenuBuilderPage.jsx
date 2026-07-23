@@ -255,6 +255,116 @@ const QA_DB = [
     severity: 'info', citation: '7 CFR §226.20(a)' },
 ];
 
+// ── State Resources ───────────────────────────────────────────────────────────
+const STATE_RESOURCES = {
+  TX: {
+    name: 'Texas',
+    flag: '🤠',
+    agency: 'Texas Department of Agriculture (TDA)',
+    portal: 'https://squaremeals.org',
+    portalName: 'SquareMeals (squaremeals.org)',
+    phone: '1-877-TEX-MEAL (1-877-839-6325)',
+    email: 'cacfp@texasagriculture.gov',
+    deadlines: [
+      { label: 'Monthly Claim Deadline', value: '60 days after month end', note: 'e.g., July claims due by Sept 30' },
+      { label: 'Annual Sponsor Renewal', value: 'May 31 each year', note: 'Sponsor agreement via SquareMeals' },
+      { label: 'Site Reviews', value: 'Every 3 years minimum', note: 'TDA schedules; 10 days to respond if contacted' },
+    ],
+    requiredForms: [
+      { name: 'CACFP Sponsor Application', note: 'Annual renewal via SquareMeals portal' },
+      { name: 'Site Application', note: 'Required for each new site added to your program' },
+      { name: 'Monthly Claim for Reimbursement', note: 'Submitted via SquareMeals by the 60-day deadline' },
+      { name: 'Production Records', note: 'Required for each meal service — retain 3 years' },
+      { name: 'Attendance / Sign-in Sheets', note: 'Daily records per site — retain 3 years' },
+      { name: 'Income Eligibility Forms', note: 'Required for Tier I/II determination — retain 3 years' },
+    ],
+    tips: [
+      'Claims are submitted via SquareMeals only — TDA does not accept paper claims.',
+      'Keep all records (meal counts, menus, income certs) for at least 3 years from submission.',
+      'Contact TDA before deadlines if you have a data entry issue — late claims may be denied.',
+    ],
+  },
+  CA: {
+    name: 'California',
+    flag: '🌴',
+    agency: 'California Dept. of Social Services (CDSS)',
+    portal: 'https://www.cdss.ca.gov/inforesources/cdss-programs/cacfp',
+    portalName: 'CDSS CACFP Portal',
+    phone: '916-657-2144',
+    email: null,
+    deadlines: [
+      { label: 'Monthly Claim Deadline', value: '60 days after month end', note: 'Contact your CDSS region for extensions' },
+      { label: 'Annual Agreement Renewal', value: 'Varies by region', note: 'Check with your CDSS regional office' },
+    ],
+    requiredForms: [
+      { name: 'Program Agreement', note: 'Annual renewal' },
+      { name: 'Monthly Meal Count Claim', note: 'Submitted via CDSS portal' },
+      { name: 'Income Eligibility Statements', note: 'Retain 3 years' },
+    ],
+    tips: [
+      'CDSS has regional offices — contact your assigned office for state-specific guidance.',
+      'California requires Spanish-language versions of key parent forms in many counties.',
+    ],
+  },
+  OH: {
+    name: 'Ohio',
+    flag: '🌻',
+    agency: 'Ohio Dept. of Education (ODE)',
+    portal: 'https://education.ohio.gov/Topics/Other-Resources/Food-and-Nutrition/Child-and-Adult-Care-Food-Program',
+    portalName: 'ODE CACFP Page',
+    phone: '877-644-6338',
+    email: null,
+    deadlines: [
+      { label: 'Monthly Claim Deadline', value: '60 days after month end', note: 'Varies by local agency' },
+    ],
+    requiredForms: [
+      { name: 'Program Agreement', note: 'Annual renewal' },
+      { name: 'Monthly Claim', note: 'Submitted via ODE portal' },
+    ],
+    tips: [
+      'Contact your assigned ODE representative for state-specific deadlines.',
+    ],
+  },
+  VA: {
+    name: 'Virginia',
+    flag: '🦅',
+    agency: 'Virginia Dept. of Education (VDOE)',
+    portal: 'https://www.doe.virginia.gov/programs-services/child-nutrition/cacfp',
+    portalName: 'VDOE CACFP Page',
+    phone: '804-225-2074',
+    email: null,
+    deadlines: [
+      { label: 'Monthly Claim Deadline', value: '60 days after month end', note: 'Contact VDOE for extensions' },
+    ],
+    requiredForms: [
+      { name: 'Program Agreement', note: 'Annual renewal via VDOE' },
+      { name: 'Monthly Claim', note: 'Submitted via VDOE portal' },
+    ],
+    tips: [
+      'Virginia processes claims through VDOE — contact your assigned specialist for guidance.',
+    ],
+  },
+  CO: {
+    name: 'Colorado',
+    flag: '🏔️',
+    agency: 'Colorado Dept. of Human Services (CDHS)',
+    portal: 'https://cdhs.colorado.gov/cacfp',
+    portalName: 'CDHS CACFP Page',
+    phone: '303-866-5700',
+    email: null,
+    deadlines: [
+      { label: 'Monthly Claim Deadline', value: '60 days after month end', note: 'Contact CDHS for sponsor-specific deadlines' },
+    ],
+    requiredForms: [
+      { name: 'Program Agreement', note: 'Annual renewal via CDHS' },
+      { name: 'Monthly Claim', note: 'Submitted via CDHS portal' },
+    ],
+    tips: [
+      'CDHS administers CACFP for Colorado — contact your assigned specialist for state-specific rules.',
+    ],
+  },
+};
+
 // ── Validation ────────────────────────────────────────────────────────────────
 function validateMealClient(items, mealType) {
   const has = (comp) => Array.isArray(comp)
@@ -424,10 +534,13 @@ function DuplicateDayModal({ fromDay, onConfirm, onClose, busy }) {
 }
 
 // ── Compliance Assistant Panel ────────────────────────────────────────────────
-function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOpenCell }) {
+function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOpenCell, userState }) {
   const [search, setSearch]       = useState('');
+  const [helpTab, setHelpTab]     = useState('usda'); // 'usda' | 'state'
   const [expanded, setExpanded]   = useState({ issues: true, meals: false, wgr: false, milk: false, infant: false, errors: false, claims: false });
   const [activeMeal, setActiveMeal] = useState(null);
+
+  const stateRes = userState ? STATE_RESOURCES[userState] : null;
 
   useEffect(() => {
     if (contextMeal && open) {
@@ -484,13 +597,108 @@ function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOp
     <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 flex-shrink-0 bg-brand-600">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-white" />
-          <h2 className="font-bold text-white text-sm">Compliance Assistant</h2>
+      <div className="flex-shrink-0 bg-brand-600">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-white" />
+            <h2 className="font-bold text-white text-sm">Compliance Assistant</h2>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-4 h-4" /></button>
         </div>
-        <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-4 h-4" /></button>
+        {/* Tab switcher */}
+        <div className="flex px-4 pb-0 gap-0">
+          <button onClick={() => setHelpTab('usda')}
+            className={`flex-1 text-xs font-semibold py-2 border-b-2 transition-colors ${
+              helpTab === 'usda'
+                ? 'border-white text-white'
+                : 'border-transparent text-white/60 hover:text-white/80'
+            }`}>
+            USDA Compliance
+          </button>
+          <button onClick={() => setHelpTab('state')}
+            className={`flex-1 text-xs font-semibold py-2 border-b-2 transition-colors ${
+              helpTab === 'state'
+                ? 'border-white text-white'
+                : 'border-transparent text-white/60 hover:text-white/80'
+            }`}>
+            {stateRes ? `${stateRes.flag} ${stateRes.name}` : 'State Resources'}
+          </button>
+        </div>
       </div>
+
+      {/* ── STATE RESOURCES TAB ─────────────────────────────────────────────── */}
+      {helpTab === 'state' && (
+        <div className="flex-1 overflow-y-auto">
+          {!stateRes ? (
+            <div className="px-4 py-8 text-center">
+              <div className="text-3xl mb-3">🗺️</div>
+              <p className="text-sm font-semibold text-gray-700">No state configured</p>
+              <p className="text-xs text-gray-500 mt-1">Go to <strong>Settings → Organization</strong> and select your CACFP program state to see state-specific deadlines, forms, and contacts.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+
+              {/* Agency + Contact */}
+              <div className="px-4 py-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">State Agency</p>
+                <p className="text-sm font-semibold text-gray-800">{stateRes.agency}</p>
+                <a href={stateRes.portal} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                  🔗 {stateRes.portalName}
+                </a>
+                {stateRes.phone && <p className="text-xs text-gray-600 mt-1.5">📞 {stateRes.phone}</p>}
+                {stateRes.email && <p className="text-xs text-gray-600 mt-0.5">✉️ {stateRes.email}</p>}
+              </div>
+
+              {/* Deadlines */}
+              <div className="px-4 py-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Key Deadlines</p>
+                <div className="space-y-2">
+                  {stateRes.deadlines.map((d, i) => (
+                    <div key={i} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                      <p className="text-xs font-semibold text-amber-800">⏰ {d.label}</p>
+                      <p className="text-xs text-amber-700 font-bold mt-0.5">{d.value}</p>
+                      {d.note && <p className="text-xs text-amber-600 mt-0.5">{d.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Required Forms */}
+              <div className="px-4 py-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Required Forms & Records</p>
+                <div className="space-y-1.5">
+                  {stateRes.requiredForms.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2.5 py-1">
+                      <span className="text-brand-500 mt-0.5 flex-shrink-0 text-xs">📋</span>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{f.name}</p>
+                        <p className="text-xs text-gray-500">{f.note}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tips */}
+              <div className="px-4 py-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Tips for {stateRes.name} Sponsors</p>
+                <div className="space-y-2">
+                  {stateRes.tips.map((tip, i) => (
+                    <div key={i} className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5">
+                      <p className="text-xs text-blue-800">🟦 {tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── USDA COMPLIANCE TAB ─────────────────────────────────────────────── */}
+      {helpTab === 'usda' && <>
 
       {/* Smart Search */}
       <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
@@ -753,6 +961,15 @@ function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOp
       <div className="px-4 py-2.5 border-t border-gray-100 flex-shrink-0 bg-gray-50">
         <p className="text-xs text-gray-400 text-center">USDA CACFP Meal Patterns · 7 CFR Part 226 · FY2025</p>
       </div>
+
+      </> /* end USDA tab */}
+
+      {/* State tab footer */}
+      {helpTab === 'state' && stateRes && (
+        <div className="px-4 py-2.5 border-t border-gray-100 flex-shrink-0 bg-gray-50">
+          <p className="text-xs text-gray-400 text-center">{stateRes.name} · {stateRes.agency}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -774,6 +991,7 @@ export default function MenuBuilderPage() {
 
   // Reimbursement estimate
   const [rates, setRates]               = useState(null);
+  const [userState, setUserState]       = useState(null);
   const [estCount, setEstCount]         = useState('');
 
   // Templates
@@ -805,7 +1023,7 @@ export default function MenuBuilderPage() {
   useEffect(() => {
     api.get('/organizations?limit=100').catch(() => ({ data: { organizations: [] } }))
       .then(r => setOrgs(r.data.organizations || r.data || []));
-    api.get('/menus/rates').then(r => setRates(r.data.rates)).catch(() => {});
+    api.get('/menus/rates').then(r => { setRates(r.data.rates); setUserState(r.data.state); }).catch(() => {});
     api.get('/menus/templates').then(r => setTemplates(r.data.templates || [])).catch(() => {});
   }, []);
 
@@ -1536,6 +1754,7 @@ export default function MenuBuilderPage() {
         contextMeal={helpContext}
         items={items}
         onOpenCell={openCell}
+        userState={userState}
       />
     </div>
   );
