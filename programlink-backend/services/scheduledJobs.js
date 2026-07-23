@@ -13,12 +13,18 @@
 //   3. Meal count reminders    — 4pm daily
 //      Finds sites/kitchens that haven't submitted a count for today
 //      and sends a reminder to all active users in that org.
+//
+//   4. Monthly sponsor report  — 9am UTC on the 28th of each month
+//      Sends every active sponsor a program summary: estimated reimbursement,
+//      sites ready, flagged issues — before most state CACFP claim deadlines.
 
 const cron = require('node-cron');
 const https = require('https');
+const fs   = require('fs');
+const path = require('path');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
-const { sendDocumentExpiryEmail } = require('./emailService');
+const { sendDocumentExpiryEmail, sendMonthlyReportEmail } = require('./emailService');
 const { generateTodayDeliveries } = require('../controllers/deliveryPlansController');
 
 // ─── Job 1: Document expiry alerts ───────────────────────────────────────────
@@ -225,6 +231,188 @@ async function checkEnrollmentExpiry() {
   }
 }
 
+// ─── Job 4: Monthly sponsor program summary email ────────────────────────────
+// Runs at 9:00am UTC on the 28th of each month.
+// Sends each active sponsor with a configured state a program summary email
+// showing estimated reimbursement, sites ready, and flagged issues — giving
+// them a few days to fix problems before most state CACFP claim deadlines.
+
+async function sendMonthlyReports() {
+  console.log('[cron] Running monthly sponsor report job…');
+
+  const now       = new Date();
+  const year      = now.getFullYear();
+  const month     = now.getMonth() + 1; // 1-based
+  const monthStr  = `${year}-${String(month).padStart(2, '0')}`;
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthStart = `${monthStr}-01`;
+  const monthEnd   = new Date(year, month, 1).toISOString().split('T')[0]; // first of next month
+
+  // State-based tier-1 reimbursement rates (mirrored from stateConfigs JSONs)
+  // Falls back to simple averages if config file is missing.
+  function getStateRates(region) {
+    try {
+      const cfgPath = path.join(__dirname, 'stateConfigs', `${region}.json`);
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const t1 = cfg.rates?.tier1 ?? cfg.rates;
+      return {
+        breakfast: t1?.breakfast ?? 1.70,
+        lunch:     t1?.lunch     ?? 3.22,
+        snack:     t1?.snack     ?? 0.96,
+        supper:    t1?.supper    ?? 3.22,
+      };
+    } catch {
+      return { breakfast: 1.70, lunch: 3.22, snack: 0.96, supper: 3.22 };
+    }
+  }
+
+  try {
+    // Find all active, verified sponsor users with a state configured
+    const sponsorsRes = await pool.query(`
+      SELECT DISTINCT ON (u.org_id)
+        u.id         AS user_id,
+        u.email,
+        u.name,
+        o.id         AS org_id,
+        o.name       AS org_name,
+        o.region
+      FROM users u
+      JOIN organizations o ON u.org_id = o.id
+      WHERE u.role       = 'sponsor'
+        AND u.is_active  = TRUE
+        AND u.is_verified = TRUE
+        AND o.region IS NOT NULL
+        AND o.region != ''
+      ORDER BY u.org_id, u.created_at ASC
+    `);
+
+    if (!sponsorsRes.rows.length) {
+      console.log('[cron] No active sponsors with state configured. Skipping monthly reports.');
+      return;
+    }
+
+    let sent = 0;
+
+    for (const sponsor of sponsorsRes.rows) {
+      try {
+        const rates = getStateRates(sponsor.region);
+
+        // 1. All active sites for this sponsor
+        const sitesRes = await pool.query(`
+          SELECT id, name
+          FROM organizations
+          WHERE sponsor_id = $1 AND type = 'site' AND status = 'active'
+        `, [sponsor.org_id]);
+
+        const allSites   = sitesRes.rows;
+        const totalSites = allSites.length;
+
+        if (totalSites === 0) continue; // nothing to report yet
+
+        const siteIds = allSites.map(s => s.id);
+
+        // 2. Meal counts for this month (per type, per org)
+        const countsRes = await pool.query(`
+          SELECT
+            org_id,
+            SUM(breakfast) AS b,
+            SUM(lunch)     AS l,
+            SUM(snack)     AS s,
+            SUM(supper)    AS sp
+          FROM meal_counts
+          WHERE org_id     = ANY($1)
+            AND date      >= $2
+            AND date       < $3
+          GROUP BY org_id
+        `, [siteIds, monthStart, monthEnd]);
+
+        const countsByOrg = {};
+        for (const r of countsRes.rows) {
+          countsByOrg[r.org_id] = {
+            breakfast: Number(r.b) || 0,
+            lunch:     Number(r.l) || 0,
+            snack:     Number(r.s) || 0,
+            supper:    Number(r.sp) || 0,
+          };
+        }
+
+        // 3. Totals and reimbursement
+        let totalMealCounts         = 0;
+        let estimatedReimbursement  = 0;
+        const issues                = [];
+        let sitesReady              = 0;
+
+        for (const site of allSites) {
+          const c   = countsByOrg[site.id];
+          const hasSubmitted = !!c;
+
+          if (hasSubmitted) {
+            const b   = c.breakfast + c.lunch + c.snack + c.supper;
+            totalMealCounts        += b;
+            const siteEst =
+              c.breakfast * rates.breakfast +
+              c.lunch     * rates.lunch     +
+              c.snack     * rates.snack     +
+              c.supper    * rates.supper;
+            estimatedReimbursement += siteEst;
+            sitesReady++;
+          } else {
+            // No counts at all this month — biggest risk
+            const siteEstPotential = 20 * 30 * (rates.breakfast + rates.lunch + rates.snack); // rough estimate
+            issues.push({
+              site:         site.name,
+              message:      'No meal counts submitted this month',
+              potentialLoss: Math.round(siteEstPotential),
+            });
+          }
+        }
+
+        // 4. Check for expired / missing required docs across all sites
+        const expiredDocsRes = await pool.query(`
+          SELECT o.name AS org_name, d.label, d.status
+          FROM documents d
+          JOIN organizations o ON d.org_id = o.id
+          WHERE d.org_id = ANY($1)
+            AND d.status IN ('expired', 'missing')
+          ORDER BY o.name
+          LIMIT 5
+        `, [siteIds]);
+
+        for (const doc of expiredDocsRes.rows) {
+          issues.push({
+            site:         doc.org_name,
+            message:      `${doc.status === 'expired' ? 'Expired' : 'Missing'} document: ${doc.label}`,
+            potentialLoss: Math.round(estimatedReimbursement / Math.max(totalSites, 1)),
+          });
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || 'https://cacfplink.com';
+        const claimsUrl   = `${frontendUrl}/dashboard/sponsor/claims`;
+
+        await sendMonthlyReportEmail(sponsor.email, sponsor.name || 'there', {
+          monthName,
+          estimatedReimbursement: Math.round(estimatedReimbursement),
+          sitesReady,
+          totalSites,
+          totalMealCounts,
+          issueCount: issues.length,
+          issues,
+          claimsUrl,
+        });
+
+        sent++;
+        console.log(`[cron] Monthly report sent → ${sponsor.email} (${monthName})`);
+      } catch (sponsorErr) {
+        console.error(`[cron] Monthly report failed for ${sponsor.email}:`, sponsorErr.message);
+      }
+    }
+
+    console.log(`[cron] Monthly reports done — sent to ${sent}/${sponsorsRes.rows.length} sponsors.`);
+  } catch (err) {
+    console.error('[cron] Monthly report job failed:', err.message);
+  }
+}
+
 // ─── Self-ping: keeps Railway from sleeping ───────────────────────────────────
 // Pings /health every 5 minutes so Railway's free tier never idles the process.
 function selfPing() {
@@ -263,7 +451,12 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm UTC)');
+  // Monthly sponsor report — 9:00am UTC on the 28th of each month
+  cron.schedule('0 9 28 * *', sendMonthlyReports, {
+    timezone: 'UTC',
+  });
+
+  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm, monthly report @ 28th UTC)');
 }
 
-module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries };
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries, sendMonthlyReports };
