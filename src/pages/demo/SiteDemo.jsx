@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus, DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus, DollarSign, ChevronDown, ChevronUp, RotateCcw, Calendar } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
@@ -9,6 +9,7 @@ const NAV = [
   { label: 'Deliveries',    path: '/demo/site/deliveries',    icon: Truck         },
   { label: 'Meal Counts',   path: '/demo/site/meal-counts',   icon: ClipboardList },
   { label: 'Income Certs',  path: '/demo/site/income',        icon: DollarSign    },
+  { label: 'Renewals',      path: '/demo/site/renewal',       icon: RotateCcw     },
   { label: 'Tasks',         path: '/demo/site/tasks',         icon: CheckSquare   },
   { label: 'Documents',     path: '/demo/site/documents',     icon: FileText      },
   { label: 'Messages',      path: '/demo/site/messages',      icon: MessageSquare },
@@ -809,6 +810,136 @@ function IncomeCertsPage() {
   );
 }
 
+// ─── Renewals ────────────────────────────────────────────────────────────────
+const DEMO_RENEWAL_ITEMS = [
+  { id:'r1', item_type:'document',        item_label:'Site License / Permit',            status:'complete', completed_at:'2026-07-10' },
+  { id:'r2', item_type:'document',        item_label:'Insurance Certificate',            status:'complete', completed_at:'2026-07-10' },
+  { id:'r3', item_type:'document',        item_label:'Health Inspection Report',         status:'pending',  completed_at:null },
+  { id:'r4', item_type:'document',        item_label:'Enrollment Packet',                status:'pending',  completed_at:null },
+  { id:'r5', item_type:'income_certs',    item_label:'Income Eligibility Certifications',status:'complete', completed_at:'2026-07-12' },
+  { id:'r6', item_type:'roster_review',   item_label:'Child Roster Review',             status:'pending',  completed_at:null },
+  { id:'r7', item_type:'profile_confirm', item_label:'Site Profile Confirmation',       status:'pending',  completed_at:null },
+  { id:'r8', item_type:'agreement',       item_label:'Sponsor Agreement / Acknowledgment',status:'pending', completed_at:null },
+];
+
+const SELF_CONFIRM_TYPES = new Set(['income_certs','roster_review','profile_confirm','agreement']);
+
+function SiteRenewalPage() {
+  const [items, setItems] = useState(DEMO_RENEWAL_ITEMS.map(i => ({ ...i })));
+
+  const confirm = (id) => {
+    setItems(prev => prev.map(i => i.id === id
+      ? { ...i, status: 'complete', completed_at: new Date().toISOString() }
+      : i
+    ));
+  };
+
+  const complete = items.filter(i => i.status === 'complete').length;
+  const total    = items.length;
+  const pct      = Math.round((complete / total) * 100);
+  const daysLeft = Math.ceil((new Date('2026-08-31') - new Date()) / 86400000);
+
+  const ITEM_ICONS = { document:'📄', income_certs:'💰', roster_review:'👶', profile_confirm:'📍', agreement:'✍️' };
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Annual Renewal</h1>
+        <p className="text-sm text-gray-500 mt-1">Complete your annual CACFP program renewal checklist.</p>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
+        {/* Card header */}
+        <div className={`px-5 py-4 border-b ${daysLeft < 30 ? 'bg-amber-50 border-amber-100' : 'bg-brand-50 border-brand-100'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Annual Renewal</p>
+              <h2 className="font-bold text-gray-900">Annual Renewal 2026</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Calendar className="w-3 h-3 text-gray-400" />
+                <span className="text-xs text-gray-500">Due August 31, 2026</span>
+                <span className={`text-xs font-bold ${daysLeft < 30 ? 'text-amber-600' : 'text-brand-600'}`}>
+                  {daysLeft} days left
+                </span>
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className={`text-2xl font-black ${pct === 100 ? 'text-green-600' : 'text-gray-900'}`}>{pct}%</p>
+              <p className="text-xs text-gray-400">{complete}/{total} done</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-brand-500'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {pct === 100 && (
+          <div className="px-5 py-4 bg-green-50 border-b border-green-100 flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-green-700">All items complete!</p>
+              <p className="text-xs text-green-600">Your sponsor will review and confirm the renewal.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Checklist */}
+        <div className="divide-y divide-gray-50">
+          {items.map(item => (
+            <div key={item.id} className="px-5 py-3.5 flex items-center gap-3">
+              {item.status === 'complete'
+                ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                : <Clock className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              }
+              <span className="text-lg flex-shrink-0">{ITEM_ICONS[item.item_type] ?? '📋'}</span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-medium ${item.status === 'complete' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                  {item.item_label}
+                </p>
+                {item.status === 'complete' && item.completed_at && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Completed {new Date(item.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                )}
+              </div>
+              {item.status === 'pending' && (
+                SELF_CONFIRM_TYPES.has(item.item_type) ? (
+                  <button
+                    onClick={() => confirm(item.id)}
+                    className="text-xs font-semibold px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors flex-shrink-0"
+                  >
+                    Confirm ✓
+                  </button>
+                ) : (
+                  <Link
+                    to="/demo/site/documents"
+                    className="text-xs font-semibold px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    Upload →
+                  </Link>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+        <AlertTriangle className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-gray-500">
+          For documents, upload them from the <strong>Documents</strong> page — your sponsor marks those complete.
+          For confirmations, click <strong>Confirm ✓</strong> to self-complete.
+        </p>
+      </div>
+    </>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SiteDemo() {
   const { pathname } = useLocation();
@@ -817,6 +948,7 @@ export default function SiteDemo() {
   if (pathname.startsWith('/demo/site/deliveries'))   Page = DeliveriesPage;
   else if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
   else if (pathname.startsWith('/demo/site/income'))      Page = IncomeCertsPage;
+  else if (pathname.startsWith('/demo/site/renewal'))     Page = SiteRenewalPage;
   else if (pathname.startsWith('/demo/site/tasks'))       Page = SiteTasksPage;
   else if (pathname.startsWith('/demo/site/documents'))   Page = DocumentsPage;
   else if (pathname.startsWith('/demo/site/messages'))    Page = MessagesPage;

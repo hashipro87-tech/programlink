@@ -5,7 +5,7 @@ import {
   FileText, Settings, Truck, ChefHat, Plus, X,
   ShieldCheck, ShieldAlert, ShieldX, Shield,
   MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
-  CheckSquare, Users2, Activity, BookOpen, Circle,
+  CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -28,6 +28,7 @@ const NAV = [
   { label: 'Coordinators',   path: '/demo/sponsor/coordinators',      icon: Users          },
   { label: 'Messages',       path: '/demo/sponsor/messages',          icon: MessageSquare  },
   { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
+  { label: 'Renewals',       path: '/demo/sponsor/renewals',          icon: RotateCcw      },
   { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
   { label: 'Activity',       path: '/demo/sponsor/activity',          icon: Activity       },
   { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
@@ -2210,6 +2211,283 @@ function SettingsPage() {
   );
 }
 
+// ─── Renewals ────────────────────────────────────────────────────────────────
+const DEMO_RENEWALS = [
+  {
+    id: '1', title: 'Annual Renewal 2026', year: 2026, due_date: '2026-08-31',
+    status: 'active', total_sites: 5, total_items: 40,
+    complete_items: 22, waived_items: 2, sites_complete: 1,
+  },
+  {
+    id: '2', title: 'Annual Renewal 2025', year: 2025, due_date: '2025-08-31',
+    status: 'completed', total_sites: 5, total_items: 40,
+    complete_items: 40, waived_items: 0, sites_complete: 5,
+  },
+];
+
+const DEMO_SITES_RENEWAL = [
+  { site_id:'s1', site_name:'Little Learners',   total:8, complete:8, waived:0, pending:0, items:[
+    { id:'i1', item_label:'Site License / Permit',            status:'complete' },
+    { id:'i2', item_label:'Insurance Certificate',            status:'complete' },
+    { id:'i3', item_label:'Health Inspection Report',         status:'complete' },
+    { id:'i4', item_label:'Enrollment Packet',                status:'complete' },
+    { id:'i5', item_label:'Income Eligibility Certifications',status:'complete' },
+    { id:'i6', item_label:'Child Roster Review',              status:'complete' },
+    { id:'i7', item_label:'Site Profile Confirmation',        status:'complete' },
+    { id:'i8', item_label:'Sponsor Agreement',                status:'complete' },
+  ]},
+  { site_id:'s2', site_name:'Sunshine Academy',  total:8, complete:5, waived:0, pending:3, items:[
+    { id:'i9',  item_label:'Site License / Permit',            status:'complete' },
+    { id:'i10', item_label:'Insurance Certificate',            status:'complete' },
+    { id:'i11', item_label:'Health Inspection Report',         status:'pending'  },
+    { id:'i12', item_label:'Enrollment Packet',                status:'pending'  },
+    { id:'i13', item_label:'Income Eligibility Certifications',status:'complete' },
+    { id:'i14', item_label:'Child Roster Review',              status:'complete' },
+    { id:'i15', item_label:'Site Profile Confirmation',        status:'complete' },
+    { id:'i16', item_label:'Sponsor Agreement',                status:'pending'  },
+  ]},
+  { site_id:'s3', site_name:'Happy Kids Center', total:8, complete:3, waived:1, pending:4, items:[
+    { id:'i17', item_label:'Site License / Permit',            status:'complete' },
+    { id:'i18', item_label:'Insurance Certificate',            status:'pending'  },
+    { id:'i19', item_label:'Health Inspection Report',         status:'pending'  },
+    { id:'i20', item_label:'Enrollment Packet',                status:'waived'   },
+    { id:'i21', item_label:'Income Eligibility Certifications',status:'complete' },
+    { id:'i22', item_label:'Child Roster Review',              status:'pending'  },
+    { id:'i23', item_label:'Site Profile Confirmation',        status:'complete' },
+    { id:'i24', item_label:'Sponsor Agreement',                status:'pending'  },
+  ]},
+];
+
+function RenewalsPage() {
+  const [tab, setTab]         = useState('active');
+  const [openSite, setOpenSite] = useState(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [localItems, setLocalItems] = useState(
+    DEMO_SITES_RENEWAL.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }))
+  );
+
+  const toggleItem = (siteIdx, itemId) => {
+    setLocalItems(prev => prev.map((s, si) => si !== siteIdx ? s : {
+      ...s,
+      items: s.items.map(i => i.id === itemId
+        ? { ...i, status: i.status === 'pending' ? 'complete' : 'pending' }
+        : i
+      ),
+    }));
+  };
+
+  const visible = DEMO_RENEWALS.filter(r => tab === 'all' ? true : r.status === tab);
+
+  return (
+    <>
+      {/* Wizard modal */}
+      {showWizard && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Start New Renewal</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Step {wizardStep} of 3</p>
+              </div>
+              <button onClick={() => { setShowWizard(false); setWizardStep(1); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex px-6 pt-4 gap-2">
+              {[1,2,3].map(s => (
+                <div key={s} className={`h-1 flex-1 rounded-full ${s <= wizardStep ? 'bg-brand-600' : 'bg-gray-100'}`} />
+              ))}
+            </div>
+            {wizardStep === 1 && (
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Renewal Title</label>
+                  <input type="text" defaultValue="Annual Renewal 2027" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Due Date</label>
+                  <input type="date" defaultValue="2027-08-31" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                </div>
+              </div>
+            )}
+            {wizardStep === 2 && (
+              <div className="px-6 py-5">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-semibold text-gray-600">Select Sites (5)</label>
+                  <span className="text-xs text-brand-600 font-semibold cursor-pointer">Select all</span>
+                </div>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {['Little Learners','Sunshine Academy','Happy Kids Center','Riverside Youth','Oak Park Center'].map(s => (
+                    <label key={s} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" defaultChecked className="accent-indigo-600 w-4 h-4" />
+                      <span className="text-sm text-gray-800">{s}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">5 of 5 selected</p>
+              </div>
+            )}
+            {wizardStep === 3 && (
+              <div className="px-6 py-5">
+                <p className="text-xs font-semibold text-gray-600 mb-3">Required Checklist Items</p>
+                <div className="space-y-1">
+                  {['Site License / Permit','Insurance Certificate','Health Inspection Report','Enrollment Packet','Income Eligibility Certifications','Child Roster Review','Site Profile Confirmation','Sponsor Agreement / Acknowledgment'].map(item => (
+                    <label key={item} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" defaultChecked className="accent-indigo-600 w-4 h-4" />
+                      <span className="text-sm text-gray-800">{item}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-3">Each site will get a checklist with 8 items.</p>
+              </div>
+            )}
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-between">
+              {wizardStep > 1
+                ? <button onClick={() => setWizardStep(s => s-1)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 font-semibold">Back</button>
+                : <div />
+              }
+              {wizardStep < 3
+                ? <button onClick={() => setWizardStep(s => s+1)} className="px-5 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl">Next →</button>
+                : <button onClick={() => { setShowWizard(false); setWizardStep(1); }} className="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl">Create Renewal for 5 Sites</button>
+              }
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Renewal Wizard</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage annual CACFP paperwork renewals for all sites.</p>
+        </div>
+        <button
+          onClick={() => setShowWizard(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+        >
+          <Plus className="w-4 h-4" /> Start Renewal
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+          <p className="text-2xl font-black text-blue-600">1</p>
+          <p className="text-xs font-semibold text-gray-500 mt-0.5">Active</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+          <p className="text-2xl font-black text-green-600">1</p>
+          <p className="text-xs font-semibold text-gray-500 mt-0.5">Completed</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+          <p className="text-2xl font-black text-gray-700">5</p>
+          <p className="text-xs font-semibold text-gray-500 mt-0.5">Total Sites</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit mb-6">
+        {[['active','Active'],['completed','Completed'],['all','All']].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Renewal cards */}
+      <div className="space-y-4 mb-6">
+        {visible.map(r => {
+          const done  = r.complete_items + r.waived_items;
+          const p     = Math.round((done / r.total_items) * 100);
+          const isActive = r.status === 'active';
+          return (
+            <div key={r.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="px-5 py-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${isActive ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-blue-500' : 'bg-green-500'}`} />
+                        {isActive ? 'Active' : 'Completed'}
+                      </span>
+                      <span className="text-xs text-gray-400">{r.year}</span>
+                    </div>
+                    <h3 className="font-bold text-gray-900">{r.title}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Due Aug 31 · {r.total_sites} sites</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-2xl font-black text-gray-900">{p}%</p>
+                    <p className="text-xs text-gray-400">{done}/{r.total_items} items</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${p === 100 ? 'bg-green-500' : 'bg-brand-500'}`} style={{ width: `${p}%` }} />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{r.sites_complete} of {r.total_sites} sites fully complete</p>
+                </div>
+                {isActive && (
+                  <button
+                    onClick={() => setOpenSite(openSite === r.id ? null : r.id)}
+                    className="mt-2 text-xs font-semibold text-brand-600 hover:underline"
+                  >
+                    {openSite === r.id ? 'Hide per-site status ↑' : 'View per-site status →'}
+                  </button>
+                )}
+              </div>
+
+              {/* Per-site breakdown */}
+              {openSite === r.id && (
+                <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-3">
+                  {localItems.map((site, si) => {
+                    const sComplete = site.items.filter(i => i.status === 'complete').length;
+                    const sWaived   = site.items.filter(i => i.status === 'waived').length;
+                    const sPct      = Math.round(((sComplete + sWaived) / site.total) * 100);
+                    return (
+                      <div key={site.site_id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-4 py-3 flex items-center gap-3">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-gray-900">{site.site_name}</p>
+                            <p className="text-xs text-gray-400">{sComplete} done · {site.items.filter(i=>i.status==='pending').length} pending</p>
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${sPct === 100 ? 'text-green-700 bg-green-100' : 'text-gray-500 bg-gray-100'}`}>{sPct}%</span>
+                        </div>
+                        <div className="divide-y divide-gray-50 border-t border-gray-100">
+                          {site.items.map((item, ii) => (
+                            <div key={item.id} className="px-4 py-2.5 flex items-center gap-2.5">
+                              {item.status === 'complete'
+                                ? <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                : item.status === 'waived'
+                                  ? <span className="w-3.5 text-gray-400 text-xs font-bold">—</span>
+                                  : <div className="w-3.5 h-3.5 rounded border-2 border-gray-300 flex-shrink-0" />
+                              }
+                              <span className={`text-xs flex-1 ${item.status === 'complete' ? 'text-gray-400 line-through' : item.status === 'waived' ? 'text-gray-400 italic' : 'text-gray-800'}`}>
+                                {item.item_label}
+                              </span>
+                              {item.status === 'pending' && (
+                                <button onClick={() => toggleItem(si, item.id)} className="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 font-semibold rounded-md">Complete</button>
+                              )}
+                              {item.status === 'complete' && (
+                                <button onClick={() => toggleItem(si, item.id)} className="text-[10px] text-gray-400 hover:text-gray-600">Undo</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <DemoCTA />
+    </>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SponsorDemo() {
   const { pathname } = useLocation();
@@ -2232,6 +2510,7 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/messages'))     Page = () => <MessagesPage onOpenBroadcast={() => setShowBroadcast(true)} />;
   else if (pathname.startsWith('/demo/sponsor/meal-counts'))  Page = () => <MealCountsPage />;
   else if (pathname.startsWith('/demo/sponsor/claims'))       Page = () => <ClaimsPage />;
+  else if (pathname.startsWith('/demo/sponsor/renewals'))     Page = () => <RenewalsPage />;
   else if (pathname.startsWith('/demo/sponsor/documents'))    Page = () => <DocumentsPage />;
   else if (pathname.startsWith('/demo/sponsor/settings'))     Page = () => <SettingsPage />;
   else                                                         Page = () => <OverviewPage onOpenOrder={() => setShowOrder(true)} onOpenBroadcast={() => setShowBroadcast(true)} />;
