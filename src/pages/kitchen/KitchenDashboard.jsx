@@ -23,8 +23,9 @@ import KitchenDirectoryPage from './KitchenDirectoryPage';
 import SettingsPage      from '../settings/SettingsPage';
 import TasksPage         from '../tasks/TasksPage';
 import ActivityFeedPage from '../activity/ActivityFeedPage';
-import MenuBuilderPage  from '../menus/MenuBuilderPage';
-import api               from '../../services/api';
+import MenuBuilderPage        from '../menus/MenuBuilderPage';
+import ProductionRecordsPage  from './ProductionRecordsPage';
+import api                    from '../../services/api';
 
 // New kitchen-specific components
 import NextActionBanner    from './components/NextActionBanner';
@@ -40,9 +41,10 @@ const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',              icon: CheckCircle,    end: true },
 
   { sectionLabel: 'Daily Ops' },
-  { label: 'Deliveries',      path: '/dashboard/kitchen/deliveries',   icon: Truck },
-  { label: 'Meal Counts',     path: '/dashboard/kitchen/meals',        icon: UtensilsCrossed },
-  { label: 'Menus',           path: '/dashboard/kitchen/menus',        icon: BookOpen },
+  { label: 'Deliveries',         path: '/dashboard/kitchen/deliveries',          icon: Truck },
+  { label: 'Meal Counts',        path: '/dashboard/kitchen/meals',               icon: UtensilsCrossed },
+  { label: 'Production Records', path: '/dashboard/kitchen/production-records',  icon: ClipboardList },
+  { label: 'Menus',              path: '/dashboard/kitchen/menus',               icon: BookOpen },
 
   { sectionLabel: 'Admin' },
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
@@ -880,7 +882,8 @@ export default function KitchenDashboard() {
               <Route path="application"   element={<ApplicationPage />} />
               <Route path="documents"     element={<DocumentsPage />} />
               <Route path="tasks"         element={<TasksPage />} />
-              <Route path="menus"        element={<MenuBuilderPage />} />
+              <Route path="menus"               element={<MenuBuilderPage />} />
+              <Route path="production-records" element={<ProductionRecordsPage />} />
               <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />

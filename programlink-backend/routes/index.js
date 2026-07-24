@@ -25,6 +25,7 @@ router.use('/children',                require('./children'));
 router.use('/tasks',                   require('./tasks'));
 router.use('/inspections',             require('./inspections'));
 router.use('/activity',                require('./activity'));
-router.use('/menus',                   require('./menus'));
+router.use('/menus',               require('./menus'));
+router.use('/production-records',  require('./productionRecords'));
 
 module.exports = router;
