@@ -7,7 +7,7 @@ import {
   Camera, FileText, Building2, Users, BarChart2, ShieldCheck,
   ClipboardList, Truck, CheckCircle, AlertTriangle, ArrowRight,
   Zap, Clock, X, Menu, UtensilsCrossed, MapPin, Shield, RefreshCw,
-  Activity, Eye, ListTodo, Baby,
+  Activity, Eye, ListTodo, Baby, GraduationCap, Printer, Download,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import DemoPlayer from '../../components/common/DemoPlayer';
@@ -791,6 +791,9 @@ function WhyCACFPLink() {
     { before: 'Complicated demos and long sales calls',    after: 'Try it instantly — no account needed' },
     { before: 'No visibility across sites',                after: 'Full compliance dashboard, one screen' },
     { before: 'Coordinators manage via email threads',     after: 'Coordinator assignment + broadcast messaging' },
+    { before: 'Staff cert expiry tracked in a spreadsheet', after: 'Training tracker with automatic 30/14/7-day email reminders' },
+    { before: 'Filling in the same org info on every form', after: 'Form Generator pre-fills every field from your existing data' },
+    { before: 'Claims only export as PDF',                  after: 'PDF, Excel, or CSV — state-specific formats plug in on demand' },
   ];
 
   return (
@@ -982,6 +985,24 @@ const FEATURES = [
     icon: Eye,
     title: 'One-Click Audit Mode',
     desc: 'Generate a secure read-only audit portal with one click. Share a link with your state agency — no login required, 30-day expiry, fully self-contained.',
+    tag: '✨ New',
+  },
+  {
+    icon: GraduationCap,
+    title: 'Staff Training Tracker',
+    desc: 'Track every food handler cert, CACFP training, and CPR certification across all sites and kitchens. Automatic email reminders fire at 30, 14, and 7 days before expiry.',
+    tag: '✨ New',
+  },
+  {
+    icon: Printer,
+    title: 'Form Generator',
+    desc: 'Generate pre-filled CACFP forms in seconds. Org name, address, contact, and sponsor number fill in automatically from your existing data — no re-typing.',
+    tag: '✨ New',
+  },
+  {
+    icon: Download,
+    title: 'Multi-Format Claim Export',
+    desc: 'Export your monthly claim as a branded PDF, a formatted Excel workbook, or a CSV. State-specific formats (Texas SquareMeals, CNIPS) plug in without rebuilding anything.',
     tag: '✨ New',
   },
 ];
