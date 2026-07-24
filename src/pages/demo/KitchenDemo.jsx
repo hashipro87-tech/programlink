@@ -4,7 +4,7 @@ import { useLocation, Link } from 'react-router-dom';
 import {
   CheckCircle, UtensilsCrossed, FileText, MessageSquare,
   Settings, Truck, CheckSquare, Square, AlertCircle, Clock,
-  Building2, BookOpen, Activity, Plus,
+  Building2, BookOpen, Activity, Plus, GraduationCap,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -15,6 +15,7 @@ const NAV = [
   { label: 'Meal Counts',         path: '/demo/kitchen/meal-counts',          icon: UtensilsCrossed },
   { label: 'Production Records',  path: '/demo/kitchen/production-records',   icon: FileText       },
   { label: 'Menus',               path: '/demo/kitchen/menus',                icon: BookOpen       },
+  { label: 'Staff Training',       path: '/demo/kitchen/training',             icon: GraduationCap  },
   { label: 'Tasks',               path: '/demo/kitchen/tasks',                icon: CheckSquare    },
   { label: 'Documents',           path: '/demo/kitchen/documents',            icon: FileText       },
   { label: 'Messages',            path: '/demo/kitchen/messages',             icon: MessageSquare  },
@@ -643,6 +644,72 @@ export default function KitchenDemo() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        );
+      }
+      case 'training': {
+        const DEMO_CERTS = [
+          { id:1, staff_name:'Maria Gonzalez',  cert_label:'Food Safety Manager Certification', expiry_date:'2026-12-15', status:'valid'         },
+          { id:2, staff_name:'James Okafor',    cert_label:'Food Handler Certificate',          expiry_date:'2026-08-10', status:'expiring_soon'  },
+          { id:3, staff_name:'Sarah Chen',      cert_label:'CACFP Program Training',            expiry_date:'2025-06-01', status:'expired'        },
+          { id:4, staff_name:'Luis Mendoza',    cert_label:'CPR Certification',                 expiry_date:'2027-03-20', status:'valid'          },
+        ];
+        const STATUS_M = {
+          valid:         { label:'Valid',          color:'text-green-600', bg:'bg-green-50'  },
+          expiring_soon: { label:'Expiring Soon',  color:'text-amber-600', bg:'bg-amber-50'  },
+          expired:       { label:'Expired',        color:'text-red-600',   bg:'bg-red-50'    },
+        };
+        const validCount    = DEMO_CERTS.filter(c => c.status === 'valid').length;
+        const expSoon       = DEMO_CERTS.filter(c => c.status === 'expiring_soon').length;
+        const expiredCount  = DEMO_CERTS.filter(c => c.status === 'expired').length;
+        return (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Staff Training &amp; Certifications</h1>
+                <p className="text-sm text-gray-500 mt-1">Track food handler certs, CACFP training, and expiry dates for your kitchen staff.</p>
+              </div>
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-semibold rounded-xl">
+                <Plus className="w-4 h-4" /> Add Cert
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label:'Total',         value: DEMO_CERTS.length, color:'text-gray-900'  },
+                { label:'Valid',         value: validCount,          color:'text-green-600' },
+                { label:'Expiring Soon', value: expSoon,             color:'text-amber-600' },
+                { label:'Expired',       value: expiredCount,        color:'text-red-600'   },
+              ].map(s => (
+                <div key={s.label} className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-xs font-semibold text-gray-500 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {DEMO_CERTS.map(c => {
+                const m = STATUS_M[c.status];
+                return (
+                  <div key={c.id} className={`bg-white border rounded-2xl px-5 py-4 flex items-center gap-4 ${c.status === 'expired' ? 'border-red-200' : c.status === 'expiring_soon' ? 'border-amber-200' : 'border-gray-200'}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${m.bg}`}>
+                      <GraduationCap className={`w-4 h-4 ${m.color}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">{c.staff_name}</p>
+                      <p className="text-sm text-gray-600">{c.cert_label}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${m.bg} ${m.color}`}>{m.label}</span>
+                      <p className="text-xs text-gray-400 mt-1">Expires {new Date(c.expiry_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' })}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex gap-3">
+              <GraduationCap className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-gray-500">CACFPLink automatically emails reminders at 30, 14, and 7 days before a cert expires — so your staff never gets caught off guard.</p>
             </div>
           </div>
         );

@@ -31,7 +31,8 @@ const fs   = require('fs');
 const path = require('path');
 const pool = require('../config/database');
 const { createNotification, notifyCoordinators } = require('./notificationService');
-const { sendDocumentExpiryEmail, sendMonthlyReportEmail, sendWeeklyDigestEmail } = require('./emailService');
+const { sendDocumentExpiryEmail, sendTrainingExpiryEmail, sendMonthlyReportEmail, sendWeeklyDigestEmail } = require('./emailService');
+const { sendTrainingExpiryReminders } = require('../controllers/trainingController');
 const { generateTodayDeliveries } = require('../controllers/deliveryPlansController');
 
 // ─── Job 1: Document expiry alerts ───────────────────────────────────────────
@@ -612,7 +613,12 @@ function startScheduledJobs() {
     timezone: 'UTC',
   });
 
-  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, enrollment @ 9am, meal reminders @ 4pm, weekly digest @ Mon 7am, monthly report @ 28th UTC)');
+  // Training cert expiry reminders — 8:30am UTC every day
+  cron.schedule('30 8 * * *', sendTrainingExpiryReminders, {
+    timezone: 'UTC',
+  });
+
+  console.log('✅ Scheduled jobs started (self-ping @ 5min, deliveries @ 6am, doc expiry @ 8am, training expiry @ 8:30am, enrollment @ 9am, meal reminders @ 4pm, weekly digest @ Mon 7am, monthly report @ 28th UTC)');
 }
 
-module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries, sendMonthlyReports, sendWeeklyDigests };
+module.exports = { startScheduledJobs, checkDocumentExpiry, checkMealCountReminders, checkEnrollmentExpiry, generateTodayDeliveries, sendMonthlyReports, sendWeeklyDigests, sendTrainingExpiryReminders };

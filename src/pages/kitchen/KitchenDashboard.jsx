@@ -9,7 +9,7 @@ import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, Building2, MessageSquare,
   UtensilsCrossed, CheckCircle, Settings, Truck, Bell,
-  CheckSquare, Square, AlertCircle, Clock, TrendingUp, Activity, BookOpen,
+  CheckSquare, Square, AlertCircle, Clock, TrendingUp, Activity, BookOpen, GraduationCap,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 
@@ -25,6 +25,7 @@ import TasksPage         from '../tasks/TasksPage';
 import ActivityFeedPage from '../activity/ActivityFeedPage';
 import MenuBuilderPage        from '../menus/MenuBuilderPage';
 import ProductionRecordsPage  from './ProductionRecordsPage';
+import TrainingPage           from '../sponsor/TrainingPage';
 import api                    from '../../services/api';
 
 // New kitchen-specific components
@@ -49,6 +50,7 @@ const NAV_ITEMS = [
   { sectionLabel: 'Admin' },
   { label: 'My Application',  path: '/dashboard/kitchen/application',  icon: ClipboardList },
   { label: 'Documents',       path: '/dashboard/kitchen/documents',    icon: FileText },
+  { label: 'Staff Training',  path: '/dashboard/kitchen/training',     icon: GraduationCap },
   { label: 'Tasks',           path: '/dashboard/kitchen/tasks',        icon: CheckSquare },
   { label: 'Activity',        path: '/dashboard/kitchen/activity',     icon: Activity },
   { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
@@ -884,6 +886,7 @@ export default function KitchenDashboard() {
               <Route path="tasks"         element={<TasksPage />} />
               <Route path="menus"               element={<MenuBuilderPage />} />
               <Route path="production-records" element={<ProductionRecordsPage />} />
+              <Route path="training"    element={<TrainingPage role="kitchen" />} />
               <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />

@@ -5,7 +5,7 @@ import {
   FileText, Settings, Truck, ChefHat, Plus, X,
   ShieldCheck, ShieldAlert, ShieldX, Shield,
   MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
-  CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw,
+  CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw, GraduationCap,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -29,6 +29,7 @@ const NAV = [
   { label: 'Messages',       path: '/demo/sponsor/messages',          icon: MessageSquare  },
   { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
   { label: 'Renewals',       path: '/demo/sponsor/renewals',          icon: RotateCcw      },
+  { label: 'Staff Training', path: '/demo/sponsor/training',          icon: GraduationCap  },
   { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
   { label: 'Activity',       path: '/demo/sponsor/activity',          icon: Activity       },
   { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
@@ -2258,6 +2259,90 @@ const DEMO_SITES_RENEWAL = [
   ]},
 ];
 
+const DEMO_TRAINING_CERTS = [
+  { id:'t1', staff_name:'Maria Gonzalez', org_name:'Lincoln Kitchen',   cert_label:'Food Safety Manager Certification', cert_date:'2024-12-15', expiry_date:'2026-12-15', status:'valid'         },
+  { id:'t2', staff_name:'James Okafor',   org_name:'Lincoln Kitchen',   cert_label:'Food Handler Certificate',          cert_date:'2025-08-01', expiry_date:'2026-08-10', status:'expiring_soon'  },
+  { id:'t3', staff_name:'Sarah Chen',     org_name:'Metro Meals LLC',   cert_label:'CACFP Program Training',            cert_date:'2023-06-01', expiry_date:'2025-06-01', status:'expired'        },
+  { id:'t4', staff_name:'Luis Mendoza',   org_name:'Metro Meals LLC',   cert_label:'CPR Certification',                 cert_date:'2025-03-20', expiry_date:'2027-03-20', status:'valid'          },
+  { id:'t5', staff_name:'Aisha Williams', org_name:'Sunshine Daycare',  cert_label:'First Aid Certification',           cert_date:'2025-01-10', expiry_date:'2027-01-10', status:'valid'          },
+];
+
+const TRAINING_STATUS_META = {
+  valid:         { label:'Valid',         color:'text-green-600', bg:'bg-green-50',  border:'border-green-200' },
+  expiring_soon: { label:'Expiring Soon', color:'text-amber-600', bg:'bg-amber-50',  border:'border-amber-200' },
+  expired:       { label:'Expired',       color:'text-red-600',   bg:'bg-red-50',    border:'border-red-200'   },
+};
+
+function SponsorTrainingPage() {
+  const [filter, setFilter] = useState('all');
+  const visible = filter === 'all' ? DEMO_TRAINING_CERTS : DEMO_TRAINING_CERTS.filter(c => c.status === filter);
+  const counts = {
+    all:          DEMO_TRAINING_CERTS.length,
+    valid:        DEMO_TRAINING_CERTS.filter(c => c.status === 'valid').length,
+    expiring_soon:DEMO_TRAINING_CERTS.filter(c => c.status === 'expiring_soon').length,
+    expired:      DEMO_TRAINING_CERTS.filter(c => c.status === 'expired').length,
+  };
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Staff Training &amp; Certifications</h1>
+          <p className="text-sm text-gray-500 mt-1">Track food handler certs, CACFP training, and expiry dates across all your sites and kitchens.</p>
+        </div>
+        <button className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white text-sm font-semibold rounded-xl">
+          <Plus className="w-4 h-4" /> Add Certification
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {[
+          { key:'all',          label:'Total',         value: counts.all,          color:'text-gray-900'  },
+          { key:'valid',        label:'Valid',          value: counts.valid,         color:'text-green-600' },
+          { key:'expiring_soon',label:'Expiring Soon', value: counts.expiring_soon, color:'text-amber-600' },
+          { key:'expired',      label:'Expired',       value: counts.expired,       color:'text-red-600'   },
+        ].map(s => (
+          <button
+            key={s.key}
+            onClick={() => setFilter(filter === s.key ? 'all' : s.key)}
+            className={`bg-white border rounded-2xl px-4 py-3 text-left transition-all hover:shadow-sm ${filter === s.key ? 'border-brand-400 shadow-sm' : 'border-gray-200'}`}
+          >
+            <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-xs font-semibold text-gray-500 mt-0.5">{s.label}</p>
+          </button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        {visible.map(c => {
+          const m = TRAINING_STATUS_META[c.status];
+          return (
+            <div key={c.id} className={`bg-white border ${m.border} rounded-2xl px-5 py-4 flex items-center gap-4`}>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${m.bg}`}>
+                <GraduationCap className={`w-4 h-4 ${m.color}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-gray-900">{c.staff_name}</p>
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{c.org_name}</span>
+                </div>
+                <p className="text-sm text-gray-600 mt-0.5">{c.cert_label}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${m.bg} ${m.color}`}>{m.label}</span>
+                <p className="text-xs text-gray-400 mt-1">
+                  Expires {new Date(c.expiry_date).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' })}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex gap-3">
+        <GraduationCap className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-gray-500">CACFPLink automatically emails reminders at 30, 14, and 7 days before a cert expires — keeping your program audit-ready at all times.</p>
+      </div>
+    </div>
+  );
+}
+
 function RenewalsPage() {
   const [tab, setTab]         = useState('active');
   const [openSite, setOpenSite] = useState(null);
@@ -2511,6 +2596,7 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/meal-counts'))  Page = () => <MealCountsPage />;
   else if (pathname.startsWith('/demo/sponsor/claims'))       Page = () => <ClaimsPage />;
   else if (pathname.startsWith('/demo/sponsor/renewals'))     Page = () => <RenewalsPage />;
+  else if (pathname.startsWith('/demo/sponsor/training'))     Page = () => <SponsorTrainingPage />;
   else if (pathname.startsWith('/demo/sponsor/documents'))    Page = () => <DocumentsPage />;
   else if (pathname.startsWith('/demo/sponsor/settings'))     Page = () => <SettingsPage />;
   else                                                         Page = () => <OverviewPage onOpenOrder={() => setShowOrder(true)} onOpenBroadcast={() => setShowBroadcast(true)} />;
