@@ -687,11 +687,37 @@ function GenerateClaim({ claim, month }) {
     });
   };
 
-  const downloadPDF = async () => {
-    setDownloading(true);
+  const downloadExport = async (format) => {
+    const mimeTypes = {
+      pdf:   'application/pdf',
+      excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      csv:   'text/csv',
+    };
+    const exts = { pdf: 'pdf', excel: 'xlsx', csv: 'csv' };
+    setDownloading(format);
     setDlError(null);
     try {
-      const response = await api.get(`/claims/export?month=${month}`, { responseType: 'blob' });
+      const response = await api.get(`/claims/export?month=${month}&format=${format}`, { responseType: 'blob' });
+      const url  = URL.createObjectURL(new Blob([response.data], { type: mimeTypes[format] }));
+      const link = document.createElement('a');
+      link.href     = url;
+      link.download = `CACFP-Claim-${month}.${exts[format]}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setDlError('Download failed — try again.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const downloadPDF = async () => {
+    setDownloading('pdf');
+    setDlError(null);
+    try {
+      const response = await api.get(`/claims/export?month=${month}&format=pdf`, { responseType: 'blob' });
       const url  = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href     = url;
@@ -703,7 +729,7 @@ function GenerateClaim({ claim, month }) {
     } catch (err) {
       setDlError('Download failed — try again.');
     } finally {
-      setDownloading(false);
+      setDownloading(null);
     }
   };
 
@@ -760,24 +786,52 @@ function GenerateClaim({ claim, month }) {
             Export claim report for {claim.stateName}:
           </div>
           <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
-            Downloads a formatted PDF summary with per-site meal counts, reimbursement breakdown, and any issues.
+            Download a formatted summary with per-site meal counts, reimbursement breakdown, and any issues.
           </div>
-          <button
-            onClick={downloadPDF}
-            disabled={downloading}
-            style={{
-              padding: '12px 32px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-              border: 'none', background: btnBg, color: '#fff',
-              cursor: downloading ? 'wait' : 'pointer',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-              opacity: downloading ? 0.8 : 1
-            }}
-          >
-            {downloading ? '⏳ Generating PDF…' : `⬇ Download ${claim.stateName} Claim PDF`}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={downloadPDF}
+              disabled={!!downloading}
+              style={{
+                padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                border: 'none', background: btnBg, color: '#fff',
+                cursor: downloading ? 'wait' : 'pointer',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+                opacity: downloading ? 0.7 : 1
+              }}
+            >
+              {downloading === 'pdf' ? '⏳ Generating…' : '⬇ PDF'}
+            </button>
+            <button
+              onClick={() => downloadExport('excel')}
+              disabled={!!downloading}
+              style={{
+                padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                border: '2px solid #059669', background: downloading === 'excel' ? '#059669' : '#fff',
+                color: downloading === 'excel' ? '#fff' : '#059669',
+                cursor: downloading ? 'wait' : 'pointer',
+                opacity: downloading && downloading !== 'excel' ? 0.5 : 1
+              }}
+            >
+              {downloading === 'excel' ? '⏳ Generating…' : '⬇ Excel (.xlsx)'}
+            </button>
+            <button
+              onClick={() => downloadExport('csv')}
+              disabled={!!downloading}
+              style={{
+                padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                border: '2px solid #6b7280', background: downloading === 'csv' ? '#6b7280' : '#fff',
+                color: downloading === 'csv' ? '#fff' : '#6b7280',
+                cursor: downloading ? 'wait' : 'pointer',
+                opacity: downloading && downloading !== 'csv' ? 0.5 : 1
+              }}
+            >
+              {downloading === 'csv' ? '⏳ Generating…' : '⬇ CSV'}
+            </button>
+          </div>
           {isBlocked && (
             <div style={{ marginTop: 14, fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>
-              ⚠ {claim.sitesCannotSubmit} {claim.sitesCannotSubmit === 1 ? 'site is' : 'sites are'} blocked — they will appear in the Issues section of the PDF.
+              ⚠ {claim.sitesCannotSubmit} {claim.sitesCannotSubmit === 1 ? 'site is' : 'sites are'} blocked — they will appear in the Issues section of the export.
             </div>
           )}
           <div style={{ marginTop: 14 }}>
