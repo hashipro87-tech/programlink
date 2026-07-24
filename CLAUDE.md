@@ -537,6 +537,26 @@ UPDATE organizations SET region = 'OH' WHERE id = 'paste-uuid-here';
 
 ---
 
+## Hashi Self-Test (2026-07-25) 🧪
+
+**Account:** hashiguhad10@gmail.com — role: sponsor
+Hashi is logging in tomorrow to run CACFPLink as a real sponsor.
+Goal: find every friction point, broken flow, and missing thing before a real sponsor does.
+
+**What to check when he reports findings:**
+- Register flow + onboarding (does it make sense with zero context?)
+- Settings → Organization → state picker (required for Claims to work)
+- Adding sites and kitchens (invite flow vs manual add)
+- Meal count entry (is it obvious enough?)
+- Claims Center (does the readiness % make sense without data?)
+- Form Generator (do fields pre-fill correctly for his test org?)
+- Staff Training (can he add a cert without confusion?)
+- Navigation (does the sidebar grouping feel right?)
+
+If he gets stuck anywhere → that becomes a task immediately.
+
+---
+
 ## Real Signups (2026-07-09) 🔥
 
 **Charles@cacfpsolutions.com** — role: sponsor — signed up 2026-06-29, `is_verified = true` ✅
