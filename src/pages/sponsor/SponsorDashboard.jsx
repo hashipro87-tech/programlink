@@ -29,7 +29,8 @@ import ChildRosterPage    from './ChildRosterPage';
 import TasksPage          from '../tasks/TasksPage';
 import InspectionsPage    from '../inspections/InspectionsPage';
 import ActivityFeedPage  from '../activity/ActivityFeedPage';
-import MenuBuilderPage  from '../menus/MenuBuilderPage';
+import MenuBuilderPage             from '../menus/MenuBuilderPage';
+import SponsorProductionRecordsPage from './SponsorProductionRecordsPage';
 import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
@@ -44,10 +45,11 @@ const NAV_ITEMS = [
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
 
   { sectionLabel: 'Operations' },
-  { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',  icon: UtensilsCrossed },
-  { label: 'Deliveries',     path: '/dashboard/sponsor/meal-orders',  icon: Truck },
-  { label: 'Delivery Plans', path: '/dashboard/sponsor/delivery-plans', icon: Repeat },
-  { label: 'Menus',          path: '/dashboard/sponsor/menus',        icon: BookOpen },
+  { label: 'Meal Counts',         path: '/dashboard/sponsor/meal-counts',          icon: UtensilsCrossed },
+  { label: 'Production Records',  path: '/dashboard/sponsor/production-records',   icon: ClipboardList },
+  { label: 'Deliveries',          path: '/dashboard/sponsor/meal-orders',           icon: Truck },
+  { label: 'Delivery Plans',      path: '/dashboard/sponsor/delivery-plans',       icon: Repeat },
+  { label: 'Menus',               path: '/dashboard/sponsor/menus',                icon: BookOpen },
 
   { sectionLabel: 'Finance' },
   { label: 'Claims',         path: '/dashboard/sponsor/claims',       icon: DollarSign },
@@ -505,7 +507,8 @@ export default function SponsorDashboard() {
               <Route path="children"       element={<ChildRosterPage />} />
               <Route path="tasks"          element={<TasksPage />} />
               <Route path="inspections"   element={<InspectionsPage />} />
-              <Route path="menus"         element={<MenuBuilderPage />} />
+              <Route path="menus"               element={<MenuBuilderPage />} />
+              <Route path="production-records" element={<SponsorProductionRecordsPage />} />
               <Route path="activity"     element={<ActivityFeedPage />} />
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />

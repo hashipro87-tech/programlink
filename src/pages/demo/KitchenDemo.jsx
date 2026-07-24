@@ -10,15 +10,16 @@ import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
 const NAV = [
-  { label: 'Overview',    path: '/demo/kitchen',             icon: CheckCircle    },
-  { label: 'Deliveries',  path: '/demo/kitchen/deliveries',  icon: Truck          },
-  { label: 'Meal Counts', path: '/demo/kitchen/meal-counts', icon: UtensilsCrossed },
-  { label: 'Menus',       path: '/demo/kitchen/menus',       icon: BookOpen       },
-  { label: 'Tasks',       path: '/demo/kitchen/tasks',       icon: CheckSquare    },
-  { label: 'Documents',   path: '/demo/kitchen/documents',   icon: FileText       },
-  { label: 'Messages',    path: '/demo/kitchen/messages',    icon: MessageSquare  },
-  { label: 'Activity',    path: '/demo/kitchen/activity',    icon: Activity       },
-  { label: 'Settings',    path: '/demo/kitchen/settings',    icon: Settings       },
+  { label: 'Overview',            path: '/demo/kitchen',                      icon: CheckCircle    },
+  { label: 'Deliveries',          path: '/demo/kitchen/deliveries',           icon: Truck          },
+  { label: 'Meal Counts',         path: '/demo/kitchen/meal-counts',          icon: UtensilsCrossed },
+  { label: 'Production Records',  path: '/demo/kitchen/production-records',   icon: FileText       },
+  { label: 'Menus',               path: '/demo/kitchen/menus',                icon: BookOpen       },
+  { label: 'Tasks',               path: '/demo/kitchen/tasks',                icon: CheckSquare    },
+  { label: 'Documents',           path: '/demo/kitchen/documents',            icon: FileText       },
+  { label: 'Messages',            path: '/demo/kitchen/messages',             icon: MessageSquare  },
+  { label: 'Activity',            path: '/demo/kitchen/activity',             icon: Activity       },
+  { label: 'Settings',            path: '/demo/kitchen/settings',             icon: Settings       },
 ];
 
 const TODAY_PROD = {
@@ -456,6 +457,161 @@ export default function KitchenDemo() {
                 </div>
               ))}
             </div>
+          </div>
+        );
+      }
+      case 'production-records': {
+        const WEEK_DAYS = ['Mon Jul 14','Tue Jul 15','Wed Jul 16','Thu Jul 17','Fri Jul 18','Sat Jul 19','Sun Jul 20'];
+        const MEAL_TYPES = [
+          { key:'breakfast', label:'Breakfast', color:'bg-orange-100 text-orange-700' },
+          { key:'lunch',     label:'Lunch',     color:'bg-green-100 text-green-700'   },
+          { key:'snack',     label:'Snack',     color:'bg-sky-100 text-sky-700'       },
+          { key:'supper',    label:'Supper',    color:'bg-violet-100 text-violet-700' },
+        ];
+        // Demo week grid: status per [day][meal]
+        const GRID = {
+          0: { breakfast:'complete', lunch:'complete', snack:'complete', supper:null    },
+          1: { breakfast:'complete', lunch:'complete', snack:'draft',    supper:null    },
+          2: { breakfast:'complete', lunch:'draft',    snack:null,       supper:null    },
+          3: { breakfast:'draft',    lunch:null,       snack:null,       supper:null    },
+          4: { breakfast:null,       lunch:null,       snack:null,       supper:null    },
+          5: { breakfast:null,       lunch:null,       snack:null,       supper:null    },
+          6: { breakfast:null,       lunch:null,       snack:null,       supper:null    },
+        };
+        const totalComplete = Object.values(GRID).flatMap(d => Object.values(d)).filter(s => s === 'complete').length;
+        const totalDraft    = Object.values(GRID).flatMap(d => Object.values(d)).filter(s => s === 'draft').length;
+        const DRAWER_ITEMS = [
+          { name:'Whole Grain Toast', component:'grains', wgr:true,  qty:'45 slices'  },
+          { name:'2% Milk',           component:'milk',   wgr:false, qty:'45 cups'    },
+          { name:'Orange Juice',      component:'fruit',  wgr:false, qty:'45 servings'},
+        ];
+        const [activeCell, setActiveCell] = useState(null);
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Production Records</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Week of Jul 14 – Jul 20, 2026</p>
+              </div>
+            </div>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-center">
+                <p className="text-2xl font-black text-green-600">{totalComplete}</p>
+                <p className="text-xs font-semibold text-gray-500 mt-0.5">Complete</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-center">
+                <p className="text-2xl font-black text-amber-500">{totalDraft}</p>
+                <p className="text-xs font-semibold text-gray-500 mt-0.5">In Draft</p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-center">
+                <p className="text-2xl font-black text-gray-400">7</p>
+                <p className="text-xs font-semibold text-gray-500 mt-0.5">Days in Week</p>
+              </div>
+            </div>
+
+            {/* Week grid */}
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs" style={{ minWidth: 520 }}>
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-4 py-3 text-left font-semibold text-gray-500 w-24">Meal</th>
+                      {WEEK_DAYS.map((d, i) => (
+                        <th key={i} className={`px-2 py-3 font-semibold text-center ${i === 0 ? 'text-brand-700 bg-brand-50' : 'text-gray-500'}`}>
+                          {d.split(' ').map((p, j) => <div key={j}>{p}</div>)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MEAL_TYPES.map(({ key, label, color }) => (
+                      <tr key={key} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3 font-semibold text-gray-600">{label}</td>
+                        {WEEK_DAYS.map((_, di) => {
+                          const st = GRID[di][key];
+                          return (
+                            <td key={di} className="px-2 py-2 text-center">
+                              <button
+                                onClick={() => setActiveCell({ day: di, meal: key, label })}
+                                className={`w-full rounded-lg px-1 py-2 font-semibold transition-all text-center ${
+                                  st === 'complete' ? 'bg-green-100 text-green-700 hover:bg-green-200' :
+                                  st === 'draft'    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' :
+                                  'bg-gray-50 text-gray-300 hover:bg-gray-100'
+                                }`}
+                              >
+                                {st === 'complete' ? '✓' : st === 'draft' ? '…' : '+'}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2 border-t border-gray-50 bg-gray-50 flex items-center gap-4 text-[10px] font-semibold text-gray-500">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 inline-block" /> Complete</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 inline-block" /> Draft</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 inline-block" /> Empty</span>
+              </div>
+            </div>
+
+            {/* Drawer preview */}
+            {activeCell && (
+              <div className="bg-white border border-brand-200 rounded-2xl overflow-hidden mb-6 shadow-md">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-brand-50">
+                  <div>
+                    <p className="text-xs font-bold text-brand-600 uppercase tracking-wide">{WEEK_DAYS[activeCell.day]}</p>
+                    <h2 className="font-bold text-gray-900">{activeCell.label} Record</h2>
+                  </div>
+                  <button onClick={() => setActiveCell(null)} className="text-xs text-gray-400 hover:text-gray-600 font-semibold">Close ×</button>
+                </div>
+                <div className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Food Items</p>
+                    <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full cursor-pointer">⚡ Auto-fill from menu</span>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    {DRAWER_ITEMS.map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl">
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                          <p className="text-xs text-gray-400">{item.component}{item.wgr ? ' · 🌾 WGR' : ''}</p>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-500">{item.qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Planned servings</label>
+                      <div className="border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 bg-white">45</div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Actual servings</label>
+                      <div className="border border-brand-300 rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 bg-white">43</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="flex-1 py-2 bg-gray-100 text-gray-600 text-sm font-semibold rounded-xl">Save Draft</button>
+                    <button className="flex-1 py-2 bg-green-600 text-white text-sm font-semibold rounded-xl">Mark Complete</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* USDA tip */}
+            <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 mb-4">
+              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-gray-500">
+                USDA 7 CFR Part 226 requires a production record for every meal service. Records must be retained for 3 years. The <strong>Auto-fill</strong> button pre-populates food items from your approved weekly menu.
+              </p>
+            </div>
+            <p className="text-center text-sm text-gray-400">
+              <Link to="/register" className="text-brand-600 hover:underline font-semibold">Sign up free</Link> to start logging production records.
+            </p>
           </div>
         );
       }
