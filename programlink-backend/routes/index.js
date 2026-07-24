@@ -29,5 +29,6 @@ router.use('/menus',               require('./menus'));
 router.use('/production-records',  require('./productionRecords'));
 router.use('/renewals',            require('./renewals'));
 router.use('/staff-trainings',     require('./training'));
+router.use('/forms',               require('./forms'));
 
 module.exports = router;

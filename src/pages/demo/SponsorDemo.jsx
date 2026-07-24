@@ -5,7 +5,7 @@ import {
   FileText, Settings, Truck, ChefHat, Plus, X,
   ShieldCheck, ShieldAlert, ShieldX, Shield,
   MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
-  CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw, GraduationCap,
+  CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw, GraduationCap, Printer, Download,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
@@ -30,6 +30,7 @@ const NAV = [
   { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
   { label: 'Renewals',       path: '/demo/sponsor/renewals',          icon: RotateCcw      },
   { label: 'Staff Training', path: '/demo/sponsor/training',          icon: GraduationCap  },
+  { label: 'Form Generator', path: '/demo/sponsor/forms',             icon: Printer        },
   { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
   { label: 'Activity',       path: '/demo/sponsor/activity',          icon: Activity       },
   { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
@@ -2259,6 +2260,288 @@ const DEMO_SITES_RENEWAL = [
   ]},
 ];
 
+// ── Form Generator demo ───────────────────────────────────────────────────────
+const DEMO_TEMPLATES = [
+  { id:'site_information_sheet', label:'Site Information Sheet',       description:'Basic site profile for CACFP enrollment and sponsor records.'           },
+  { id:'sponsor_agreement',      label:'Sponsor Agreement',            description:'Annual agreement between sponsor and participating site/kitchen.'        },
+  { id:'annual_renewal',         label:'Annual Renewal Confirmation',  description:'Confirms participation intent for program year renewal.'                 },
+  { id:'income_eligibility_form',label:'Income Eligibility Statement', description:'Family income eligibility form with site/sponsor info pre-filled.'       },
+];
+
+const DEMO_FORM_DATA = {
+  site_information_sheet: {
+    label: 'Site Information Sheet',
+    org: { name: 'Sunshine Daycare', type: 'site' },
+    sections: [
+      { title: 'Site / Kitchen Information', fields: [
+        { label:'Organization Name', value:'Sunshine Daycare'             },
+        { label:'Program Type',      value:'Child Care Site'              },
+        { label:'Street Address',    value:'842 Oak Ave'                  },
+        { label:'City',              value:'Des Moines'                   },
+        { label:'State',             value:'IA'                           },
+        { label:'ZIP Code',          value:'50309'                        },
+        { label:'Phone',             value:'(515) 555-0112'               },
+        { label:'Email',             value:'admin@sunshinedaycare.org'    },
+        { label:'Licensed Capacity', value:'48'                           },
+        { label:'License Number',    value:''                             },
+      ]},
+      { title: 'Primary Contact', fields: [
+        { label:'Contact Name',  value:'Maria Gonzalez'             },
+        { label:'Contact Phone', value:'(515) 555-0112'             },
+        { label:'Contact Email', value:'mgonzalez@sunshinedaycare.org' },
+      ]},
+      { title: 'Sponsoring Organization', fields: [
+        { label:'Sponsor Name',    value:'Iowa CACFP Sponsor Group'   },
+        { label:'Sponsor Address', value:'200 Grand Ave, Des Moines, IA 50309' },
+        { label:'Sponsor Phone',   value:'(515) 555-0100'             },
+        { label:'Sponsor Email',   value:'admin@iacsfp.org'           },
+        { label:'Sponsor Number',  value:'A4F2B1E3'                   },
+      ]},
+    ],
+    signature_line: true,
+    signature_label: 'Authorized Site Representative',
+    checklist: null,
+    note: null,
+  },
+  sponsor_agreement: {
+    label: 'Sponsor Agreement',
+    org: { name: 'Lincoln Kitchen', type: 'kitchen' },
+    sections: [
+      { title: 'Sponsoring Organization', fields: [
+        { label:'Sponsor Organization Name', value:'Iowa CACFP Sponsor Group' },
+        { label:'Address',                   value:'200 Grand Ave'            },
+        { label:'City',                      value:'Des Moines'               },
+        { label:'State',                     value:'IA'                       },
+        { label:'ZIP Code',                  value:'50309'                    },
+        { label:'Phone',                     value:'(515) 555-0100'           },
+        { label:'Email',                     value:'admin@iacsfp.org'         },
+        { label:'Sponsor Number',            value:'A4F2B1E3'                 },
+      ]},
+      { title: 'Participating Organization', fields: [
+        { label:'Site / Kitchen Name', value:'Lincoln Kitchen'               },
+        { label:'Program Type',        value:'Child Nutrition Kitchen'       },
+        { label:'Address',             value:'1100 State St, Iowa City, IA'  },
+        { label:'Phone',               value:'(319) 555-0222'                },
+        { label:'Email',               value:'contact@lincolnkitchen.org'    },
+        { label:'Contact Person',      value:'James Okafor'                  },
+      ]},
+      { title: 'Agreement Details', fields: [
+        { label:'Program Year',  value:'2026'                                 },
+        { label:'Effective Date',value:'July 24, 2026'                       },
+      ]},
+    ],
+    signature_line: true,
+    signature_label: 'Site/Kitchen Authorized Representative',
+    signature_line_2: true,
+    signature_label_2: 'Sponsor Authorized Representative',
+    checklist: null,
+    note: null,
+  },
+  annual_renewal: {
+    label: 'Annual Renewal Confirmation',
+    org: { name: 'Sunshine Daycare', type: 'site' },
+    sections: [
+      { title: 'Site / Kitchen Information', fields: [
+        { label:'Organization Name', value:'Sunshine Daycare'             },
+        { label:'Program Type',      value:'Child Care Site'              },
+        { label:'Address',           value:'842 Oak Ave, Des Moines, IA 50309' },
+        { label:'Phone',             value:'(515) 555-0112'               },
+        { label:'Email',             value:'admin@sunshinedaycare.org'    },
+        { label:'Licensed Capacity', value:'48'                           },
+        { label:'License Number',    value:''                             },
+      ]},
+      { title: 'Contact Information', fields: [
+        { label:'Primary Contact',  value:'Maria Gonzalez'                },
+        { label:'Contact Phone',    value:'(515) 555-0112'                },
+        { label:'Contact Email',    value:'mgonzalez@sunshinedaycare.org' },
+      ]},
+      { title: 'Renewal Period', fields: [
+        { label:'Renewal Year', value:'2026'                              },
+        { label:'Submitted',    value:'July 2026'                         },
+        { label:'Sponsor',      value:'Iowa CACFP Sponsor Group'          },
+      ]},
+    ],
+    signature_line: true,
+    signature_label: 'Authorized Representative',
+    checklist: [
+      'No changes to licensed capacity or age groups',
+      'Contact information above is current and correct',
+      'Site continues to meet all CACFP eligibility requirements',
+      'Staff responsible for meal counts have completed required training',
+    ],
+    note: null,
+  },
+  income_eligibility_form: {
+    label: 'Income Eligibility Statement',
+    org: { name: 'Sunshine Daycare', type: 'site' },
+    sections: [
+      { title: 'Site Information', fields: [
+        { label:'Site Name',     value:'Sunshine Daycare'              },
+        { label:'Site Address',  value:'842 Oak Ave, Des Moines, IA'   },
+        { label:'Site Phone',    value:'(515) 555-0112'                },
+        { label:'Sponsor Name',  value:'Iowa CACFP Sponsor Group'      },
+        { label:'Sponsor Number',value:'A4F2B1E3'                      },
+        { label:'Program Year',  value:'2026'                          },
+      ]},
+    ],
+    signature_line: false,
+    checklist: null,
+    note: 'Family/guardian information and income data must be completed by the household.',
+  },
+};
+
+const DEMO_ORGS = [
+  { id:'o1', name:'Sunshine Daycare',    type:'site'    },
+  { id:'o2', name:'Happy Hearts Center', type:'site'    },
+  { id:'o3', name:'Lincoln Kitchen',     type:'kitchen' },
+];
+
+function FormGeneratorPage() {
+  const [selectedOrg, setSelectedOrg] = useState('o1');
+  const [selectedTpl, setSelectedTpl] = useState('site_information_sheet');
+  const [showDownload, setShowDownload] = useState(false);
+
+  const formData = DEMO_FORM_DATA[selectedTpl];
+
+  const handleDownload = () => {
+    setShowDownload(true);
+    setTimeout(() => setShowDownload(false), 2500);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Form Generator</h1>
+        <p className="text-sm text-gray-500 mt-1">Select an organization and form type — CACFPLink pre-fills every field it already knows.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left — selectors */}
+        <div className="space-y-5">
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. Select Organization</p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {DEMO_ORGS.map(o => (
+                <button
+                  key={o.id}
+                  onClick={() => setSelectedOrg(o.id)}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors ${selectedOrg === o.id ? 'bg-brand-50' : 'hover:bg-gray-50'}`}
+                >
+                  <Building2 className={`w-3.5 h-3.5 flex-shrink-0 ${selectedOrg === o.id ? 'text-brand-600' : 'text-gray-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm truncate ${selectedOrg === o.id ? 'font-bold text-brand-700' : 'text-gray-700'}`}>{o.name}</p>
+                    <p className="text-xs text-gray-400 capitalize">{o.type}</p>
+                  </div>
+                  {selectedOrg === o.id && <CheckCircle className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">2. Select Form Type</p>
+            <div className="space-y-2">
+              {DEMO_TEMPLATES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTpl(t.id)}
+                  className={`w-full text-left border rounded-2xl px-4 py-4 transition-all hover:shadow-sm ${selectedTpl === t.id ? 'border-brand-500 bg-brand-50 shadow-sm' : 'border-gray-200 bg-white hover:border-brand-200'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${selectedTpl === t.id ? 'bg-brand-600' : 'bg-gray-100'}`}>
+                      <FileText className={`w-4 h-4 ${selectedTpl === t.id ? 'text-white' : 'text-gray-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold ${selectedTpl === t.id ? 'text-brand-900' : 'text-gray-900'}`}>{t.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right — preview */}
+        <div className="lg:col-span-2 space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{formData.label}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Pre-filled for: <span className="font-semibold text-gray-700">{formData.org.name}</span> · Generated Jul 24, 2026</p>
+            </div>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              {showDownload ? 'Downloaded ✓' : 'Download PDF'}
+            </button>
+          </div>
+
+          {formData.note && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <FileText className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">{formData.note}</p>
+            </div>
+          )}
+
+          {formData.sections.map((section, si) => (
+            <div key={si} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="bg-brand-600 px-4 py-2.5">
+                <p className="text-xs font-bold text-white uppercase tracking-wider">{section.title}</p>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {section.fields.map((field, fi) => (
+                  <div key={fi} className="px-4 py-3 flex items-baseline gap-4">
+                    <p className="text-xs font-semibold text-gray-400 w-36 flex-shrink-0">{field.label}</p>
+                    <p className={`text-sm flex-1 ${field.value ? 'text-gray-900 font-medium' : 'text-gray-300 italic'}`}>
+                      {field.value || 'Not on file'}
+                    </p>
+                    {!field.value && <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex-shrink-0">Missing</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {formData.checklist?.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="bg-brand-600 px-4 py-2.5">
+                <p className="text-xs font-bold text-white uppercase tracking-wider">Renewal Confirmation</p>
+              </div>
+              <div className="px-4 py-3 space-y-2">
+                {formData.checklist.map((item, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <div className="w-4 h-4 border border-gray-300 rounded flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-gray-700">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {formData.signature_line && (
+            <div className="bg-white border border-gray-200 rounded-2xl px-4 py-4">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Signatures</p>
+              <div className={`grid gap-6 ${formData.signature_line_2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {[formData.signature_label, formData.signature_line_2 ? formData.signature_label_2 : null].filter(Boolean).map((label, i) => (
+                  <div key={i}>
+                    <div className="border-b border-gray-300 pb-1 mb-1" />
+                    <p className="text-xs text-gray-500">{label}</p>
+                    <div className="mt-2 text-xs text-gray-400">Print Name: _________________ &nbsp; Title: _________________</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DEMO_TRAINING_CERTS = [
   { id:'t1', staff_name:'Maria Gonzalez', org_name:'Lincoln Kitchen',   cert_label:'Food Safety Manager Certification', cert_date:'2024-12-15', expiry_date:'2026-12-15', status:'valid'         },
   { id:'t2', staff_name:'James Okafor',   org_name:'Lincoln Kitchen',   cert_label:'Food Handler Certificate',          cert_date:'2025-08-01', expiry_date:'2026-08-10', status:'expiring_soon'  },
@@ -2597,6 +2880,7 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/claims'))       Page = () => <ClaimsPage />;
   else if (pathname.startsWith('/demo/sponsor/renewals'))     Page = () => <RenewalsPage />;
   else if (pathname.startsWith('/demo/sponsor/training'))     Page = () => <SponsorTrainingPage />;
+  else if (pathname.startsWith('/demo/sponsor/forms'))        Page = () => <FormGeneratorPage />;
   else if (pathname.startsWith('/demo/sponsor/documents'))    Page = () => <DocumentsPage />;
   else if (pathname.startsWith('/demo/sponsor/settings'))     Page = () => <SettingsPage />;
   else                                                         Page = () => <OverviewPage onOpenOrder={() => setShowOrder(true)} onOpenBroadcast={() => setShowBroadcast(true)} />;
