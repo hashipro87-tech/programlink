@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare, ShieldCheck, Activity, BookOpen } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare, ShieldCheck, Activity, BookOpen, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -31,6 +31,7 @@ import InspectionsPage    from '../inspections/InspectionsPage';
 import ActivityFeedPage  from '../activity/ActivityFeedPage';
 import MenuBuilderPage             from '../menus/MenuBuilderPage';
 import SponsorProductionRecordsPage from './SponsorProductionRecordsPage';
+import RenewalWizardPage            from './RenewalWizardPage';
 import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
@@ -59,6 +60,7 @@ const NAV_ITEMS = [
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Inspections',    path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
+  { label: 'Renewals',       path: '/dashboard/sponsor/renewals',     icon: RotateCcw },
 
   { sectionLabel: 'Tracking' },
   { label: 'Tasks',          path: '/dashboard/sponsor/tasks',        icon: CheckSquare },
@@ -509,6 +511,7 @@ export default function SponsorDashboard() {
               <Route path="inspections"   element={<InspectionsPage />} />
               <Route path="menus"               element={<MenuBuilderPage />} />
               <Route path="production-records" element={<SponsorProductionRecordsPage />} />
+              <Route path="renewals"          element={<RenewalWizardPage />} />
               <Route path="activity"     element={<ActivityFeedPage />} />
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="sites"           element={<SitesPage />} />

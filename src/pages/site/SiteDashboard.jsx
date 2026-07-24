@@ -7,7 +7,7 @@ import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
   Building2, CheckCircle, Settings, AlertTriangle, ArrowRight,
   Truck, Bell, CheckSquare, Square, Phone, Mail, Clock,
-  Package, TrendingUp, ShieldCheck, Calendar, Activity, Users2, DollarSign,
+  Package, TrendingUp, ShieldCheck, Calendar, Activity, Users2, DollarSign, RotateCcw,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../context/AuthContext';
@@ -24,6 +24,7 @@ import SettingsPage         from '../settings/SettingsPage';
 import SiteMealCountPage    from './SiteMealCountPage';
 import SiteEnrollmentPage  from './SiteEnrollmentPage';
 import SiteIncomePage      from './SiteIncomePage';
+import SiteRenewalPage     from './SiteRenewalPage';
 import TasksPage            from '../tasks/TasksPage';
 import ActivityFeedPage    from '../activity/ActivityFeedPage';
 
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',    path: '/dashboard/site/meals',        icon: UtensilsCrossed },
   { label: 'Enrollment',     path: '/dashboard/site/enrollment',   icon: Users2         },
   { label: 'Income Certs',  path: '/dashboard/site/income',       icon: DollarSign     },
+  { label: 'Renewals',      path: '/dashboard/site/renewal',      icon: RotateCcw      },
 
   { sectionLabel: 'Admin' },
   { label: 'My Application', path: '/dashboard/site/application',  icon: ClipboardList  },
@@ -908,6 +910,7 @@ export default function SiteDashboard() {
               <Route path="meals"        element={<SiteMealCountPage />} />
               <Route path="enrollment"   element={<SiteEnrollmentPage />} />
               <Route path="income"      element={<SiteIncomePage />} />
+              <Route path="renewal"    element={<SiteRenewalPage />} />
               <Route path="application"  element={<ApplicationPage />} />
               <Route path="documents"    element={<DocumentsPage />} />
               <Route path="tasks"        element={<TasksPage />} />

@@ -27,5 +27,6 @@ router.use('/inspections',             require('./inspections'));
 router.use('/activity',                require('./activity'));
 router.use('/menus',               require('./menus'));
 router.use('/production-records',  require('./productionRecords'));
+router.use('/renewals',            require('./renewals'));
 
 module.exports = router;
