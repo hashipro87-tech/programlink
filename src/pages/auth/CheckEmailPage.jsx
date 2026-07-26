@@ -70,7 +70,11 @@ export default function CheckEmailPage() {
                 </button>
               )}
               {resendStatus === 'error' && (
-                <p className="text-xs text-red-500 mt-1">Couldn't resend. Try again in a moment.</p>
+                <p className="text-xs text-red-500 mt-1">
+                  Couldn't send the email. Try again, or{' '}
+                  <a href="mailto:support@cacfplink.com" className="underline">contact us</a>
+                  {' '}and we'll verify your account manually.
+                </p>
               )}
             </div>
           )}

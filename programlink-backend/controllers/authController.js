@@ -64,11 +64,20 @@ exports.register = async (req, res) => {
 
     await client.query('COMMIT');
 
-    sendVerificationEmail(email, verification_token, name).catch((err) =>
-      console.error('Failed to send verification email:', err.message)
-    );
+    let emailOk = true;
+    try {
+      await sendVerificationEmail(email, verification_token, name);
+      console.log(`📧 Verification email sent to ${email}`);
+    } catch (emailErr) {
+      emailOk = false;
+      console.error('Failed to send verification email after register:', emailErr.message);
+    }
+
     res.status(201).json({
-      message: 'Account created. Please check your email to verify your address.',
+      message: emailOk
+        ? 'Account created. Please check your email to verify your address.'
+        : 'Account created, but we could not send the verification email. Use "Resend" on the next page.',
+      emailSent: emailOk,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
@@ -124,7 +133,7 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     console.error('login error:', err);
-    res.status(500).json({ error: 'Login failed. Please try again.' });
+    res.status(500).json({ error: 'Something went wrong. Please try again in a moment.' });
   }
 };
 
@@ -195,10 +204,17 @@ exports.resendVerification = async (req, res) => {
     }
     const newToken = randomToken();
     await pool.query('UPDATE users SET verification_token = $1 WHERE id = $2', [newToken, user.id]);
-    sendVerificationEmail(user.email, newToken, user.name).catch((err) =>
-      console.error('Failed to resend verification email:', err.message)
-    );
-    res.json({ message: 'Verification email sent. Please check your inbox.' });
+    try {
+      await sendVerificationEmail(user.email, newToken, user.name);
+      console.log(`📧 Verification email sent to ${user.email}`);
+    } catch (emailErr) {
+      console.error('Failed to send verification email:', emailErr.message);
+      return res.status(500).json({
+        error: 'Could not send verification email. Our email service may be having issues — please try again in a few minutes.',
+        code: 'EMAIL_SEND_FAILED',
+      });
+    }
+    res.json({ message: 'Verification email sent. Please check your inbox (and spam folder).' });
   } catch (err) {
     console.error('resendVerification error:', err);
     res.status(500).json({ error: 'Could not resend verification email. Please try again.' });
