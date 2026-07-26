@@ -163,7 +163,7 @@ export default function Register() {
       submittedRef.current = true;
       trackRegisterSubmit(role);
       trackSignUp(role);
-      navigate('/register/check-email', { state: { email: form.email }, replace: true });
+      navigate('/check-email', { state: { email: form.email }, replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
