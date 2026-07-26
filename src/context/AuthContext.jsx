@@ -34,8 +34,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // Call after receiving a fresh token from the server (e.g., after Settings saves a new org).
+  // Swaps in the new JWT so all subsequent API calls use it, then re-fetches /auth/me
+  // to update the in-memory user state — no logout required.
+  async function refreshUser(newToken) {
+    if (newToken) localStorage.setItem('token', newToken);
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data.user);
+    } catch {
+      // Token may be stale — clear and redirect to login
+      localStorage.removeItem('token');
+      setUser(null);
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

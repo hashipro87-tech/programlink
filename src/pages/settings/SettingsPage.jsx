@@ -70,7 +70,7 @@ function Message({ msg }) {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const isSponsor = user?.role === 'sponsor' || user?.role === 'admin';
   const [loading, setLoading] = useState(true);
 
@@ -154,7 +154,12 @@ export default function SettingsPage() {
     setOrgMsg('');
     try {
       const { data } = await api.patch('/settings/organization', { name: org.name, address: org.address, phone: org.phone, region: org.region });
-      setOrgMsg(data.message ? `✓ ${data.message}` : '✓ Organization updated.');
+      // If a fresh token is returned (first-time org creation), swap it in so Claims
+      // Center activates immediately — no log out / log in required.
+      if (data.token) {
+        await refreshUser(data.token);
+      }
+      setOrgMsg('✓ Organization saved.');
     } catch (err) {
       setOrgMsg(err.response?.data?.error ?? 'Failed to save organization info.');
     } finally {

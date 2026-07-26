@@ -1,5 +1,14 @@
 const pool   = require('../config/database');
 const bcrypt = require('bcryptjs');
+const jwt    = require('jsonwebtoken');
+
+function issueToken(userId, email, role, orgId, sponsorId) {
+  return jwt.sign(
+    { id: userId, email, role, organizationId: orgId, sponsorId },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+}
 
 exports.getSettings = async (req, res) => {
   try {
@@ -76,9 +85,13 @@ exports.updateOrganization = async (req, res) => {
       const newOrg = orgRes.rows[0];
       await client.query('UPDATE users SET org_id = $1 WHERE id = $2', [newOrg.id, req.user.id]);
       await client.query('COMMIT');
+
+      // Issue a fresh JWT with the new org_id so Claims Center activates immediately
+      const token = issueToken(req.user.id, req.user.email, req.user.role, newOrg.id, null);
+
       return res.json({
         organization: newOrg,
-        message: 'Organization created. Log out and back in to activate the Claims Center.',
+        token,
       });
     }
 
