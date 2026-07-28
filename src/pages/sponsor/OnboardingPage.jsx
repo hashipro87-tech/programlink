@@ -40,14 +40,6 @@ export default function OnboardingPage({ onDismiss }) {
       cta: 'Go to Coordinators',
       path: '/dashboard/sponsor/coordinators',
     },
-    {
-      num: 4,
-      icon: '💰',
-      title: 'Check your Claims Center',
-      desc: 'Your state reimbursement rates are already configured. The Claims Center shows your estimated reimbursement and any issues to fix before submission.',
-      cta: 'View Claims',
-      path: '/dashboard/sponsor/claims',
-    },
   ];
 
   return (
