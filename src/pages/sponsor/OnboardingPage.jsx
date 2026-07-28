@@ -10,10 +10,11 @@ export default function OnboardingPage({ onDismiss }) {
     catch { return []; }
   });
 
-  const markVisited = (num) => {
+  const markVisited = (num, path) => {
     const next = visited.includes(num) ? visited : [...visited, num];
     setVisited(next);
     localStorage.setItem('cacfplink_onboarding_steps', JSON.stringify(next));
+    if (path) onDismiss(path); // navigate without dismissing onboarding
   };
   const steps = [
     {
@@ -51,7 +52,7 @@ export default function OnboardingPage({ onDismiss }) {
           Your sponsor account is ready!
         </h1>
         <p style={{ fontSize: 15, color: '#6b7280', margin: 0 }}>
-          Here's how to set up your CACFP program. Use the sidebar to complete each step, then mark it done.
+          Here's how to set up your CACFP program. Complete these steps and come back here when you're done.
         </p>
       </div>
 
@@ -119,25 +120,39 @@ export default function OnboardingPage({ onDismiss }) {
                 whiteSpace: 'nowrap',
               }}>✓ Done</span>
             ) : (
-              <button
-                onClick={() => markVisited(step.num)}
-                style={{
-                  flexShrink: 0,
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: '1px solid #d1d5db',
-                  background: '#fff',
-                  color: '#374151',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#4f46e5'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#374151'; }}
-              >
-                Mark done ✓
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                <button
+                  onClick={() => markVisited(step.num, step.path)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#4f46e5',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {step.cta} →
+                </button>
+                <button
+                  onClick={() => markVisited(step.num, null)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #e5e7eb',
+                    background: 'transparent',
+                    color: '#9ca3af',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Already done ✓
+                </button>
+              </div>
             )}
           </div>
         ))}
