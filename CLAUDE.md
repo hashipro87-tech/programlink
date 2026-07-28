@@ -540,20 +540,49 @@ UPDATE organizations SET region = 'OH' WHERE id = 'paste-uuid-here';
 ## Hashi Self-Test (2026-07-25) 🧪
 
 **Account:** hashiguhad10@gmail.com — role: sponsor
-Hashi is logging in tomorrow to run CACFPLink as a real sponsor.
-Goal: find every friction point, broken flow, and missing thing before a real sponsor does.
+**Org ID:** 475ca0a8-01ef-481b-9b67-75bdb98aff7d
 
-**What to check when he reports findings:**
-- Register flow + onboarding (does it make sense with zero context?)
-- Settings → Organization → state picker (required for Claims to work)
-- Adding sites and kitchens (invite flow vs manual add)
-- Meal count entry (is it obvious enough?)
-- Claims Center (does the readiness % make sense without data?)
-- Form Generator (do fields pre-fill correctly for his test org?)
-- Staff Training (can he add a cert without confusion?)
-- Navigation (does the sidebar grouping feel right?)
+Hashi ran CACFPLink as a real sponsor and found the following bugs. All fixed as of 2026-07-28.
 
-If he gets stuck anywhere → that becomes a task immediately.
+### Bugs Found and Fixed
+
+**1. Kitchen invite 403 error**
+- Root cause: Two tabs open — AcceptInvitePage wrote a site-role JWT to `localStorage.token`, overwriting the sponsor JWT. The sidebar still showed the sponsor email (stale React state) but all API calls used the site token.
+- Fix: Switched token storage from `localStorage` to `sessionStorage` — each tab now has its own isolated token.
+- Files: `src/services/api.js`, `src/context/AuthContext.jsx`, `src/pages/auth/AcceptInvitePage.jsx`
+
+**2. Cross-tab logout (logging out of site tab logged out sponsor tab)**
+- Root cause: `localStorage` is shared across all tabs on the same domain. One tab's `logout()` removed the shared token; the other tab's 401 interceptor redirected to login.
+- Fix: Same sessionStorage switch above. Each tab now has its own session. Closing a tab logs you out (expected behavior — more secure).
+
+**3. Onboarding checklist showing "Done" when tasks weren't completed**
+- Root cause: Steps tracked by localStorage "visited" array — marked done when user navigated to the page, not when the task was actually done.
+- Fix: Rewrote `OnboardingPage.jsx` to check real API data. Step 1 done = `siteCount > 0`, Step 2 done = `kitchenCount > 0` (from stats endpoint). Step 3 (coordinator) is self-reported via "Already done" button.
+- Files: `src/pages/sponsor/OnboardingPage.jsx`, `src/pages/sponsor/SponsorDashboard.jsx`
+
+**4. Kitchens / Sites / Coordinators pages showing 0 results despite data existing**
+- Root cause: All three pages used `Array.isArray(data) ? data : []`. The API returns objects (`{ organizations: [...] }`, `{ users: [...] }`), not arrays. `Array.isArray` always returned false → always `[]`.
+- Fix: Changed to `data.organizations ?? ...` and `data.users ?? ...` across all affected pages.
+- Files: `src/pages/sponsor/KitchensPage.jsx`, `src/pages/sponsor/SitesPage.jsx`, `src/pages/sponsor/CoordinatorsPage.jsx`
+
+**5. Same Array.isArray bug in meal count and kitchen detail pages**
+- `MealCountsPage.jsx` — `data.meal_counts ??` (was always [])
+- `MealEntryForm.jsx` — `data.meal_counts ??` (kitchen recent meals always empty)
+- `MealReminderBanner.jsx` — `data.meal_counts ??` (missed days check always wrong)
+- `KitchensPage.jsx` connected sites panel — `data.kitchens ??`
+
+**6. Sponsor tenant isolation bug**
+- Root cause: `listOrganizations` had no scoping for sponsor role — any sponsor could see ALL organizations in the database (all sponsors' sites, kitchens, etc.)
+- Fix: Added `WHERE sponsor_id = $N OR id = $N` filter using `req.user.organizationId` when role = 'sponsor'.
+- File: `programlink-backend/controllers/organizationsController.js`
+
+**7. Stats endpoint missing `total_kitchens`**
+- Fixed: Added `total_kitchens` to stats response so onboarding can check `kitchenCount > 0`.
+- File: `programlink-backend/controllers/statsController.js`
+
+### Remaining Known Issues (not yet fixed)
+- Invite emails go to spam — emails come from shared Resend domain `onboarding@resend.dev`. Fix: set up custom domain `cacfplink.com` in Resend (noreply@cacfplink.com).
+- AcceptInvitePage in same browser as sponsor: when accepting an invite in the same browser session (not incognito), the accepted role's JWT replaces the current session. Real sponsors won't do this — invite recipients are different people. For testing, always accept invites in an incognito window.
 
 ---
 
@@ -699,6 +728,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 136 | Training tracking + expiration reminders — `staff_trainings` table (SQL: staff_trainings.sql in Desktop/outputs); trainingController.js (listTrainings, getSummary, createTraining, updateTraining, deleteTraining, sendTrainingExpiryReminders — role-scoped: sponsor sees all orgs, kitchen/site sees own); routes/training.js; mounted at /staff-trainings; emailService.js: `sendTrainingExpiryEmail` (30/14/7 day urgency 🟠🟡🔴); scheduledJobs.js: daily 8:30am UTC cron; TrainingPage.jsx (sponsor + kitchen, summary cards, filterable cert list, add/edit modal with CERT_TYPES, org picker for sponsors, expiry countdown); SponsorDashboard: "Staff Training" nav + route under Compliance; KitchenDashboard: "Staff Training" nav + route under Admin; SponsorDemo: SponsorTrainingPage (5 demo certs across 3 orgs, filter by status); KitchenDemo: training case (4 kitchen staff certs, status badges, info note) | ✅ |
 | 137 | Forms Pre-fill Engine — `formDataService.js` (FIELD_SOURCES + FORM_TEMPLATES constants; `generateFormData(orgId, templateId)` pulls org/sponsor/contact data from DB and resolves all fields); `formsController.js` (listTemplates, getFormData, generateFormPDF — pdfkit PDF with header bar, section blocks, signature lines, checklist); `routes/forms.js` mounted at /forms; 4 initial templates: Site Information Sheet, Sponsor Agreement, Annual Renewal Confirmation, Income Eligibility Statement; adding a new form = one FORM_TEMPLATES object only; `FormGeneratorPage.jsx` (3-panel: org picker, template cards, live preview with field values + missing badges, Download PDF button); wired into SponsorDashboard under Compliance as "Form Generator"; SponsorDemo: interactive FormGeneratorPage (3 orgs, 4 templates, live preview swap, download toast) | ✅ |
 | 138 | Export Framework — pluggable adapter pattern for claim exports; `exportEngine.js` routes format param to adapter; `exportAdapters/pdf.js` (refactored from claimsExportController), `exportAdapters/excel.js` (exceljs — 2-sheet workbook: Summary + Per-Site Detail), `exportAdapters/csv.js` (pure Node, BOM for Excel UTF-8); `exportAdapters/tx_squaremeals.js` (stub — build when Charles needs it); `claimsExportController.js` updated: accepts `?format=pdf\|excel\|csv`, delegates to engine; `ClaimsPage.jsx`: 3 export buttons (PDF / Excel / CSV) with per-format loading states; `exceljs` added to package.json | ✅ |
+| 142 | Self-test bug fixes (2026-07-28) — Fixed 7 bugs found during Hashi's sponsor self-test: (1) Kitchen invite 403 — root cause was site-role JWT in localStorage overwriting sponsor JWT across tabs; (2) Cross-tab logout — localStorage shared across tabs, one tab's logout cleared all; (3) Onboarding showed "Done" based on page navigation not real data; (4–5) KitchensPage/SitesPage/CoordinatorsPage/MealCountsPage/MealEntryForm/MealReminderBanner all used `Array.isArray(data)` which always returned false since API returns `{ organizations/users/meal_counts: [...] }`; (6) Sponsor tenant isolation — any sponsor could see all orgs in DB; (7) Stats missing total_kitchens for onboarding check. Fix for 1+2: switched token storage from localStorage → sessionStorage (per-tab isolation). Files: api.js, AuthContext.jsx, AcceptInvitePage.jsx, OnboardingPage.jsx, SponsorDashboard.jsx, KitchensPage.jsx, SitesPage.jsx, CoordinatorsPage.jsx, MealCountsPage.jsx, MealEntryForm.jsx, MealReminderBanner.jsx, organizationsController.js, statsController.js | ✅ |
 
 ---
 
