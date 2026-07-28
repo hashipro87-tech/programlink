@@ -9,17 +9,17 @@ export function AuthProvider({ children }) {
 
   // Restore session on page load
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) { setLoading(false); return; }
     api.get('/auth/me')
       .then(({ data }) => setUser(data.user))
-      .catch(() => localStorage.removeItem('token'))
+      .catch(() => sessionStorage.removeItem('token'))
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email, password) {
     const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
+    sessionStorage.setItem('token', data.token);
     setUser(data.user);
     return data.user;
   }
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setUser(null);
   }
 
@@ -38,13 +38,13 @@ export function AuthProvider({ children }) {
   // Swaps in the new JWT so all subsequent API calls use it, then re-fetches /auth/me
   // to update the in-memory user state — no logout required.
   async function refreshUser(newToken) {
-    if (newToken) localStorage.setItem('token', newToken);
+    if (newToken) sessionStorage.setItem('token', newToken);
     try {
       const { data } = await api.get('/auth/me');
       setUser(data.user);
     } catch {
       // Token may be stale — clear and redirect to login
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
       setUser(null);
     }
   }

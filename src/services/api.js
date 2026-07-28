@@ -27,7 +27,7 @@ function hideOfflineBanner() {
 
 // ── Attach JWT token on every request ────────────────────────────────────────
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -45,7 +45,7 @@ api.interceptors.response.use(
     } else {
       hideOfflineBanner();
       if (err.response.status === 401) {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         window.location.href = '/login';
       }
     }

@@ -127,7 +127,7 @@ export default function AcceptInvitePage() {
       const { data } = await api.post('/auth/accept-invite', { token, password });
 
       // Store session token — AuthContext reads this key on next load
-      localStorage.setItem('token', data.token);
+      sessionStorage.setItem('token', data.token);
 
       setDone(true);
 
