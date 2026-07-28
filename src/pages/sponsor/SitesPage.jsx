@@ -513,7 +513,7 @@ export default function SitesPage() {
   const fetchSites = () => {
     setLoading(true);
     api.get('/organizations?type=site')
-      .then(({ data }) => setSites(Array.isArray(data) ? data : []))
+      .then(({ data }) => setSites(data.organizations ?? (Array.isArray(data) ? data : [])))
       .catch(() => setSites([]))
       .finally(() => setLoading(false));
   };

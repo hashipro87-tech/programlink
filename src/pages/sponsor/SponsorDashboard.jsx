@@ -373,7 +373,11 @@ export default function SponsorDashboard() {
         <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-6xl mx-auto">
 
           {showOnboarding ? (
-            <OnboardingPage onDismiss={dismissOnboarding} />
+            <OnboardingPage
+              onDismiss={dismissOnboarding}
+              siteCount={stats.total_sites ?? 0}
+              kitchenCount={stats.total_kitchens ?? 0}
+            />
           ) : isOverview ? (
             <>
               <div className="mb-8">

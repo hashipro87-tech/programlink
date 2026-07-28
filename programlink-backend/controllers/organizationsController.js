@@ -13,7 +13,15 @@ exports.listOrganizations = async (req, res) => {
     const filterParams = [];
     if (type)       { filterParams.push(type);       where += ` AND type = $${filterParams.length}`; }
     if (sponsor_id) { filterParams.push(sponsor_id); where += ` AND sponsor_id = $${filterParams.length}`; }
-    // Non-sponsors only see orgs within their sponsor's program
+    // Sponsors only see their own program's orgs (tenant isolation)
+    if (req.user.role === 'sponsor') {
+      const sponsorOrgId = req.user.organizationId;
+      if (sponsorOrgId) {
+        filterParams.push(sponsorOrgId);
+        where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
+      }
+    }
+    // Non-sponsors (non-admin) only see orgs within their sponsor's program
     if (req.user.role !== 'sponsor' && req.user.role !== 'admin') {
       filterParams.push(req.user.sponsorId);
       where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;

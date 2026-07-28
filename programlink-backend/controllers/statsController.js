@@ -6,7 +6,7 @@ exports.getDashboardStats = async (req, res) => {
 
     const [sites, kitchens, pending, alerts] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM organizations WHERE type='site' AND (sponsor_id=$1 OR id=$1)`, [sponsorId]),
-      pool.query(`SELECT COUNT(*) FROM organizations WHERE type='kitchen' AND status='active' AND (sponsor_id=$1 OR id=$1)`, [sponsorId]),
+      pool.query(`SELECT COUNT(*) FROM organizations WHERE type='kitchen' AND (sponsor_id=$1 OR id=$1)`, [sponsorId]),
       pool.query(`SELECT COUNT(*) FROM applications WHERE sponsor_id=$1 AND status IN ('submitted','under_review')`, [sponsorId]),
       pool.query(
         `SELECT COUNT(*) FROM documents d
@@ -22,6 +22,7 @@ exports.getDashboardStats = async (req, res) => {
     res.json({
       total_sites:       parseInt(sites.rows[0].count),
       active_kitchens:   parseInt(kitchens.rows[0].count),
+      total_kitchens:    parseInt(kitchens.rows[0].count),
       pending_approvals: parseInt(pending.rows[0].count),
       compliance_alerts: parseInt(alerts.rows[0].count),
     });

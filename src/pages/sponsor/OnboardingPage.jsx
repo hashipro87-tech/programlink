@@ -1,21 +1,20 @@
 // OnboardingPage.jsx — First-time sponsor setup guide
-// Shown inline on the sponsor overview until all steps are visited or "Go to Dashboard" is clicked.
-// Visited steps are tracked in localStorage per user.
+// Steps 1 and 2 are "Done" only when the sponsor actually has sites/kitchens in the DB.
+// Step 3 (coordinator) is self-reported via "Already done" button.
 
 import { useState } from 'react';
 
-export default function OnboardingPage({ onDismiss }) {
-  const [visited, setVisited] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cacfplink_onboarding_steps') || '[]'); }
-    catch { return []; }
+export default function OnboardingPage({ onDismiss, siteCount = 0, kitchenCount = 0 }) {
+  const [coordinatorDone, setCoordinatorDone] = useState(() => {
+    try { return Boolean(localStorage.getItem('cacfplink_coordinator_done')); }
+    catch { return false; }
   });
 
-  const markVisited = (num, path) => {
-    const next = visited.includes(num) ? visited : [...visited, num];
-    setVisited(next);
-    localStorage.setItem('cacfplink_onboarding_steps', JSON.stringify(next));
-    if (path) onDismiss(path); // navigate without dismissing onboarding
+  const markCoordinatorDone = () => {
+    try { localStorage.setItem('cacfplink_coordinator_done', '1'); } catch {}
+    setCoordinatorDone(true);
   };
+
   const steps = [
     {
       num: 1,
@@ -24,6 +23,7 @@ export default function OnboardingPage({ onDismiss }) {
       desc: 'Add the child care centers in your program. Each site tracks its own meal counts and documents.',
       cta: 'Add a Site',
       path: '/dashboard/sponsor/sites',
+      done: siteCount > 0,
     },
     {
       num: 2,
@@ -32,6 +32,7 @@ export default function OnboardingPage({ onDismiss }) {
       desc: 'Add the kitchen that prepares meals for your sites. Kitchens manage meal production and delivery.',
       cta: 'Add a Kitchen',
       path: '/dashboard/sponsor/kitchens',
+      done: kitchenCount > 0,
     },
     {
       num: 3,
@@ -40,6 +41,7 @@ export default function OnboardingPage({ onDismiss }) {
       desc: "Coordinators help manage your sites and kitchens. Invite them directly — they don't need to register a separate account.",
       cta: 'Go to Coordinators',
       path: '/dashboard/sponsor/coordinators',
+      done: coordinatorDone,
     },
   ];
 
@@ -52,7 +54,7 @@ export default function OnboardingPage({ onDismiss }) {
           Your sponsor account is ready!
         </h1>
         <p style={{ fontSize: 15, color: '#6b7280', margin: 0 }}>
-          Here's how to set up your CACFP program. Complete these steps and come back here when you're done.
+          Here's how to set up your CACFP program. Complete these steps to get started.
         </p>
       </div>
 
@@ -79,22 +81,22 @@ export default function OnboardingPage({ onDismiss }) {
         {steps.map((step) => (
           <div key={step.num} style={{
             background: '#fff',
-            border: '1px solid #e5e7eb',
+            border: `1px solid ${step.done ? '#bbf7d0' : '#e5e7eb'}`,
             borderRadius: 14,
             padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
             gap: 20,
           }}>
-            {/* Step number */}
+            {/* Step number / checkmark */}
             <div style={{
               width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-              background: visited.includes(step.num) ? '#dcfce7' : '#eef2ff',
-              color: visited.includes(step.num) ? '#16a34a' : '#4f46e5',
+              background: step.done ? '#dcfce7' : '#eef2ff',
+              color: step.done ? '#16a34a' : '#4f46e5',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16, fontWeight: 800,
             }}>
-              {visited.includes(step.num) ? '✓' : step.num}
+              {step.done ? '✓' : step.num}
             </div>
 
             {/* Content */}
@@ -108,7 +110,7 @@ export default function OnboardingPage({ onDismiss }) {
             </div>
 
             {/* CTA / Done badge */}
-            {visited.includes(step.num) ? (
+            {step.done ? (
               <span style={{
                 flexShrink: 0,
                 padding: '8px 16px',
@@ -122,7 +124,7 @@ export default function OnboardingPage({ onDismiss }) {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
                 <button
-                  onClick={() => markVisited(step.num, step.path)}
+                  onClick={() => onDismiss(step.path)}
                   style={{
                     padding: '8px 16px',
                     borderRadius: 8,
@@ -137,21 +139,23 @@ export default function OnboardingPage({ onDismiss }) {
                 >
                   {step.cta} →
                 </button>
-                <button
-                  onClick={() => markVisited(step.num, null)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #e5e7eb',
-                    background: 'transparent',
-                    color: '#9ca3af',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Already done ✓
-                </button>
+                {step.num === 3 && (
+                  <button
+                    onClick={markCoordinatorDone}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #e5e7eb',
+                      background: 'transparent',
+                      color: '#9ca3af',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Already done ✓
+                  </button>
+                )}
               </div>
             )}
           </div>

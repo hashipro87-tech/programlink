@@ -533,7 +533,7 @@ export default function KitchensPage() {
   const fetchKitchens = () => {
     setLoading(true);
     api.get('/organizations?type=kitchen')
-      .then(({ data }) => setKitchens(Array.isArray(data) ? data : []))
+      .then(({ data }) => setKitchens(data.organizations ?? (Array.isArray(data) ? data : [])))
       .catch(() => setKitchens([]))
       .finally(() => setLoading(false));
   };
