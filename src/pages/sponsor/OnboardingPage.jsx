@@ -7,14 +7,6 @@ export default function OnboardingPage({ onDismiss }) {
   const steps = [
     {
       num: 1,
-      icon: '⚙️',
-      title: 'Set up your organization',
-      desc: 'Pick your CACFP state so the Claims Center knows your reimbursement rates and submission deadlines.',
-      cta: 'Go to Settings',
-      path: '/dashboard/sponsor/settings',
-    },
-    {
-      num: 2,
       icon: '🏫',
       title: 'Add your first site',
       desc: 'Add the child care centers in your program. Each site tracks its own meal counts and documents.',
@@ -22,7 +14,7 @@ export default function OnboardingPage({ onDismiss }) {
       path: '/dashboard/sponsor/sites',
     },
     {
-      num: 3,
+      num: 2,
       icon: '🍳',
       title: 'Connect a kitchen',
       desc: 'Add the kitchen that prepares meals for your sites. Kitchens manage meal production and delivery.',
@@ -30,20 +22,20 @@ export default function OnboardingPage({ onDismiss }) {
       path: '/dashboard/sponsor/kitchens',
     },
     {
-      num: 4,
+      num: 3,
       icon: '👤',
       title: 'Invite a coordinator',
-      desc: 'Coordinators help manage your sites and kitchens. Invite them from your dashboard — they do not need to register a separate account.',
+      desc: 'Coordinators help manage your sites and kitchens. Invite them directly — they don't need to register a separate account.',
       cta: 'Go to Coordinators',
       path: '/dashboard/sponsor/coordinators',
     },
     {
-      num: 5,
-      icon: '🔗',
-      title: 'Share your Sponsor ID',
-      desc: 'Sites and kitchens can use your Sponsor ID to register and join your program automatically — no manual linking needed.',
-      cta: 'View My Sponsor ID',
-      path: null, // stays on overview
+      num: 4,
+      icon: '💰',
+      title: 'Check your Claims Center',
+      desc: 'Your state reimbursement rates are already configured. The Claims Center shows your estimated reimbursement and any issues to fix before submission.',
+      cta: 'View Claims',
+      path: '/dashboard/sponsor/claims',
     },
   ];
 
