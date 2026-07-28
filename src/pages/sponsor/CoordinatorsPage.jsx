@@ -551,7 +551,7 @@ export default function CoordinatorsPage() {
   const fetchUsers = () => {
     setLoading(true);
     api.get('/users')
-      .then(({ data }) => setUsers(Array.isArray(data) ? data : []))
+      .then(({ data }) => setUsers(data.users ?? (Array.isArray(data) ? data : [])))
       .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   };

@@ -200,7 +200,7 @@ export default function MealCountsPage() {
     const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0)
                     .toISOString().split('T')[0];
     api.get(`/meal-counts?start_date=${start}&end_date=${end}`)
-      .then(({ data }) => setEntries(Array.isArray(data) ? data : []))
+      .then(({ data }) => setEntries(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
   };

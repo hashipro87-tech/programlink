@@ -77,7 +77,7 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
 
     // Fetch sites connected to this kitchen via the kitchen directory
     api.get(`/kitchen-directory?kitchen_id=${kitchen.id}`)
-      .then(({ data }) => setConnectedSites(Array.isArray(data) ? data : []))
+      .then(({ data }) => setConnectedSites(data.kitchens ?? (Array.isArray(data) ? data : [])))
       .catch(() => setConnectedSites([]));
   }, [kitchen.id]);
 

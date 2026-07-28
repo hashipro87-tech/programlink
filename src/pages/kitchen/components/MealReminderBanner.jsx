@@ -17,7 +17,7 @@ export default function MealReminderBanner({ onLogNow }) {
     const fetchRecent = async () => {
       try {
         const { data } = await api.get('/meal-counts?recent=3');
-        const entries = Array.isArray(data) ? data : [];
+        const entries = data.meal_counts ?? (Array.isArray(data) ? data : []);
 
         // Count consecutive missed days starting from yesterday
         const today = new Date();

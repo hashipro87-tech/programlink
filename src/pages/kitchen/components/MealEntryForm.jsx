@@ -138,7 +138,7 @@ export default function MealEntryForm() {
   // ── Load recent meals ───────────────────────────────────────────────────────
   useEffect(() => {
     api.get('/meal-counts?recent=7')
-      .then(({ data }) => setRecentMeals(Array.isArray(data) ? data : []))
+      .then(({ data }) => setRecentMeals(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => {});
   }, []);
 

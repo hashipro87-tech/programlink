@@ -31,7 +31,6 @@ const authorizeRoles = (...roles) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     if (!roles.includes(req.user.role)) {
-      console.log(`[authorizeRoles] DENIED: role="${req.user.role}", allowed=[${roles.join(',')}], path=${req.path}`);
       return res.status(403).json({
         error: 'You do not have permission to access this resource'
       });
