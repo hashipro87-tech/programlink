@@ -10,11 +10,10 @@ export default function OnboardingPage({ onDismiss }) {
     catch { return []; }
   });
 
-  const markVisited = (num, path) => {
+  const markVisited = (num) => {
     const next = visited.includes(num) ? visited : [...visited, num];
     setVisited(next);
     localStorage.setItem('cacfplink_onboarding_steps', JSON.stringify(next));
-    onDismiss(path);
   };
   const steps = [
     {
@@ -60,7 +59,7 @@ export default function OnboardingPage({ onDismiss }) {
           Your sponsor account is ready!
         </h1>
         <p style={{ fontSize: 15, color: '#6b7280', margin: 0 }}>
-          Here's how to set up your CACFP program. Complete these in any order.
+          Here's how to set up your CACFP program. Use the sidebar to complete each step, then mark it done.
         </p>
       </div>
 
@@ -129,7 +128,7 @@ export default function OnboardingPage({ onDismiss }) {
               }}>✓ Done</span>
             ) : (
               <button
-                onClick={() => markVisited(step.num, step.path)}
+                onClick={() => markVisited(step.num)}
                 style={{
                   flexShrink: 0,
                   padding: '8px 16px',
@@ -145,7 +144,7 @@ export default function OnboardingPage({ onDismiss }) {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#4f46e5'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#374151'; }}
               >
-                {step.cta} →
+                Mark done ✓
               </button>
             )}
           </div>
