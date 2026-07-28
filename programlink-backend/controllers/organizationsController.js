@@ -161,6 +161,7 @@ async function _sendOrgInvite({ orgType, role, roleLabel, name, address, phone, 
  */
 exports.inviteKitchen = async (req, res) => {
   try {
+    console.log('[inviteKitchen] req.user:', JSON.stringify(req.user));
     const { name, address, phone, region, contact_name, contact_email } = req.body;
     const sponsorId = req.user.organizationId || req.user.sponsorId;
     const org = await _sendOrgInvite({
