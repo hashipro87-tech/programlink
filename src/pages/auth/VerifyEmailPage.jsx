@@ -1,7 +1,7 @@
 // VerifyEmailPage.jsx — Landing page when user clicks the verification link.
 // Reads ?token= from the URL, calls the API, shows success or error.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import api from '../../services/api';
@@ -12,6 +12,7 @@ export default function VerifyEmailPage() {
   const token          = searchParams.get('token') ?? '';
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [message, setMessage] = useState('');
+  const called = useRef(false); // prevent double-call from React strict mode / re-renders
 
   // For resend — pre-fill from navigation state if available
   const [resendEmail, setResendEmail]   = useState(location.state?.email ?? '');
@@ -30,6 +31,8 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     if (!token) { setStatus('error'); setMessage('No verification token found.'); return; }
+    if (called.current) return; // already fired — ignore re-runs
+    called.current = true;
 
     api.get(`/auth/verify-email?token=${token}`)
       .then(() => setStatus('success'))
