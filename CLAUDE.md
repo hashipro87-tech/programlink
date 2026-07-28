@@ -149,6 +149,10 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 | 11 | Broadcast messaging (Task #49) | ✅ |
 | 12 | Homepage: performance stats, comparison table, pricing, founder story, testimonials (Tasks #70–74) | ✅ |
 | 13 | Fix demo navigation — all nav items now render unique content (Task #75) | ✅ |
+| 14 | 6-phase QA self-test — find bugs before real sponsors do (2026-07-29) | ⏳ tomorrow |
+| 15 | Homepage redesign — clean top-to-bottom story (Hero → Problems → Features → Workflow → Claim Intelligence → Compliance Assistant → State Resources → Trust → Pricing → CTA) | ⏳ tomorrow |
+| 16 | State Rule Book page (Task #143) — dedicated sidebar page pulled from Compliance Assistant panel; sponsor sees their state rules, rates, deadlines, forms instantly; demo for Alexia follow-up | ⏳ next |
+| 17 | Sentry error monitoring — wire up backend + frontend so crashes alert Hashi automatically | ⏳ next |
 
 ---
 
@@ -771,9 +775,32 @@ These came up even after she saw the demo — treat them as confirmed real gaps:
 
 **Key insight:** She saw the demo AND still flagged these. They are real gaps, not already-solved problems.
 
+### State Rule Book — Key Selling Point for Alexia's Follow-Up 🌟
+
+**The insight:** State association directors spend half their time answering the same compliance questions from confused directors. If CACFPLink becomes the place where sponsors get those answers themselves, associations stop fielding those calls. That's a product associations actively recommend to their members.
+
+**What to build (Task #143):**
+- Dedicated sidebar page: "State Resources" — pulled out of the Compliance Assistant panel (currently buried inside Menu Builder)
+- Sponsor sees their state automatically (already set on account)
+- Sections: Rates / Deadlines / Required Forms / State Tips / State Agency Contact / Plain-English Rule Summary
+- Eventually: public-facing version non-sponsors can browse before signing up
+
+**What already exists:**
+- 50 state JSON configs with reimbursement rates
+- Texas has full data (TDA agency, SquareMeals portal, deadlines, required forms, tips)
+- Compliance Assistant State Resources tab (Task #133) — needs to become its own page
+
+**Demo pitch for Alexia:** Pick Texas → see TDA rates, SquareMeals deadline, required forms list, plain-English meal pattern rules — all in one place. Show her this in the follow-up call.
+
+**Why this wins with NCA:**
+- Reduces the compliance Q&A burden on state associations
+- Makes CACFPLink the authoritative plain-English reference for state CACFP rules
+- Strong case for NCA Buyer's Guide listing and newsletter feature
+
 ### Follow-Up Strategy
 - Don't reach out every week — only when something meaningful happens
 - Meaningful moments: new sponsor signed up, major feature shipped, milestone hit
+- **Next meaningful moment: State Rule Book page is live → reach out to Alexia with a demo**
 - Future ask (when product is more complete): NCA Buyer's Guide listing + newsletter feature
 - Possible 2027 opportunity: NCA annual conference exhibitor/workshop slot
 
