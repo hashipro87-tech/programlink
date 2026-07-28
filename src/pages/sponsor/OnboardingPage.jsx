@@ -1,9 +1,21 @@
 // OnboardingPage.jsx — First-time sponsor setup guide
-// Shown inline on the sponsor overview on first login.
-// Dismissed by clicking any step CTA or "Go to Dashboard".
-// Dismissal is tracked in localStorage per user so it only shows once.
+// Shown inline on the sponsor overview until all steps are visited or "Go to Dashboard" is clicked.
+// Visited steps are tracked in localStorage per user.
+
+import { useState } from 'react';
 
 export default function OnboardingPage({ onDismiss }) {
+  const [visited, setVisited] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cacfplink_onboarding_steps') || '[]'); }
+    catch { return []; }
+  });
+
+  const markVisited = (num, path) => {
+    const next = visited.includes(num) ? visited : [...visited, num];
+    setVisited(next);
+    localStorage.setItem('cacfplink_onboarding_steps', JSON.stringify(next));
+    onDismiss(path);
+  };
   const steps = [
     {
       num: 1,
@@ -85,11 +97,12 @@ export default function OnboardingPage({ onDismiss }) {
             {/* Step number */}
             <div style={{
               width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-              background: '#eef2ff', color: '#4f46e5',
+              background: visited.includes(step.num) ? '#dcfce7' : '#eef2ff',
+              color: visited.includes(step.num) ? '#16a34a' : '#4f46e5',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 16, fontWeight: 800,
             }}>
-              {step.num}
+              {visited.includes(step.num) ? '✓' : step.num}
             </div>
 
             {/* Content */}
@@ -102,26 +115,39 @@ export default function OnboardingPage({ onDismiss }) {
               </div>
             </div>
 
-            {/* CTA */}
-            <button
-              onClick={() => onDismiss(step.path)}
-              style={{
+            {/* CTA / Done badge */}
+            {visited.includes(step.num) ? (
+              <span style={{
                 flexShrink: 0,
                 padding: '8px 16px',
                 borderRadius: 8,
-                border: '1px solid #d1d5db',
-                background: '#fff',
-                color: '#374151',
+                background: '#f0fdf4',
+                color: '#16a34a',
                 fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
+                fontWeight: 700,
                 whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#4f46e5'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#374151'; }}
-            >
-              {step.cta} →
-            </button>
+              }}>✓ Done</span>
+            ) : (
+              <button
+                onClick={() => markVisited(step.num, step.path)}
+                style={{
+                  flexShrink: 0,
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid #d1d5db',
+                  background: '#fff',
+                  color: '#374151',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#4f46e5'; e.currentTarget.style.color = '#4f46e5'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#374151'; }}
+              >
+                {step.cta} →
+              </button>
+            )}
           </div>
         ))}
       </div>

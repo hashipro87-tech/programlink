@@ -327,9 +327,14 @@ export default function SponsorDashboard() {
   );
 
   const dismissOnboarding = (path) => {
-    if (onboardingKey) localStorage.setItem(onboardingKey, 'done');
-    setOnboardingDone(true);
-    if (path) navigate(path);
+    // Only permanently dismiss when "Go to Dashboard" is clicked (path === null)
+    if (path === null) {
+      if (onboardingKey) localStorage.setItem(onboardingKey, 'done');
+      setOnboardingDone(true);
+    } else {
+      // Step CTA clicked — just navigate, keep onboarding visible
+      navigate(path);
+    }
   };
 
   const showOnboarding = isOverview && !onboardingDone;
