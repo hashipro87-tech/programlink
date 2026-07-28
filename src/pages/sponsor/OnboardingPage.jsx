@@ -36,7 +36,7 @@ export default function OnboardingPage({ onDismiss }) {
       num: 3,
       icon: '👤',
       title: 'Invite a coordinator',
-      desc: 'Coordinators help manage your sites and kitchens. Invite them directly — they don't need to register a separate account.',
+      desc: "Coordinators help manage your sites and kitchens. Invite them directly — they don't need to register a separate account.",
       cta: 'Go to Coordinators',
       path: '/dashboard/sponsor/coordinators',
     },
