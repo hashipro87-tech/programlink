@@ -137,15 +137,15 @@ exports.updateOrganization = async (req, res) => {
  * role:    'kitchen' | 'site' | 'coordinator'
  * roleLabel: display label used in the email body (e.g. 'kitchen manager')
  */
-async function _sendOrgInvite({ orgType, role, roleLabel, name, address, phone, region, contact_name, contact_email, sponsorId, res, logPrefix }) {
+async function _sendOrgInvite({ orgType, role, roleLabel, name, address, phone, region, program_type, contact_name, contact_email, sponsorId, res, logPrefix }) {
   if (!name?.trim())          return res.status(400).json({ error: `${orgType.charAt(0).toUpperCase() + orgType.slice(1)} name is required.` });
   if (!contact_email?.trim()) return res.status(400).json({ error: 'Contact email is required.' });
 
   // sponsor_id may be null for admin users — allow it (column is nullable)
   const { rows } = await pool.query(
-    `INSERT INTO organizations (name, type, address, phone, region, sponsor_id, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING *`,
-    [name.trim(), orgType, address || null, phone || null, region || null, sponsorId || null]
+    `INSERT INTO organizations (name, type, address, phone, region, program_type, sponsor_id, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending') RETURNING *`,
+    [name.trim(), orgType, address || null, phone || null, region || null, program_type || null, sponsorId || null]
   );
   const org = rows[0];
 
@@ -188,11 +188,11 @@ exports.inviteKitchen = async (req, res) => {
  */
 exports.inviteSite = async (req, res) => {
   try {
-    const { name, address, phone, region, contact_name, contact_email } = req.body;
+    const { name, address, phone, region, program_type, contact_name, contact_email } = req.body;
     const sponsorId = req.user.organizationId || req.user.sponsorId;
     const org = await _sendOrgInvite({
       orgType: 'site', role: 'site', roleLabel: 'site director',
-      name, address, phone, region, contact_name, contact_email, sponsorId, res,
+      name, address, phone, region, program_type, contact_name, contact_email, sponsorId, res,
     });
     if (!org) return;
     res.status(201).json({ organization: org, message: 'Invite sent.' });

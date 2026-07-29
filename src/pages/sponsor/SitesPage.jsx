@@ -270,7 +270,47 @@ function DetailPanel({ site, onClose, onStatusChange, onRemoved }) {
 
 // ─── Invite Site Modal ────────────────────────────────────────────────────────
 
-const EMPTY_FORM = { name: '', address: '', phone: '', region: '', contact_name: '', contact_email: '' };
+// ─── Program Types ────────────────────────────────────────────────────────────
+const PROGRAM_TYPES = [
+  {
+    value: 'child_care_center',
+    label: 'Child Care Center',
+    emoji: '🏫',
+    note:  'Roster + income eligibility required',
+  },
+  {
+    value: 'family_day_care_home',
+    label: 'Family Day Care Home',
+    emoji: '🏠',
+    note:  'Home-based, roster required',
+  },
+  {
+    value: 'head_start',
+    label: 'Head Start / Early Head Start',
+    emoji: '⭐',
+    note:  'Federal program, roster required',
+  },
+  {
+    value: 'at_risk_afterschool',
+    label: 'At-Risk Afterschool',
+    emoji: '🌙',
+    note:  'Area-eligible, limited individual tracking',
+  },
+  {
+    value: 'emergency_shelter',
+    label: 'Emergency Shelter',
+    emoji: '🏥',
+    note:  'Count-based, not individually tracked',
+  },
+  {
+    value: 'open_community_site',
+    label: 'Open Community Meal Site',
+    emoji: '🌳',
+    note:  'Meal counts only — no roster needed',
+  },
+];
+
+const EMPTY_FORM = { name: '', address: '', phone: '', region: '', program_type: '', contact_name: '', contact_email: '' };
 
 function InviteSiteModal({ onClose, onAdded }) {
   const [form,    setForm]    = useState(EMPTY_FORM);
@@ -279,9 +319,11 @@ function InviteSiteModal({ onClose, onAdded }) {
   const [success, setSuccess] = useState('');
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const pick = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.program_type)          { setError('Please select a program type.'); return; }
     if (!form.name.trim())          { setError('Site name is required.'); return; }
     if (!form.contact_name.trim())  { setError('Contact person name is required.'); return; }
     if (!form.contact_email.trim()) { setError('Contact email is required.'); return; }
@@ -303,10 +345,10 @@ function InviteSiteModal({ onClose, onAdded }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Invite Site</h2>
+            <h2 className="text-lg font-bold text-gray-900">Add a Site</h2>
             <p className="text-xs text-gray-500 mt-0.5">
               The site director will receive an email to set up their account.
             </p>
@@ -316,7 +358,41 @@ function InviteSiteModal({ onClose, onAdded }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+
+          {/* Program type picker */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-3">
+              Program Type <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {PROGRAM_TYPES.map((pt) => {
+                const selected = form.program_type === pt.value;
+                return (
+                  <button
+                    key={pt.value}
+                    type="button"
+                    onClick={() => pick('program_type', pt.value)}
+                    className={`text-left px-3 py-3 rounded-xl border-2 transition-all ${
+                      selected
+                        ? 'border-brand-500 bg-brand-50'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <span className="text-base">{pt.emoji}</span>
+                    <p className={`text-xs font-bold mt-1 leading-tight ${selected ? 'text-brand-700' : 'text-gray-800'}`}>
+                      {pt.label}
+                    </p>
+                    <p className={`text-[11px] mt-0.5 leading-tight ${selected ? 'text-brand-500' : 'text-gray-400'}`}>
+                      {pt.note}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4 space-y-4">
           {/* Site name */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -430,6 +506,7 @@ function InviteSiteModal({ onClose, onAdded }) {
               {saving ? 'Sending invite…' : 'Send Invite'}
             </button>
           </div>
+          </div>{/* end border-t section */}
         </form>
       </div>
     </div>
