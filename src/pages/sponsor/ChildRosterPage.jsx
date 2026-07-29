@@ -25,6 +25,15 @@ const TIER_META = {
   paid:  { label: 'Paid',    bg: 'bg-gray-100', text: 'text-gray-600'  },
 };
 
+// Fields that must be filled for a complete enrollment form
+const REQUIRED_FIELDS = [
+  'first_name', 'last_name', 'birthdate', 'parent_name',
+  'parent_phone', 'days_enrolled', 'meal_types', 'income_tier',
+];
+function getMissingCount(child) {
+  return REQUIRED_FIELDS.filter(f => !child[f] || String(child[f]).trim() === '').length;
+}
+
 const EMPTY_FORM = {
   first_name: '', last_name: '', birthdate: '', enrollment_status: 'enrolled',
   income_tier: 'tier1', age_group: '', enrollment_date: '', parent_name: '',
@@ -211,6 +220,21 @@ export default function ChildRosterPage() {
               </div>
             </div>
           </div>
+          {/* Most common missing fields */}
+          {compliance.field_gaps?.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Most Common Missing Fields</p>
+              <div className="flex flex-wrap gap-2">
+                {compliance.field_gaps.slice(0, 5).map(({ field, label, count }) => (
+                  <span key={field} className="inline-flex items-center gap-1.5 text-xs font-medium bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full">
+                    <span className="font-bold">{count}</span>
+                    <span>missing {label.toLowerCase()}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {compliance.forms_submitted > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-sm font-semibold text-gray-900 mb-2">Pending Review</p>
@@ -315,15 +339,21 @@ export default function ChildRosterPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {children.map(child => {
-                const sm  = STATUS_META[child.enrollment_status] || STATUS_META.enrolled;
-                const am  = AGE_META[child.age_group];
-                const tm  = TIER_META[child.income_tier] || TIER_META.tier1;
+                const sm      = STATUS_META[child.enrollment_status] || STATUS_META.enrolled;
+                const am      = AGE_META[child.age_group];
+                const tm      = TIER_META[child.income_tier] || TIER_META.tier1;
+                const missing = getMissingCount(child);
                 return (
                   <tr key={child.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {child.last_name}, {child.first_name}
                       {child.birthdate && (
                         <div className="text-xs text-gray-400">{new Date(child.birthdate).toLocaleDateString()}</div>
+                      )}
+                      {missing > 0 && (
+                        <div className="text-[10px] font-bold text-orange-600 mt-0.5">
+                          {missing} field{missing !== 1 ? 's' : ''} missing
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3">

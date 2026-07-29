@@ -367,10 +367,21 @@ async function getChildrenSummary(req, res) {
 }
 
 // ── GET /children/compliance ──────────────────────────────────────────────────
+const FIELD_LABELS = {
+  first_name:    'First name',
+  last_name:     'Last name',
+  birthdate:     'Date of birth',
+  parent_name:   'Parent/guardian',
+  parent_phone:  'Parent phone',
+  days_enrolled: 'Attendance days',
+  meal_types:    'Meal types',
+  income_tier:   'Income tier',
+};
+
 async function getEnrollmentCompliance(req, res) {
   try {
     const { organizationId } = req.user;
-    const [totalsRes, pendingRes] = await Promise.all([
+    const [totalsRes, pendingRes, gapsRes] = await Promise.all([
       pool.query(
         `SELECT
            COUNT(*)                                                          AS total,
@@ -394,11 +405,34 @@ async function getEnrollmentCompliance(req, res) {
          LIMIT 20`,
         [organizationId]
       ),
+      pool.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE c.first_name    IS NULL OR c.first_name    = '') AS first_name,
+           COUNT(*) FILTER (WHERE c.last_name     IS NULL OR c.last_name     = '') AS last_name,
+           COUNT(*) FILTER (WHERE c.birthdate     IS NULL)                         AS birthdate,
+           COUNT(*) FILTER (WHERE c.parent_name   IS NULL OR c.parent_name   = '') AS parent_name,
+           COUNT(*) FILTER (WHERE c.parent_phone  IS NULL OR c.parent_phone  = '') AS parent_phone,
+           COUNT(*) FILTER (WHERE c.days_enrolled IS NULL)                         AS days_enrolled,
+           COUNT(*) FILTER (WHERE c.meal_types    IS NULL OR c.meal_types    = '') AS meal_types,
+           COUNT(*) FILTER (WHERE c.income_tier   IS NULL OR c.income_tier   = '') AS income_tier
+         FROM children c
+         JOIN organizations o ON o.id = c.org_id
+         WHERE o.sponsor_id = $1`,
+        [organizationId]
+      ),
     ]);
     const t   = totalsRes.rows[0];
     const tot = Number(t.total);
     const pct = tot > 0 ? Math.round((Number(t.forms_approved) / tot) * 100) : 100;
-    res.json({ ...t, audit_ready_pct: pct, pending_review: pendingRes.rows });
+
+    // Build sorted field_gaps array (only non-zero entries)
+    const gaps = gapsRes.rows[0] ?? {};
+    const field_gaps = Object.entries(gaps)
+      .filter(([, v]) => Number(v) > 0)
+      .map(([f, v]) => ({ field: f, label: FIELD_LABELS[f] ?? f, count: Number(v) }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({ ...t, audit_ready_pct: pct, pending_review: pendingRes.rows, field_gaps });
   } catch (err) {
     console.error('getEnrollmentCompliance error:', err);
     res.status(500).json({ error: 'Failed to load enrollment compliance' });
