@@ -983,7 +983,7 @@ function StateResourcesSection() {
             <div className="space-y-3 mb-8">
               {[
                 { icon: '💰', text: 'Tier 1 and Tier 2 reimbursement rates for every meal type' },
-                { icon: '📅', text: 'Your state's claim submission deadline, every month' },
+                { icon: '📅', text: "Your state's claim submission deadline, every month" },
                 { icon: '🏛️', text: 'State agency name, portal link, and contact information' },
                 { icon: '📝', text: 'Required forms checklist — know what to file before your review' },
                 { icon: '📌', text: 'Set your state once on signup — everything updates automatically' },
