@@ -275,18 +275,35 @@ function ColumnMapPreview({ colMap, headers, onConfirm, onBack }) {
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
-export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
-  const [mode,    setMode]    = useState('ai');         // 'ai' | 'csv'
-  const [step,    setStep]    = useState('upload');      // upload | mapping | extracting | review | importing | done
-  const [file,    setFile]    = useState(null);
-  const [dragOver,setDragOver]= useState(false);
-  const [children,setChildren]= useState([]);
-  const [error,   setError]   = useState('');
+export default function ImportEnrollmentModal({ onClose, onImported, orgId: propOrgId }) {
+  const [mode,      setMode]      = useState('ai');
+  // When propOrgId is provided (e.g. opened from a site row), skip site-select.
+  // When it's missing (top-level "Import Children" button), start at 'site-select'.
+  const [step,      setStep]      = useState(propOrgId ? 'upload' : 'site-select');
+  const [selectedOrgId, setSelectedOrgId] = useState(propOrgId || '');
+  const [sites,     setSites]     = useState([]);
+  const [sitesLoading, setSitesLoading] = useState(!propOrgId);
+  const [file,      setFile]      = useState(null);
+  const [dragOver,  setDragOver]  = useState(false);
+  const [children,  setChildren]  = useState([]);
+  const [error,     setError]     = useState('');
   const [importedCount, setImportedCount] = useState(0);
-  const [colMap,  setColMap]  = useState({});
+  const [colMap,    setColMap]    = useState({});
   const [allHeaders, setAllHeaders] = useState([]);
-  const [rawRows, setRawRows] = useState([]);
+  const [rawRows,   setRawRows]   = useState([]);
   const inputRef = useRef();
+
+  // Fetch sites for the site-select step (only when orgId not pre-supplied)
+  useEffect(() => {
+    if (propOrgId) return;
+    api.get('/organizations?type=site&limit=200')
+      .then(({ data }) => setSites(data.organizations ?? []))
+      .catch(() => {})
+      .finally(() => setSitesLoading(false));
+  }, [propOrgId]);
+
+  // The org ID we'll actually import into
+  const orgId = selectedOrgId || propOrgId;
 
   // Reset state on mode change
   function switchMode(m) {
@@ -416,22 +433,29 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
   const validCount = children.filter(c => c.first_name || c.last_name).length;
 
+  const hasSiteSelect = !propOrgId;
+
   const STEP_LABELS = {
-    upload:     'Step 1 — Upload',
-    mapping:    'Step 2 — Map Columns',
-    extracting: 'Step 2 — Processing',
-    review:     'Step 3 — Review',
-    importing:  'Step 3 — Review',
-    done:       'Import Complete',
+    'site-select': 'Step 1 — Select Site',
+    upload:        hasSiteSelect ? 'Step 2 — Upload'   : 'Step 1 — Upload',
+    mapping:       hasSiteSelect ? 'Step 3 — Map Columns' : 'Step 2 — Map Columns',
+    extracting:    hasSiteSelect ? 'Step 3 — Processing'  : 'Step 2 — Processing',
+    review:        hasSiteSelect ? 'Step 4 — Review'   : 'Step 3 — Review',
+    importing:     hasSiteSelect ? 'Step 4 — Review'   : 'Step 3 — Review',
+    done:          'Import Complete',
   };
 
   const showStepBar = step !== 'done';
-  const stepBarSteps = mode === 'csv'
-    ? ['Upload', 'Map Columns', 'Review']
-    : ['Upload', 'Process', 'Review'];
-  const stepBarIndex = mode === 'csv'
-    ? { upload: 0, mapping: 1, review: 2, importing: 2 }[step] ?? 0
-    : { upload: 0, extracting: 1, review: 2, importing: 2 }[step] ?? 0;
+  const stepBarSteps = hasSiteSelect
+    ? (mode === 'csv' ? ['Select Site', 'Upload', 'Map Columns', 'Review'] : ['Select Site', 'Upload', 'Process', 'Review'])
+    : (mode === 'csv' ? ['Upload', 'Map Columns', 'Review'] : ['Upload', 'Process', 'Review']);
+  const stepBarIndex = hasSiteSelect
+    ? (mode === 'csv'
+        ? { 'site-select': 0, upload: 1, mapping: 2, review: 3, importing: 3 }[step] ?? 0
+        : { 'site-select': 0, upload: 1, extracting: 2, review: 3, importing: 3 }[step] ?? 0)
+    : (mode === 'csv'
+        ? { upload: 0, mapping: 1, review: 2, importing: 2 }[step] ?? 0
+        : { upload: 0, extracting: 1, review: 2, importing: 2 }[step] ?? 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto">
@@ -472,6 +496,56 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
         {/* Body */}
         <div className="px-6 py-5">
+
+          {/* ── Site select step ── */}
+          {step === 'site-select' && (
+            <div>
+              <p className="text-sm text-gray-600 mb-4">
+                Which site are these children enrolled at?
+              </p>
+              {sitesLoading ? (
+                <div className="py-8 text-center text-sm text-gray-400">Loading sites…</div>
+              ) : sites.length === 0 ? (
+                <div className="py-8 text-center text-sm text-gray-500">
+                  No sites found. Add a site to your program first.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto mb-4">
+                  {sites.map(site => (
+                    <button
+                      key={site.id}
+                      type="button"
+                      onClick={() => setSelectedOrgId(site.id)}
+                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                        selectedOrgId === site.id
+                          ? 'border-brand-500 bg-brand-50'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${selectedOrgId === site.id ? 'text-brand-700' : 'text-gray-800'}`}>
+                        {site.name}
+                      </p>
+                      {site.address && (
+                        <p className="text-xs text-gray-400 mt-0.5">{site.address}</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setStep('upload')}
+                  disabled={!selectedOrgId}
+                  className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 disabled:opacity-40"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Upload step ── */}
           {step === 'upload' && (
@@ -628,7 +702,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId }) {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-          {step === 'done' ? (
+          {step === 'site-select' ? null : step === 'done' ? (
             <button onClick={onClose} className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700">
               Done
             </button>
