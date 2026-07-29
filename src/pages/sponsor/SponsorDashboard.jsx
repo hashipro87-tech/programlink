@@ -34,6 +34,7 @@ import SponsorProductionRecordsPage from './SponsorProductionRecordsPage';
 import RenewalWizardPage            from './RenewalWizardPage';
 import TrainingPage                 from './TrainingPage';
 import FormGeneratorPage            from '../forms/FormGeneratorPage';
+import StateRuleBookPage           from './StateRuleBookPage';
 import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
@@ -59,6 +60,7 @@ const NAV_ITEMS = [
   { label: 'Reports',        path: '/dashboard/sponsor/reports',      icon: ClipboardList },
 
   { sectionLabel: 'Compliance' },
+  { label: 'State Rule Book', path: '/dashboard/sponsor/state-rules',  icon: ShieldCheck },
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Inspections',    path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
   { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
@@ -570,6 +572,7 @@ export default function SponsorDashboard() {
               <Route path="inspections"   element={<InspectionsPage />} />
               <Route path="menus"               element={<MenuBuilderPage />} />
               <Route path="production-records" element={<SponsorProductionRecordsPage />} />
+              <Route path="state-rules"       element={<StateRuleBookPage />} />
               <Route path="renewals"          element={<RenewalWizardPage />} />
               <Route path="training"         element={<TrainingPage role="sponsor" />} />
               <Route path="forms"           element={<FormGeneratorPage />} />
