@@ -31,6 +31,6 @@ router.post('/',                  authenticate,              createChild);
 router.put('/:id',                authenticate,              updateChild);
 router.delete('/:id',             authenticate,              deleteChild);
 router.post('/:id/submit',        authenticate,              submitEnrollmentForm);
-router.post('/:id/review',        authenticate, sponsorOnly, reviewEnrollmentForm);
+router.post('/:id/review',        authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), reviewEnrollmentForm);
 
 module.exports = router;

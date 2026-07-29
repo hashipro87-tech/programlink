@@ -52,7 +52,17 @@ const ROLE_BASE = {
 };
 
 // ─── Contextual action buttons per notification type ───────────────────────────
-function getActions(type, basePath) {
+function getActions(type, basePath, actionUrl) {
+  // If the notification has a stored action URL, prefer it (role-correct destination)
+  if (actionUrl) {
+    const LABEL_MAP = {
+      pending_approval:   'Review →',
+      application_status: 'View →',
+      status_change:      'View →',
+      connection_request: 'Review →',
+    };
+    return [{ label: LABEL_MAP[type] ?? 'View →', path: actionUrl }];
+  }
   switch (type) {
     case 'document_expiring':
     case 'document_expired':
@@ -234,7 +244,7 @@ export default function NotificationsPage() {
               <div className="card divide-y divide-gray-100">
                 {groups[group].map((n) => {
                   const isUnread = !n.read_at;
-                  const actions  = getActions(n.type, basePath);
+                  const actions  = getActions(n.type, basePath, n.action_url);
                   return (
                     <div
                       key={n.id}

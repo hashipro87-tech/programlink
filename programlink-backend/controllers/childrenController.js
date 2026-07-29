@@ -219,20 +219,38 @@ async function submitEnrollmentForm(req, res) {
       [id]
     );
 
-    // Notify sponsor users (best-effort)
+    // Notify sponsor + coordinators (best-effort)
     try {
+      const { createNotification } = require('../services/notificationService');
       const orgRes = await pool.query(`SELECT sponsor_id FROM organizations WHERE id = $1`, [child.org_id]);
-      if (orgRes.rows[0]?.sponsor_id) {
+      const sponsorId = orgRes.rows[0]?.sponsor_id;
+      if (sponsorId) {
+        // Notify sponsor users (role != 'coordinator') with sponsor path
         const sponsorUsers = await pool.query(
-          `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`, [orgRes.rows[0].sponsor_id]
+          `SELECT id FROM users WHERE org_id = $1 AND role = 'sponsor' AND is_active = TRUE`,
+          [sponsorId]
         );
         if (sponsorUsers.rows.length) {
-          const { createNotification } = require('../services/notificationService');
           await createNotification(sponsorUsers.rows.map(u => ({
-            userId: u.id, type: 'general',
+            userId: u.id, type: 'pending_approval',
             title: `📋 Enrollment form submitted`,
             body: `${child.first_name} ${child.last_name}'s enrollment form is ready for review.`,
             actionUrl: '/dashboard/sponsor/children',
+          })));
+        }
+        // Notify coordinators assigned to this site with coordinator path
+        const coordUsers = await pool.query(
+          `SELECT DISTINCT u.id FROM users u
+           JOIN coordinator_assignments ca ON ca.coordinator_id = u.id
+           WHERE ca.org_id = $1 AND u.is_active = TRUE`,
+          [child.org_id]
+        );
+        if (coordUsers.rows.length) {
+          await createNotification(coordUsers.rows.map(u => ({
+            userId: u.id, type: 'pending_approval',
+            title: `📋 Enrollment form submitted`,
+            body: `${child.first_name} ${child.last_name}'s enrollment form is ready for your review.`,
+            actionUrl: '/dashboard/coordinator/enrollment',
           })));
         }
       }
@@ -253,8 +271,8 @@ async function reviewEnrollmentForm(req, res) {
     const { role } = req.user;
     const { decision, rejection_reason } = req.body;
 
-    if (role !== 'sponsor' && role !== 'admin') {
-      return res.status(403).json({ error: 'Only sponsors can review enrollment forms' });
+    if (!['sponsor', 'coordinator', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'Only sponsors and coordinators can review enrollment forms' });
     }
     if (!['approved', 'rejected'].includes(decision)) {
       return res.status(400).json({ error: 'decision must be approved or rejected' });

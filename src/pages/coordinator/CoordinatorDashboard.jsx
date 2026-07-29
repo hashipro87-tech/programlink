@@ -27,6 +27,7 @@ import SettingsPage              from '../settings/SettingsPage';
 import CoordinatorSitesPage      from './CoordinatorSitesPage';
 import CoordinatorMealCountsPage from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage   from './CoordinatorKitchensPage';
+import CoordinatorEnrollmentPage from './CoordinatorEnrollmentPage';
 import ApplicationsPage          from '../sponsor/ApplicationsPage';
 import TasksPage                 from '../tasks/TasksPage';
 import InspectionsPage           from '../inspections/InspectionsPage';
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
   { label: 'My Kitchens',    path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
 
   { sectionLabel: 'Program Data' },
+  { label: 'Enrollment Review', path: '/dashboard/coordinator/enrollment',    icon: Users           },
   { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
   { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
 
@@ -90,7 +92,8 @@ function useCoordinatorData() {
       api.get('/message-threads?limit=10'),
       api.get('/notifications?limit=20'),
       api.get('/documents?limit=200'),
-    ]).then(([compRes, mcRes, appRes, threadRes, notifRes, docRes]) => {
+      api.get('/children?form_status=submitted&limit=100'),
+    ]).then(([compRes, mcRes, appRes, threadRes, notifRes, docRes, enrollRes]) => {
       const orgs = compRes.status === 'fulfilled'
         ? (compRes.value.data?.organizations ?? compRes.value.data ?? [])
         : [];
@@ -110,6 +113,9 @@ function useCoordinatorData() {
       const docs = docRes.status === 'fulfilled'
         ? (docRes.value.data?.documents ?? [])
         : [];
+      const pendingEnrollments = enrollRes.status === 'fulfilled'
+        ? (enrollRes.value.data?.children ?? enrollRes.value.data ?? [])
+        : [];
 
       const expiringDocs   = docs.filter((d) => d.status === 'expiring_soon');
       const totalMeals     = allCounts.reduce(
@@ -119,7 +125,7 @@ function useCoordinatorData() {
         (n) => !n.read_at && n.type === 'new_message'
       ).length;
 
-      setData({ orgs, pendingCounts, pendingApps, threads, notifications, docs, expiringDocs, totalMeals, unreadMessages });
+      setData({ orgs, pendingCounts, pendingApps, threads, notifications, docs, expiringDocs, totalMeals, unreadMessages, pendingEnrollments });
       setLoading(false);
     });
   }, []);
@@ -274,8 +280,20 @@ function AssignedSitesList({ orgs, pendingCounts, navigate, onSelect }) {
 }
 
 // ─── 3. Needs Attention — Priority Inbox ──────────────────────────────────────
-function NeedsAttentionList({ orgs, docs, navigate }) {
+function NeedsAttentionList({ orgs, docs, pendingEnrollments = [], navigate }) {
   const items = [];
+
+  // Purple: pending enrollment forms awaiting review
+  if (pendingEnrollments.length > 0) {
+    items.push({
+      priority: 'purple',
+      icon: '📋',
+      title: `${pendingEnrollments.length} enrollment form${pendingEnrollments.length !== 1 ? 's' : ''} awaiting review`,
+      org: pendingEnrollments.map((c) => `${c.first_name} ${c.last_name}`).slice(0, 2).join(', ')
+        + (pendingEnrollments.length > 2 ? ` +${pendingEnrollments.length - 2} more` : ''),
+      action: () => navigate('/dashboard/coordinator/enrollment'),
+    });
+  }
 
   // Red: missing / overdue orgs
   for (const org of (Array.isArray(orgs) ? orgs : [])) {
@@ -729,6 +747,7 @@ function Overview() {
   const {
     orgs = [], pendingCounts = [], pendingApps = [], threads = [],
     notifications = [], docs = [], expiringDocs = [], totalMeals = 0, unreadMessages = 0,
+    pendingEnrollments = [],
   } = data;
 
   return (
@@ -751,7 +770,7 @@ function Overview() {
           />
 
           {/* 3. Needs Attention */}
-          <NeedsAttentionList orgs={orgs} docs={docs} navigate={navigate} />
+          <NeedsAttentionList orgs={orgs} docs={docs} pendingEnrollments={pendingEnrollments} navigate={navigate} />
 
           {/* 4. Inline Applications */}
           <InlineApplications
@@ -809,6 +828,7 @@ export default function CoordinatorDashboard() {
           ) : (
             <Routes>
               <Route path="applications"  element={<ApplicationsPage />} />
+              <Route path="enrollment"    element={<CoordinatorEnrollmentPage />} />
               <Route path="sites"         element={<CoordinatorSitesPage />} />
               <Route path="kitchens"      element={<CoordinatorKitchensPage />} />
               <Route path="meal-counts"   element={<CoordinatorMealCountsPage />} />
