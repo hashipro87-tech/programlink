@@ -13,7 +13,7 @@ import {
   Building2, MessageSquare, FileText, CheckCircle, Settings,
   ClipboardList, AlertTriangle, UtensilsCrossed, Bell,
   AlertCircle, ChevronRight, Send, CheckSquare, X,
-  TrendingUp, ShieldCheck, Activity,
+  TrendingUp, ShieldCheck, Activity, Users,
 } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import api from '../../services/api';
