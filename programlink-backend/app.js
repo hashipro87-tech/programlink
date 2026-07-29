@@ -2,6 +2,18 @@
 // server.js is the entry point; this file configures the app itself
 // Keeping them separate makes testing easier
 
+// ─── Sentry (must be initialized before anything else) ────────────────────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    // Capture 100% of errors; no performance tracing (costs money)
+    tracesSampleRate: 0,
+  });
+  console.log('✅ Sentry error monitoring active');
+}
+
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
@@ -52,6 +64,11 @@ app.use('/api', routes);
 app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 });
+
+// ─── Sentry Error Handler (must come before custom error handler) ─────────────
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ─── Global Error Handler ────────────────────────────────────────────────────
 app.use(errorHandler);
