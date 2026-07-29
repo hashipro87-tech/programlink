@@ -76,229 +76,390 @@ const NAV_ITEMS = [
   { label: 'Settings',       path: '/dashboard/sponsor/settings',     icon: Settings },
 ];
 
-// ─── Proactive Warnings Card ──────────────────────────────────────────────────
-function ProactiveWarningsCard({ navigate }) {
-  const [warnings, setWarnings] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [dismissed, setDismissed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cacfp_dismissed_warnings') || '[]'); }
-    catch { return []; }
-  });
+// ─── useMissionData — parallel-fetches all overview data ─────────────────────
+function useMissionData() {
+  const [data, setData]       = useState({});
+  const [loading, setLoading] = useState(true);
+  const [noState, setNoState] = useState(false);
+  const month = new Date().toISOString().slice(0, 7);
 
   useEffect(() => {
-    api.get('/warnings')
-      .then(({ data }) => setWarnings(data.warnings ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get(`/claims/intelligence?month=${month}`).catch((e) => {
+        if (e.response?.status === 400) setNoState(true);
+        return null;
+      }),
+      api.get('/activity?limit=5').catch(() => null),
+      api.get('/children/summary').catch(() => null),
+      api.get('/warnings').catch(() => null),
+    ]).then(([intel, activity, children, warnings]) => {
+      setData({
+        intel:    intel?.data    ?? null,
+        activity: activity?.data?.activity ?? [],
+        children: children?.data?.orgs    ?? [],
+        warnings: warnings?.data?.warnings ?? [],
+      });
+    }).finally(() => setLoading(false));
   }, []);
 
-  const dismiss = (idx) => {
-    const key = warnings[idx].type + (warnings[idx].org_id ?? '');
-    const next = [...dismissed, key];
-    setDismissed(next);
-    localStorage.setItem('cacfp_dismissed_warnings', JSON.stringify(next));
-  };
+  return { data, loading, noState, month };
+}
 
-  const visible = warnings.filter((w) => !dismissed.includes(w.type + (w.org_id ?? '')));
+// ─── MissionCard ──────────────────────────────────────────────────────────────
+function MissionCard({ stats, data, navigate }) {
+  const { intel, children } = data;
+  const issues   = intel?.issues ?? [];
+  const monthName = intel?.monthName
+    ?? new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  if (loading) return null;
-  if (visible.length === 0) return null;
+  const totalChildren = children.reduce((s, o) => s + Number(o.total || 0), 0);
+  const hasCode = (fragment) => issues.some((i) => i.code?.includes(fragment));
 
-  const SEVERITY = {
-    high:   { bg: 'bg-red-50',    border: 'border-red-200',    icon: 'text-red-500',    dot: 'bg-red-500'    },
-    medium: { bg: 'bg-amber-50',  border: 'border-amber-200',  icon: 'text-amber-500',  dot: 'bg-amber-400'  },
-    low:    { bg: 'bg-blue-50',   border: 'border-blue-200',   icon: 'text-blue-500',   dot: 'bg-blue-400'   },
-  };
+  const steps = [
+    { label: 'Add sites to your program',   done: (stats.total_sites    ?? 0) > 0,  path: '/dashboard/sponsor/sites' },
+    { label: 'Connect a kitchen',           done: (stats.total_kitchens ?? 0) > 0,  path: '/dashboard/sponsor/kitchens' },
+    { label: 'Add children to roster',      done: totalChildren > 0,                path: '/dashboard/sponsor/children' },
+    { label: 'Complete income eligibility', done: totalChildren > 0 && !hasCode('income'), path: '/dashboard/sponsor/children' },
+    { label: `Build ${monthName} menu`,     done: !hasCode('menu'),                 path: '/dashboard/sponsor/menus' },
+    { label: 'Record meal counts',          done: !hasCode('no_meal_counts'),       path: '/dashboard/sponsor/meal-counts' },
+    { label: 'Submit claim',               done: intel?.claimStatus === 'submitted', path: '/dashboard/sponsor/claims' },
+  ];
+
+  const completed  = steps.filter((s) => s.done).length;
+  const pct        = Math.round((completed / steps.length) * 100);
+  const barColor   = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className="w-4 h-4 text-amber-500" />
-        <h2 className="text-sm font-bold text-gray-900">Program Alerts</h2>
-        <span className="ml-auto text-xs text-gray-400">{visible.length} issue{visible.length !== 1 ? 's' : ''} need attention</span>
+    <div className="card mb-5 overflow-hidden">
+      {/* Header row */}
+      <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Your Mission This Month</p>
+          <h2 className="text-lg font-bold text-gray-900">{monthName} Claim Readiness</h2>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-3xl font-black" style={{ color: barColor }}>{pct}%</p>
+          <p className="text-xs text-gray-400">{completed}/{steps.length} complete</p>
+        </div>
       </div>
-      <div className="space-y-2">
-        {visible.map((w, i) => {
-          const s = SEVERITY[w.severity] ?? SEVERITY.low;
-          return (
-            <div key={i} className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${s.bg} ${s.border}`}>
-              <span className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{w.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{w.detail}</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {w.link && (
-                  <button
-                    onClick={() => navigate(w.link)}
-                    className="text-xs font-semibold text-brand-600 hover:underline whitespace-nowrap"
-                  >
-                    Fix →
-                  </button>
-                )}
-                <button onClick={() => dismiss(i)} className="text-gray-300 hover:text-gray-400">
-                  <XCircle className="w-4 h-4" />
-                </button>
-              </div>
+
+      {/* Progress bar */}
+      <div className="px-6 pb-4">
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: barColor }}
+          />
+        </div>
+        {intel?.deadline && (
+          <p className={`text-xs mt-1.5 font-semibold ${intel.deadline.urgent ? 'text-red-500' : 'text-gray-400'}`}>
+            {intel.deadline.urgent ? '⚠ ' : ''}⏰ {intel.deadline.daysLeft} day{intel.deadline.daysLeft !== 1 ? 's' : ''} until submission deadline
+          </p>
+        )}
+      </div>
+
+      {/* Checklist grid */}
+      <div className="border-t border-gray-100 px-6 py-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
+        {steps.map((step, i) => (
+          <button
+            key={i}
+            onClick={() => !step.done && navigate(step.path)}
+            className={`flex items-center gap-3 text-left group ${step.done ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
+              step.done ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover:border-brand-400'
+            }`}>
+              {step.done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
             </div>
-          );
-        })}
+            <span className={`text-sm font-medium ${step.done ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-brand-600'}`}>
+              {step.label}
+            </span>
+            {!step.done && (
+              <span className="ml-auto text-xs text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Go →
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
 }
 
-// ─── Claim Intelligence Widget ────────────────────────────────────────────────
-// The hero feature: shows estimated reimbursement, money at risk, and a
-// prioritized list of issues with direct fix links. Updates on every load.
-function ClaimIntelligenceWidget({ navigate }) {
-  const [intel,   setIntel]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [noState, setNoState] = useState(false);
+// ─── BlockingIssues ───────────────────────────────────────────────────────────
+function BlockingIssues({ data, navigate }) {
+  const { intel, warnings } = data;
+  const issues   = intel?.issues ?? [];
+  const atRisk   = intel?.reimbursementAtRisk ?? 0;
 
-  const month = new Date().toISOString().slice(0, 7);
+  // Merge intelligence issues + proactive warnings, deduplicated
+  const blockingItems = [
+    ...issues.slice(0, 5).map((issue) => ({
+      key: issue.code + issue.siteId,
+      label: issue.siteName
+        ? `${issue.siteName} — ${issue.code.replace(/_/g, ' ')}`
+        : issue.code.replace(/_/g, ' '),
+      amount: issue.potentialLoss > 0 ? issue.potentialLoss : null,
+      path:   issue.fixPath,
+      cta:    issue.fixLabel || 'Fix',
+      severity: issue.severity === 'error' ? 'high' : 'medium',
+    })),
+    ...warnings.slice(0, 3).map((w) => ({
+      key: w.type + (w.org_id ?? ''),
+      label: w.title,
+      amount: null,
+      path:  w.link,
+      cta:   'View',
+      severity: w.severity ?? 'medium',
+    })),
+  ].filter((item, i, arr) => arr.findIndex((x) => x.key === item.key) === i).slice(0, 6);
 
-  useEffect(() => {
-    api.get(`/claims/intelligence?month=${month}`)
-      .then(({ data }) => setIntel(data))
-      .catch((err) => {
-        if (err.response?.status === 400) setNoState(true);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  if (blockingItems.length === 0) {
+    return (
+      <div className="card mb-5 px-6 py-5 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+          <CheckCircle className="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-green-700">Nothing is blocking your reimbursement</p>
+          <p className="text-xs text-gray-400 mt-0.5">No issues found this month. Your claim is on track.</p>
+        </div>
+        <button onClick={() => navigate('/dashboard/sponsor/claims')} className="ml-auto text-xs font-bold text-brand-600 hover:underline whitespace-nowrap flex-shrink-0">
+          View Claim →
+        </button>
+      </div>
+    );
+  }
 
-  if (loading) return null;
+  return (
+    <div className="card mb-5 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-500" />
+          <h2 className="text-sm font-bold text-gray-900">What's Blocking Your Reimbursement</h2>
+        </div>
+        {atRisk > 0 && (
+          <span className="text-sm font-bold text-red-500">${atRisk.toLocaleString()} at risk</span>
+        )}
+      </div>
+      <div className="divide-y divide-gray-50">
+        {blockingItems.map((item) => (
+          <div key={item.key} className="px-6 py-3.5 flex items-center gap-3">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.severity === 'high' ? 'bg-red-500' : 'bg-amber-400'}`} />
+            <p className="flex-1 text-sm text-gray-700 min-w-0 truncate capitalize">{item.label}</p>
+            {item.amount > 0 && (
+              <span className="text-sm font-bold text-red-500 flex-shrink-0 tabular-nums">
+                ${item.amount.toLocaleString()}
+              </span>
+            )}
+            {item.path && (
+              <button
+                onClick={() => navigate(item.path)}
+                className="text-xs font-bold text-brand-600 hover:underline whitespace-nowrap flex-shrink-0"
+              >
+                {item.cta} →
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      {issues.length > 5 && (
+        <div className="px-6 py-3 border-t border-gray-100 flex justify-end">
+          <button onClick={() => navigate('/dashboard/sponsor/claims')} className="text-xs font-bold text-brand-600 hover:underline">
+            See all {issues.length} issues in Claims Center →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TeamStatusCard ───────────────────────────────────────────────────────────
+function TeamStatusCard({ stats, data, navigate }) {
+  const { intel } = data;
+  const issues       = intel?.issues ?? [];
+  const totalSites   = intel?.totalSites   ?? stats.total_sites   ?? 0;
+  const sitesReady   = intel?.sitesReady   ?? 0;
+  const sitesWaiting = totalSites - sitesReady;
+  const kitchens     = stats.total_kitchens ?? stats.active_kitchens ?? 0;
+  const pendingApps  = stats.pending_approvals ?? 0;
+
+  const rows = [
+    {
+      label:  'Sites',
+      value:  totalSites > 0 ? `${sitesReady}/${totalSites} submitting` : 'No sites added',
+      ok:     totalSites > 0 && sitesWaiting === 0,
+      warn:   totalSites > 0 && sitesWaiting > 0,
+      detail: sitesWaiting > 0 ? `${sitesWaiting} site${sitesWaiting !== 1 ? 's' : ''} haven't submitted counts` : 'All sites reporting',
+      path:   '/dashboard/sponsor/sites',
+    },
+    {
+      label:  'Kitchens',
+      value:  kitchens > 0 ? `${kitchens} active` : 'No kitchens connected',
+      ok:     kitchens > 0,
+      warn:   false,
+      detail: kitchens > 0 ? 'Kitchen connected' : 'Add a kitchen to start',
+      path:   '/dashboard/sponsor/kitchens',
+    },
+    {
+      label:  'Applications',
+      value:  pendingApps > 0 ? `${pendingApps} pending` : 'None pending',
+      ok:     pendingApps === 0,
+      warn:   pendingApps > 0,
+      detail: pendingApps > 0 ? `${pendingApps} application${pendingApps !== 1 ? 's' : ''} need review` : 'All reviewed',
+      path:   '/dashboard/sponsor/applications',
+    },
+  ];
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100">
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Team Status</h3>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {rows.map((row) => (
+          <button
+            key={row.label}
+            onClick={() => navigate(row.path)}
+            className="w-full px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50 text-left"
+          >
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${row.ok ? 'bg-green-400' : row.warn ? 'bg-amber-400' : 'bg-gray-300'}`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-500">{row.label}</p>
+              <p className={`text-sm font-semibold ${row.warn ? 'text-amber-700' : 'text-gray-800'}`}>{row.value}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── ClaimSnapshotCard ────────────────────────────────────────────────────────
+function ClaimSnapshotCard({ data, navigate, noState }) {
+  const { intel } = data;
 
   if (noState) {
     return (
-      <div className="card mb-6 border-amber-100 bg-amber-50">
-        <div className="px-5 py-4 flex items-center gap-3">
-          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">Set your state to enable Claim Intelligence</p>
-            <p className="text-xs text-amber-600 mt-0.5">Go to Settings → Organization → CACFP Program State</p>
-          </div>
-          <button onClick={() => navigate('/dashboard/sponsor/settings')} className="text-xs font-bold text-amber-700 hover:underline whitespace-nowrap">
-            Set State →
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Claim Snapshot</h3>
+        </div>
+        <div className="px-5 py-6 text-center">
+          <p className="text-sm font-semibold text-amber-700 mb-1">State not set</p>
+          <p className="text-xs text-gray-400 mb-3">Set your CACFP state to see reimbursement estimates.</p>
+          <button onClick={() => navigate('/dashboard/sponsor/settings')} className="text-xs font-bold text-brand-600 hover:underline">
+            Set State in Settings →
           </button>
         </div>
       </div>
     );
   }
 
-  if (!intel) return null;
+  if (!intel) {
+    return (
+      <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100">
+          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Claim Snapshot</h3>
+        </div>
+        <div className="px-5 py-6 text-center text-sm text-gray-400">Loading…</div>
+      </div>
+    );
+  }
 
-  const {
-    monthName, estimatedReimbursement, reimbursementAtRisk,
-    issueCount, deadline, issues = [], sitesReady, totalSites
-  } = intel;
-
-  const allClear   = issueCount === 0;
-  const topIssues  = issues.slice(0, 5);
-  const moreCount  = issues.length - topIssues.length;
+  const { estimatedReimbursement = 0, reimbursementAtRisk = 0, issueCount = 0, deadline, sitesReady = 0, totalSites = 0 } = intel;
+  const pct = totalSites > 0 ? Math.round((sitesReady / totalSites) * 100) : 0;
 
   return (
-    <div className="mb-6 rounded-2xl overflow-hidden shadow-sm border border-brand-200">
-      {/* Purple gradient header */}
-      <div
-        className="px-5 py-4 bg-gradient-to-r from-brand-600 to-brand-700 cursor-pointer"
-        onClick={() => navigate('/dashboard/sponsor/claims')}
-      >
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <p className="text-xs font-bold text-brand-200 uppercase tracking-wide">Claim Intelligence</p>
-            <p className="text-base font-bold text-white mt-0.5">{monthName}</p>
-          </div>
-          {deadline && (
-            <div className={`text-right ${deadline.urgent ? 'text-red-300' : 'text-brand-200'}`}>
-              <p className="text-xs font-bold">⏰ {deadline.daysLeft} day{deadline.daysLeft !== 1 ? 's' : ''} left</p>
-              <p className="text-xs opacity-80">Due {deadline.label}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-xs text-brand-200 mb-0.5">Estimated Reimbursement</p>
-            <p className="text-2xl font-bold text-white">${(estimatedReimbursement || 0).toLocaleString()}</p>
-          </div>
-          {reimbursementAtRisk > 0 ? (
-            <div className="text-right">
-              <p className="text-xs font-bold text-red-300">Reimbursement at Risk</p>
-              <p className="text-2xl font-bold text-red-300">${(reimbursementAtRisk || 0).toLocaleString()}</p>
-            </div>
-          ) : (
-            <div className="text-right">
-              <p className="text-xs font-bold text-green-300">✓ $0 at risk</p>
-              <p className="text-xs text-brand-200">{sitesReady}/{totalSites} sites ready</p>
-            </div>
-          )}
-        </div>
+    <div className="card overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/dashboard/sponsor/claims')}>
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Claim Snapshot</h3>
+        <span className="text-xs text-brand-500 font-semibold">View full →</span>
       </div>
-
-      {/* Issues / all-clear panel */}
-      <div className="bg-white px-5 py-4">
-        {allClear ? (
-          <div className="flex items-center gap-3 py-1">
-            <span className="text-xl">✅</span>
-            <div>
-              <p className="text-sm font-bold text-green-700">
-                All {totalSites} site{totalSites !== 1 ? 's' : ''} ready to submit
-              </p>
-              <p className="text-xs text-gray-400">No issues found — your claim is fully prepared.</p>
-            </div>
+      <div className="px-5 py-4 space-y-4">
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">Estimated Reimbursement</p>
+          <p className="text-2xl font-black text-gray-900">${estimatedReimbursement.toLocaleString()}</p>
+        </div>
+        {reimbursementAtRisk > 0 && (
+          <div>
+            <p className="text-xs text-red-400 mb-0.5">At Risk</p>
+            <p className="text-lg font-bold text-red-500">${reimbursementAtRisk.toLocaleString()}</p>
           </div>
-        ) : (
-          <>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-              Fix {issueCount} issue{issueCount !== 1 ? 's' : ''} before {deadline?.label || 'month end'} to recover ${ (reimbursementAtRisk || 0).toLocaleString()}:
-            </p>
-            <div className="space-y-2.5">
-              {topIssues.map((issue, i) => (
-                <div key={i} className="flex items-center gap-2.5">
-                  <span
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      issue.severity === 'error' ? 'bg-red-500' : 'bg-amber-400'
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 truncate">
-                      <span className="font-semibold">{issue.siteName}</span>
-                      {' — '}
-                      <span className="text-gray-500">{issue.code.replace(/_/g, ' ').toLowerCase()}</span>
-                    </p>
-                  </div>
-                  {issue.potentialLoss > 0 && (
-                    <span className="text-xs font-bold text-red-500 flex-shrink-0 tabular-nums">
-                      ${issue.potentialLoss.toLocaleString()}
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(issue.fixPath); }}
-                    className="text-xs font-bold text-brand-600 hover:underline whitespace-nowrap flex-shrink-0"
-                  >
-                    {issue.fixLabel} →
-                  </button>
-                </div>
-              ))}
-              {moreCount > 0 && (
-                <p className="text-xs text-gray-400 pl-4.5">
-                  +{moreCount} more issue{moreCount !== 1 ? 's' : ''} — see full Claims Center
-                </p>
-              )}
-            </div>
-          </>
         )}
-
-        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-          <button
-            onClick={() => navigate('/dashboard/sponsor/claims')}
-            className="text-xs font-bold text-brand-600 hover:underline"
-          >
-            View Full Claims Center →
-          </button>
+        {deadline && (
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Days Until Deadline</p>
+            <p className={`text-lg font-bold ${deadline.urgent ? 'text-red-500' : 'text-gray-700'}`}>
+              {deadline.daysLeft} day{deadline.daysLeft !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-gray-400">Sites Ready</p>
+            <p className="text-xs font-bold text-gray-600">{sitesReady}/{totalSites}</p>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${pct}%` }} />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── RecentActivityFeed ───────────────────────────────────────────────────────
+function RecentActivityFeed({ data, navigate }) {
+  const { activity } = data;
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
+    if (diff < 2)   return 'just now';
+    if (diff < 60)  return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    if (diff < 2880) return 'Yesterday';
+    return `${Math.floor(diff / 1440)}d ago`;
+  };
+
+  const TYPE_ICON = {
+    meal_counts_submitted: '🍽',
+    task_created:          '✅',
+    task_completed:        '✅',
+    inspection_logged:     '🔍',
+    finding_resolved:      '🔍',
+    application_submitted: '📋',
+    application_approved:  '📋',
+    application_rejected:  '📋',
+  };
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Recent Activity</h3>
+        <button onClick={() => navigate('/dashboard/sponsor/activity')} className="text-xs font-bold text-brand-500 hover:underline">
+          All →
+        </button>
+      </div>
+      {!activity || activity.length === 0 ? (
+        <div className="px-5 py-6 text-center text-xs text-gray-400">No activity yet this month.</div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {activity.slice(0, 5).map((item, i) => (
+            <div key={i} className="px-5 py-3 flex items-start gap-3">
+              <span className="text-base flex-shrink-0 mt-0.5">{TYPE_ICON[item.type] ?? '📌'}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 truncate">{item.title}</p>
+                {item.org_name && (
+                  <p className="text-xs text-gray-400 truncate">{item.org_name}</p>
+                )}
+              </div>
+              <span className="text-xs text-gray-300 flex-shrink-0 whitespace-nowrap">{timeAgo(item.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -311,6 +472,23 @@ function relativeDate(dateStr) {
   if (diff === 1) return 'Yesterday';
   return `${diff} days ago`;
 }
+
+// ─── No-State Banner ──────────────────────────────────────────────────────────
+function NoStateBanner({ navigate }) {
+  return (
+    <div className="card mb-5 border-amber-100 bg-amber-50 px-6 py-4 flex items-center gap-3">
+      <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-amber-800">Set your CACFP state to unlock Claim Intelligence</p>
+        <p className="text-xs text-amber-600 mt-0.5">Settings → Organization → CACFP Program State</p>
+      </div>
+      <button onClick={() => navigate('/dashboard/sponsor/settings')} className="text-xs font-bold text-amber-700 hover:underline whitespace-nowrap">
+        Set State →
+      </button>
+    </div>
+  );
+}
+
 
 export default function SponsorDashboard() {
   const location   = useLocation();
@@ -327,50 +505,25 @@ export default function SponsorDashboard() {
   );
 
   const dismissOnboarding = (path) => {
-    // Only permanently dismiss when "Go to Dashboard" is clicked (path === null)
     if (path === null) {
       if (onboardingKey) localStorage.setItem(onboardingKey, 'done');
       setOnboardingDone(true);
     } else {
-      // Step CTA clicked — just navigate, keep onboarding visible
       navigate(path);
     }
   };
 
   const showOnboarding = isOverview && !onboardingDone;
 
-  // Fetch the 5 most recent applications from the real database
-  const [recentApps, setRecentApps]   = useState([]);
-  const [appsLoading, setAppsLoading] = useState(true);
-
-  // Sponsor ID — fetched from the user's own org so it's always accurate
-  const [sponsorId, setSponsorId]   = useState('');
-  const [copied, setCopied]         = useState(false);
-
-  const copyId = () => {
-    navigator.clipboard.writeText(sponsorId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  useEffect(() => {
-    if (!isOverview) return;
-    api.get('/applications?limit=5')
-      .then(({ data }) => setRecentApps(data.applications ?? []))
-      .catch(() => {})
-      .finally(() => setAppsLoading(false));
-    // Fetch the sponsor's own org to get their ID
-    api.get('/auth/me')
-      .then(({ data }) => setSponsorId(data.organizationId ?? ''))
-      .catch(() => {});
-  }, [isOverview]);
+  // Mission data — loaded only on overview to keep non-overview routes fast
+  const { data: missionData, loading: missionLoading, noState } = useMissionData();
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar navItems={NAV_ITEMS} badgeCounts={{ '/dashboard/sponsor/notifications': unreadCount }} />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-6xl mx-auto">
+        <div className="p-4 pt-16 sm:pt-8 sm:p-8 max-w-5xl mx-auto">
 
           {showOnboarding ? (
             <OnboardingPage
@@ -380,139 +533,32 @@ export default function SponsorDashboard() {
             />
           ) : isOverview ? (
             <>
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900">Program Overview</h1>
-                <p className="text-gray-500 mt-1">Monitor all sites, kitchens, and compliance status across your program.</p>
+              {/* Page header */}
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {user?.name ? `Hi, ${user.name.split(' ')[0]} 👋` : 'Dashboard'}
+                </h1>
+                <p className="text-gray-400 text-sm mt-1">Here's where your program stands right now.</p>
               </div>
 
-              {/* Action Center */}
-              <ActionCenter
-                loading={loading}
-                tasks={[
-                  {
-                    id: 'approvals',
-                    label: `Review ${stats.pending_approvals ?? 0} pending application${stats.pending_approvals !== 1 ? 's' : ''}`,
-                    path: '/dashboard/sponsor/applications',
-                    urgent: (stats.pending_approvals ?? 0) > 0,
-                    done: !(stats.pending_approvals > 0),
-                  },
-                  {
-                    id: 'compliance',
-                    label: `${stats.compliance_alerts ?? 0} document${stats.compliance_alerts !== 1 ? 's' : ''} expiring within 30 days`,
-                    path: '/dashboard/sponsor/documents',
-                    urgent: true,
-                    done: !(stats.compliance_alerts > 0),
-                  },
-                  {
-                    id: 'messages',
-                    label: `Respond to unread messages (${stats.unread_messages ?? 0})`,
-                    path: '/dashboard/sponsor/messages',
-                    done: !(stats.unread_messages > 0),
-                  },
-                ]}
-              />
+              {/* No-state banner — only shown when state is missing */}
+              {noState && <NoStateBanner navigate={navigate} />}
 
-              {/* Claim Intelligence — always-on financial guardian for this month's claim */}
-              <ClaimIntelligenceWidget navigate={navigate} />
+              {/* Mission card — claim readiness + 7-step checklist */}
+              {!missionLoading && !noState && (
+                <MissionCard stats={stats} data={missionData} navigate={navigate} />
+              )}
 
-              {/* Proactive warnings — surface issues before they become claim problems */}
-              <ProactiveWarningsCard navigate={navigate} />
+              {/* Blocking issues — what's standing between sponsor and their money */}
+              {!missionLoading && !noState && (
+                <BlockingIssues data={missionData} navigate={navigate} />
+              )}
 
-              {/* Stat cards — driven by real counts from the /stats API */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatCard label="Total Sites"       value={stats.total_sites       ?? '—'} icon={Building2}    color="blue" />
-                <StatCard label="Active Kitchens"   value={stats.active_kitchens   ?? '—'} icon={Building2}    color="green" />
-                <StatCard label="Pending Approvals" value={stats.pending_approvals ?? '—'} icon={ClipboardList} color="yellow" />
-                <StatCard label="Compliance Alerts" value={stats.compliance_alerts ?? '—'} icon={AlertTriangle} color="red" />
-              </div>
-
-              {/* Sponsor ID card — sponsors share this with kitchens/sites/delivery so they can register */}
-              <div className="card mb-6 border-brand-100">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Your Sponsor ID</p>
-                    <p className="text-sm text-gray-400 mb-2">Share this with kitchens, sites, and delivery providers so they can join your program when registering.</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-sm font-mono bg-gray-100 text-gray-800 px-3 py-1.5 rounded-lg">
-                        {sponsorId || '—'}
-                      </code>
-                      <button
-                        onClick={copyId}
-                        disabled={!sponsorId}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {copied ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent applications — real data from the database, not placeholders */}
-              <div className="card mb-6">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="font-semibold text-gray-900">Recent Applications</h2>
-                  <button
-                    onClick={() => navigate('/dashboard/sponsor/applications')}
-                    className="text-sm text-brand-600 hover:underline"
-                  >
-                    View all
-                  </button>
-                </div>
-
-                {appsLoading ? (
-                  <div className="px-6 py-8 text-center text-sm text-gray-400">Loading…</div>
-                ) : recentApps.length === 0 ? (
-                  <div className="px-6 py-10 text-center">
-                    <ClipboardList className="w-8 h-8 text-gray-300 mx-auto mb-3" />
-                    <p className="text-sm text-gray-500">No applications yet.</p>
-                    <p className="text-xs text-gray-400 mt-1">New applications from kitchens, sites, and delivery providers will appear here.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {recentApps.map((app) => (
-                      <div key={app.id} className="px-6 py-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{app.org_name ?? '—'}</p>
-                          <p className="text-xs text-gray-500 capitalize mt-0.5">
-                            {app.org_type ?? '—'} · {relativeDate(app.submitted_at ?? app.created_at)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <StatusBadge status={app.status} />
-                          <button
-                            onClick={() => navigate('/dashboard/sponsor/applications')}
-                            className="text-xs text-brand-600 hover:underline font-medium"
-                          >
-                            Review
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Quick links — fast access to the most-used sections */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: 'Compliance',     path: '/dashboard/sponsor/compliance',    icon: AlertTriangle, color: 'text-amber-600',  bg: 'bg-amber-50'  },
-                  { label: 'Meal Counts',    path: '/dashboard/sponsor/meal-counts',   icon: UtensilsCrossed, color: 'text-brand-600', bg: 'bg-brand-50'  },
-                  { label: 'Documents',      path: '/dashboard/sponsor/documents',     icon: FileText,      color: 'text-blue-600',   bg: 'bg-blue-50'   },
-                  { label: 'Reports',        path: '/dashboard/sponsor/reports',       icon: ClipboardList, color: 'text-green-600',  bg: 'bg-green-50'  },
-                ].map(({ label, path, icon: Icon, color, bg }) => (
-                  <button
-                    key={label}
-                    onClick={() => navigate(path)}
-                    className="card px-4 py-4 flex flex-col items-start gap-2 hover:shadow-md transition-shadow text-left"
-                  >
-                    <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <span className="text-sm font-semibold text-gray-700">{label}</span>
-                  </button>
-                ))}
+              {/* Bottom 3-column row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <TeamStatusCard stats={stats} data={missionData} navigate={navigate} />
+                <ClaimSnapshotCard data={missionData} navigate={navigate} noState={noState} />
+                <RecentActivityFeed data={missionData} navigate={navigate} />
               </div>
             </>
           ) : (
