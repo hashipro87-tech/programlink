@@ -17,15 +17,15 @@ const MEALS = ['breakfast', 'lunch', 'snack', 'supper'];
 // Maps common spreadsheet column names → child field names
 
 const FIELD_ALIASES = {
-  first_name:          ['first_name','first name','firstname','given name','given_name','first','child first','student first'],
-  last_name:           ['last_name','last name','lastname','surname','family name','family_name','last','child last','student last'],
-  birthdate:           ['birthdate','birth_date','dob','date of birth','birthday','birth date','date_of_birth'],
-  parent_name:         ['parent_name','parent name','parent/guardian','guardian','contact name','parent guardian','guardian name','contact'],
-  parent_phone:        ['parent_phone','parent phone','phone','contact phone','guardian phone','phone number','telephone','mobile'],
-  enrollment_date:     ['enrollment_date','enrollment date','start date','enrolled date','enroll date','date enrolled','start_date'],
-  enrollment_expires:  ['enrollment_expires','enrollment expires','expiry','expiration','expiration date','expire date','expires','end date'],
-  income_tier:         ['income_tier','income tier','tier','income level','income','eligibility'],
-  meal_types:          ['meal_types','meal types','meals','meal type','meal eligibility'],
+  first_name:          ['first_name','first name','firstname','given name','given_name','first','child first','student first','child first name','fname','f name'],
+  last_name:           ['last_name','last name','lastname','surname','family name','family_name','last','child last','student last','child last name','lname','l name'],
+  birthdate:           ['birthdate','birth_date','dob','date of birth','birthday','birth date','date_of_birth','child dob','child birth date','child birthdate','child date of birth','date of birth (dob)','child age/dob'],
+  parent_name:         ['parent_name','parent name','parent/guardian','guardian','contact name','parent guardian','guardian name','contact','parent or guardian','parent / guardian','caregiver','caregiver name'],
+  parent_phone:        ['parent_phone','parent phone','phone','contact phone','guardian phone','phone number','telephone','mobile','cell','parent cell','home phone','emergency phone'],
+  enrollment_date:     ['enrollment_date','enrollment date','start date','enrolled date','enroll date','date enrolled','start_date','date of enrollment','enrollment start'],
+  enrollment_expires:  ['enrollment_expires','enrollment expires','expiry','expiration','expiration date','expire date','expires','end date','enrollment end','enrollment end date','renewal date'],
+  income_tier:         ['income_tier','income tier','tier','income level','income','eligibility','income eligibility','free reduced paid','category','benefit category'],
+  meal_types:          ['meal_types','meal types','meals','meal type','meal eligibility','meals served','approved meals'],
 };
 
 function detectColumnMap(headers) {
@@ -227,10 +227,25 @@ function ColumnMapPreview({ colMap, headers, onConfirm, onBack }) {
   const mapped   = Object.entries(colMap).filter(([,v]) => v);
   const unmapped = headers.filter(h => !Object.values(colMap).includes(h));
 
+  const total = headers.length;
+  const matchedCount = mapped.length;
+
   return (
     <div>
+      {/* Smart match summary */}
+      <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${
+        matchedCount >= total * 0.8 ? 'bg-green-50 border border-green-100' : 'bg-amber-50 border border-amber-100'
+      }`}>
+        <span className="text-base">{matchedCount >= total * 0.8 ? '✅' : '⚠️'}</span>
+        <p className={`text-sm font-semibold ${matchedCount >= total * 0.8 ? 'text-green-800' : 'text-amber-800'}`}>
+          Matched {matchedCount} of {total} column{total !== 1 ? 's' : ''} automatically
+        </p>
+        {unmapped.length > 0 && (
+          <span className="ml-auto text-xs text-gray-400">{unmapped.length} skipped</span>
+        )}
+      </div>
       <p className="text-sm text-gray-600 mb-4">
-        CACFPLink detected the following columns. Review the mapping and click Continue to import.
+        Review the mapping and click Continue to import.
       </p>
       <div className="space-y-1.5 mb-4 max-h-52 overflow-y-auto">
         {mapped.map(([field, header]) => (
@@ -291,6 +306,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
   const [colMap,    setColMap]    = useState({});
   const [allHeaders, setAllHeaders] = useState([]);
   const [rawRows,   setRawRows]   = useState([]);
+  const [siteSearch, setSiteSearch] = useState('');
   const inputRef = useRef();
 
   // Fetch sites for the site-select step (only when orgId not pre-supplied)
@@ -304,6 +320,11 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
 
   // The org ID we'll actually import into
   const orgId = selectedOrgId || propOrgId;
+
+  // Name of selected site — shown persistently throughout the flow
+  const selectedSiteName = propOrgId
+    ? null   // pre-supplied orgId: sponsor already knows the context
+    : (sites.find(s => s.id === selectedOrgId)?.name ?? null);
 
   // Reset state on mode change
   function switchMode(m) {
@@ -322,8 +343,8 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
   function handleFile(f) {
     if (!f) return;
     if (mode === 'ai') {
-      const ok = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/heic'].includes(f.type);
-      if (!ok) { setError('Please upload a PDF or image (JPG, PNG, HEIC, WebP)'); return; }
+      const ok = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp'].includes(f.type);
+      if (!ok) { setError('Please upload a PDF, JPG, or PNG. iPhone photos must be saved as JPG first (Settings → Camera → Formats → Most Compatible).'); return; }
     } else {
       const ext = f.name.split('.').pop().toLowerCase();
       const ok  = ['csv','xlsx','xls','tsv'].includes(ext);
@@ -494,15 +515,51 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
           </div>
         )}
 
+        {/* Persistent site banner — shown on every step after site is chosen */}
+        {selectedSiteName && step !== 'site-select' && step !== 'done' && (
+          <div className="mx-6 mt-3 flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-xl">
+            <span className="text-sm">📍</span>
+            <p className="text-xs font-semibold text-brand-700 flex-1">
+              Importing to: <span className="font-bold">{selectedSiteName}</span>
+            </p>
+            <button
+              onClick={() => { setSelectedOrgId(''); setStep('site-select'); setFile(null); setChildren([]); }}
+              className="text-xs text-brand-400 hover:text-brand-600 underline"
+            >
+              Change
+            </button>
+          </div>
+        )}
+
         {/* Body */}
         <div className="px-6 py-5">
 
           {/* ── Site select step ── */}
           {step === 'site-select' && (
             <div>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 mb-3">
                 Which site are these children enrolled at?
               </p>
+
+              {/* Search — always shown so sponsors with many sites can filter instantly */}
+              {!sitesLoading && sites.length > 0 && (
+                <div className="relative mb-3">
+                  <input
+                    type="text"
+                    placeholder="Search sites…"
+                    value={siteSearch}
+                    onChange={e => setSiteSearch(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    autoFocus
+                  />
+                  {siteSearch && (
+                    <button onClick={() => setSiteSearch('')} className="absolute right-2.5 top-2.5 text-gray-300 hover:text-gray-500">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
               {sitesLoading ? (
                 <div className="py-8 text-center text-sm text-gray-400">Loading sites…</div>
               ) : sites.length === 0 ? (
@@ -510,27 +567,52 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
                   No sites found. Add a site to your program first.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-72 overflow-y-auto mb-4">
-                  {sites.map(site => (
-                    <button
-                      key={site.id}
-                      type="button"
-                      onClick={() => setSelectedOrgId(site.id)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
-                        selectedOrgId === site.id
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      }`}
-                    >
-                      <p className={`text-sm font-semibold ${selectedOrgId === site.id ? 'text-brand-700' : 'text-gray-800'}`}>
-                        {site.name}
-                      </p>
-                      {site.address && (
-                        <p className="text-xs text-gray-400 mt-0.5">{site.address}</p>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Site count context */}
+                  <p className="text-xs text-gray-400 mb-2">
+                    {siteSearch
+                      ? `${sites.filter(s => s.name.toLowerCase().includes(siteSearch.toLowerCase())).length} result${sites.filter(s => s.name.toLowerCase().includes(siteSearch.toLowerCase())).length !== 1 ? 's' : ''}`
+                      : `${sites.length} site${sites.length !== 1 ? 's' : ''} in your program`
+                    }
+                  </p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto mb-4 pr-0.5">
+                    {sites
+                      .filter(s => !siteSearch || s.name.toLowerCase().includes(siteSearch.toLowerCase()))
+                      .map(site => (
+                        <button
+                          key={site.id}
+                          type="button"
+                          onClick={() => setSelectedOrgId(site.id)}
+                          className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                            selectedOrgId === site.id
+                              ? 'border-brand-500 bg-brand-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                              selectedOrgId === site.id ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
+                            }`}>
+                              {selectedOrgId === site.id && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-semibold ${selectedOrgId === site.id ? 'text-brand-700' : 'text-gray-800'}`}>
+                                {site.name}
+                              </p>
+                              {site.address && (
+                                <p className="text-xs text-gray-400 mt-0.5">{site.address}</p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    {siteSearch && sites.filter(s => s.name.toLowerCase().includes(siteSearch.toLowerCase())).length === 0 && (
+                      <p className="text-sm text-gray-400 text-center py-4">No sites match "{siteSearch}"</p>
+                    )}
+                  </div>
+                </>
               )}
               <div className="flex gap-3">
                 <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
@@ -541,7 +623,9 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
                   disabled={!selectedOrgId}
                   className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 disabled:opacity-40"
                 >
-                  Continue
+                  {selectedOrgId
+                    ? `Continue with ${sites.find(s => s.id === selectedOrgId)?.name ?? 'selected site'}`
+                    : 'Select a site to continue'}
                 </button>
               </div>
             </div>
@@ -587,7 +671,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
                 <input
                   ref={inputRef} type="file" className="hidden"
                   accept={mode === 'ai'
-                    ? '.pdf,.jpg,.jpeg,.png,.webp,.heic'
+                    ? '.pdf,.jpg,.jpeg,.png,.webp'
                     : '.csv,.xlsx,.xls,.tsv'}
                   onChange={e => handleFile(e.target.files[0])}
                 />
@@ -601,7 +685,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
                   <div>
                     <p className="font-semibold text-gray-600 mb-1">Drop your file here or click to browse</p>
                     {mode === 'ai'
-                      ? <p className="text-xs text-gray-400">PDF, JPG, PNG, HEIC, WebP · Max 10 MB</p>
+                      ? <p className="text-xs text-gray-400">PDF, JPG, PNG, WebP · Max 10 MB · iPhone users: save as JPG</p>
                       : <p className="text-xs text-gray-400">CSV, Excel (.xlsx / .xls), TSV · Max 10 MB · First row must be column headers</p>
                     }
                   </div>

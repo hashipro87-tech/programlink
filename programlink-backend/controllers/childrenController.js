@@ -393,6 +393,13 @@ async function extractEnrollment(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
+    const ALLOWED_TYPES = ['application/pdf','image/jpeg','image/jpg','image/png','image/webp','image/gif'];
+    if (!ALLOWED_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        error: `Unsupported file type: ${req.file.mimetype}. Please upload a PDF, JPG, PNG, or WebP. iPhone HEIC photos must be converted to JPG first.`,
+      });
+    }
+
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
