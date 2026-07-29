@@ -229,12 +229,12 @@ function Hero() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-5">
-              Run your entire CACFP program{' '}
-              <span className="text-brand-600">with confidence.</span>
+              Never lose a dollar of{' '}
+              <span className="text-brand-600">CACFP reimbursement.</span>
             </h1>
 
             <p className="text-xl text-gray-500 leading-relaxed mb-8 max-w-lg">
-              Catch compliance issues early. Keep documents current. Build USDA-compliant menus. Validate claims before submission. Everything sponsors need — in one platform.
+              CACFPLink runs a financial analysis on your claim 24/7 — flagging every missing meal count, expired document, and incomplete enrollment before your state deadline. Sponsors who fix those issues get back every dollar they're owed.
             </p>
 
             <div className="flex flex-wrap gap-3 mb-10">
@@ -258,7 +258,7 @@ function Hero() {
             {/* Social proof chips */}
             <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-6">
               {[
-                'Catch compliance issues before they become rejected claims',
+                'Every issue shown with its exact dollar value',
                 'Know your reimbursement status every single day',
                 'No credit card required',
               ].map((item) => (
@@ -770,6 +770,239 @@ function WorkflowDiagram() {
         <p className="text-center text-xs text-gray-400 mt-10 font-medium">
           Every role. Every workflow. One system. — No more chasing emails or lost paperwork.
         </p>
+      </div>
+    </section>
+  );
+}
+
+// ─── Compliance Assistant Section ────────────────────────────────────────────
+
+function ComplianceAssistantSection() {
+  return (
+    <section className="py-20 px-6 bg-gray-50 border-t border-gray-100">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          {/* Left — copy */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-5">
+              <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
+              <span className="text-xs font-semibold text-brand-700">Built-in Compliance Guide</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight mb-5">
+              CACFP answers,{' '}
+              <span className="text-brand-600">right where you're working.</span>
+            </h2>
+            <p className="text-gray-500 leading-relaxed mb-6 text-sm">
+              The Compliance Assistant lives inside the Menu Builder. Every question you'd normally call your state agency about — milk age rules, WGR requirements, infant meals, creditable foods — answered in seconds with USDA citations. No tab switching. No waiting on hold.
+            </p>
+            <div className="space-y-3 mb-8">
+              {[
+                { icon: '📋', text: 'Meal component guide for breakfast, lunch, snack, and supper' },
+                { icon: '🌾', text: 'Whole grain-rich (WGR) tracking with per-day indicator' },
+                { icon: '🍼', text: 'Infant meal track with formula requirement validation' },
+                { icon: '⚡', text: 'Live issue detection — clickable errors open the exact cell to fix' },
+                { icon: '🔍', text: 'Smart search: type any question, get an answer with a 7 CFR citation' },
+              ].map((item) => (
+                <div key={item.text} className="flex items-start gap-3">
+                  <span className="text-lg leading-none flex-shrink-0 mt-0.5">{item.icon}</span>
+                  <span className="text-sm text-gray-600 leading-snug">{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-brand-600 font-semibold italic border-l-2 border-brand-300 pl-4">
+              No other CACFP platform has a built-in compliance guide tied to what you're currently editing.
+            </p>
+          </div>
+
+          {/* Right — Compliance Assistant mockup */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-brand-600" />
+              <span className="text-sm font-bold text-gray-900">Compliance Assistant</span>
+              <span className="ml-auto px-2 py-0.5 bg-brand-50 text-brand-700 text-[10px] font-bold rounded-full border border-brand-100">Texas (TX)</span>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100">
+              <button className="flex-1 px-4 py-2.5 text-[11px] font-bold text-brand-600 border-b-2 border-brand-500 bg-brand-50">
+                USDA Compliance
+              </button>
+              <button className="flex-1 px-4 py-2.5 text-[11px] font-medium text-gray-400 hover:text-gray-600">
+                State Resources
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {/* Search */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                <span className="text-gray-400 text-xs">🔍</span>
+                <span className="text-[11px] text-gray-400">Can I serve juice at breakfast?</span>
+              </div>
+
+              {/* Search result */}
+              <div className="bg-brand-50 border border-brand-100 rounded-xl px-3 py-2.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                  <span className="text-[10px] font-bold text-brand-700 uppercase">Answer · 7 CFR 226.20(a)</span>
+                </div>
+                <p className="text-[11px] text-gray-700 leading-relaxed">Yes — 100% fruit juice counts as the fruit/vegetable component at breakfast. Full-strength only; blends with less than 100% juice are not creditable.</p>
+              </div>
+
+              {/* Meal guide pills */}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Meal Components</p>
+                <div className="space-y-1.5">
+                  {[
+                    { meal: '🌅 Breakfast', components: 'Milk + Grain + Fruit/Veg', ok: true },
+                    { meal: '☀️ Lunch',     components: 'Milk + Protein + Grain + 2 Fruit/Veg', ok: true },
+                    { meal: '🍎 Snack',     components: '2 of 4 components', ok: true },
+                  ].map((row) => (
+                    <div key={row.meal} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5">
+                      <span className="text-[11px] font-medium text-gray-700 w-20 flex-shrink-0">{row.meal}</span>
+                      <span className="text-[10px] text-gray-400 flex-1">{row.components}</span>
+                      <span className="text-green-500 text-xs">✓</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live issues */}
+              <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                <p className="text-[10px] font-bold text-red-600 uppercase mb-1.5">Live Issues — This Week's Menu</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px] text-red-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                    Monday Lunch · Missing vegetable component
+                    <span className="ml-auto font-bold text-red-500 underline cursor-pointer">Fix →</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-amber-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                    Wednesday · No WGR grain served
+                    <span className="ml-auto font-bold text-amber-600 underline cursor-pointer">Fix →</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── State Resources Section ──────────────────────────────────────────────────
+
+function StateResourcesSection() {
+  const TX_FORMS = [
+    'Sponsor Agreement',
+    'Site Information Sheet',
+    'Income Eligibility Statement',
+    'Production Records (90 days)',
+    'Attendance Records',
+    'Menu Documentation',
+  ];
+
+  return (
+    <section className="py-20 px-6 bg-white border-t border-gray-100">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-16 items-center">
+          {/* Left — State Resources mockup */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-brand-600 to-violet-600 px-5 py-4">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">State Resources</span>
+                <span className="ml-auto px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full">Texas</span>
+              </div>
+              <p className="text-white font-bold text-sm">Your state rules, rates, and deadlines — in one place.</p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Rates */}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Reimbursement Rates (FY2025)</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: 'Breakfast', tier1: '$1.70', tier2: '$0.36' },
+                    { label: 'Lunch',     tier1: '$3.22', tier2: '$1.72' },
+                    { label: 'Snack',     tier1: '$0.96', tier2: '$0.10' },
+                    { label: 'Supper',    tier1: '$3.22', tier2: '$1.72' },
+                  ].map((r) => (
+                    <div key={r.label} className="bg-gray-50 rounded-lg p-2 text-center">
+                      <p className="text-[8px] text-gray-400 uppercase">{r.label}</p>
+                      <p className="text-[11px] font-black text-brand-600">{r.tier1}</p>
+                      <p className="text-[9px] text-gray-400">{r.tier2} T2</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Deadline + Agency */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <p className="text-[9px] font-bold text-amber-700 uppercase mb-1">Claim Deadline</p>
+                  <p className="text-[11px] font-bold text-gray-800">60 days after month end</p>
+                  <p className="text-[9px] text-gray-400 mt-0.5">via SquareMeals portal</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                  <p className="text-[9px] font-bold text-blue-700 uppercase mb-1">State Agency</p>
+                  <p className="text-[11px] font-bold text-gray-800">Texas Dept. of Agriculture</p>
+                  <p className="text-[9px] text-gray-400 mt-0.5">squaremeals.org</p>
+                </div>
+              </div>
+
+              {/* Required forms */}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Required Forms</p>
+                <div className="space-y-1">
+                  {TX_FORMS.map((form) => (
+                    <div key={form} className="flex items-center gap-2 text-[11px] text-gray-700">
+                      <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                      {form}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right — copy */}
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-100 rounded-full mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-xs font-semibold text-green-700">50 States Supported</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight mb-5">
+              Your state's rules —{' '}
+              <span className="text-brand-600">instantly.</span>
+            </h2>
+            <p className="text-gray-500 leading-relaxed mb-6 text-sm">
+              CACFP rules vary by state. Reimbursement rates, claim deadlines, required forms, and state portal links — CACFPLink loads your state's complete profile the moment you set up your account. No searching. No calling your state agency for information that hasn't changed in years.
+            </p>
+            <div className="space-y-3 mb-8">
+              {[
+                { icon: '💰', text: 'Tier 1 and Tier 2 reimbursement rates for every meal type' },
+                { icon: '📅', text: 'Your state's claim submission deadline, every month' },
+                { icon: '🏛️', text: 'State agency name, portal link, and contact information' },
+                { icon: '📝', text: 'Required forms checklist — know what to file before your review' },
+                { icon: '📌', text: 'Set your state once on signup — everything updates automatically' },
+              ].map((item) => (
+                <div key={item.text} className="flex items-start gap-3">
+                  <span className="text-lg leading-none flex-shrink-0 mt-0.5">{item.icon}</span>
+                  <span className="text-sm text-gray-600 leading-snug">{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <Link
+              to="/register"
+              onClick={() => trackCTAClick('state_resources_cta')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl transition-colors"
+            >
+              See your state's rules <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -2267,27 +2500,39 @@ export default function HomePage() {
   return (
     <div className="min-h-screen">
       <Navbar />
+      {/* 1. The hook — what does CACFPLink do for you? */}
       <Hero />
-      <ClaimIntelligenceSection />
-      <PerformanceSection />
-      <TryDemoSection />
-      <DemoSection />
-      <WorkflowDiagram />
+      {/* 2. The pain — what problems does it solve? */}
       <ProblemSolution />
+      {/* 3. The core differentiator — Claim Intelligence */}
+      <ClaimIntelligenceSection />
+      {/* 4. Everything you get — full feature list */}
       <Features />
-      <ScreenshotsSection />
+      {/* 5. How it all connects — workflow diagram */}
+      <WorkflowDiagram />
+      {/* 6. Compliance Assistant — built-in CACFP guide */}
+      <ComplianceAssistantSection />
+      {/* 7. State Resources — your state's rules instantly */}
+      <StateResourcesSection />
+      {/* 8. Old way vs. CACFPLink */}
       <WhyCACFPLink />
+      {/* 9. Try it — no account needed */}
+      <TryDemoSection />
+      {/* 10. Trust — performance tested */}
+      <PerformanceSection />
+      {/* 11. Social proof */}
       <Testimonials />
-      <TrustSection />
-      <SecuritySection />
-      <HowItWorks />
-      <MobileSection />
-      <Impact />
-      <PilotSection />
-      <FounderStory />
-      <PricingSection />
+      {/* 12. ROI — how much is your program worth? */}
       <ROICalculator />
+      {/* 13. The founder */}
+      <FounderStory />
+      {/* 14. Pricing */}
+      <PricingSection />
+      {/* 15. Pilot CTA */}
+      <PilotSection />
+      {/* 16. Contact */}
       <ContactSection />
+      {/* 17. Final CTA */}
       <FinalCTA />
       <Footer />
     </div>
