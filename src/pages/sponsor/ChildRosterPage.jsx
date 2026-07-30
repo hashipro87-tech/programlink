@@ -177,18 +177,20 @@ export default function ChildRosterPage() {
       {/* Enrollment Compliance Panel */}
       {compliance && (
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-brand-600" />
-              <h2 className="font-bold text-gray-900">Enrollment Compliance</h2>
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="w-5 h-5 text-brand-600" />
+                <h2 className="font-bold text-gray-900">Enrollment Status</h2>
+              </div>
+              <p className="text-sm ml-7">
+                <span className="font-semibold text-green-700">{Number(compliance.forms_approved || 0)} audit ready</span>
+                <span className="text-gray-300 mx-1.5">·</span>
+                <span className="font-semibold text-red-600">
+                  {Math.max(0, Number(compliance.total || 0) - Number(compliance.forms_approved || 0))} need attention
+                </span>
+              </p>
             </div>
-            <span className={`text-sm font-bold ${compliance.audit_ready_pct >= 90 ? 'text-green-600' : compliance.audit_ready_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {compliance.audit_ready_pct}% Audit-Ready
-            </span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full mb-5 overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${compliance.audit_ready_pct >= 90 ? 'bg-green-500' : compliance.audit_ready_pct >= 70 ? 'bg-yellow-400' : 'bg-red-500'}`}
-              style={{ width: `${compliance.audit_ready_pct}%` }} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-3">

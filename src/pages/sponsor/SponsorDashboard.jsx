@@ -94,12 +94,14 @@ function useMissionData() {
       api.get('/activity?limit=5').catch(() => null),
       api.get('/children/summary').catch(() => null),
       api.get('/warnings').catch(() => null),
-    ]).then(([intel, activity, children, warnings]) => {
+      api.get('/children/compliance').catch(() => null),
+    ]).then(([intel, activity, children, warnings, compliance]) => {
       setData({
-        intel:    intel?.data    ?? null,
-        activity: activity?.data?.activity ?? [],
-        children: children?.data?.orgs    ?? [],
-        warnings: warnings?.data?.warnings ?? [],
+        intel:      intel?.data      ?? null,
+        activity:   activity?.data?.activity ?? [],
+        children:   children?.data?.orgs    ?? [],
+        warnings:   warnings?.data?.warnings ?? [],
+        compliance: compliance?.data ?? null,
       });
     }).finally(() => setLoading(false));
   }, []);
@@ -109,19 +111,28 @@ function useMissionData() {
 
 // ─── MissionCard ──────────────────────────────────────────────────────────────
 function MissionCard({ stats, data, navigate }) {
-  const { intel, children } = data;
+  const { intel, children, compliance } = data;
   const issues   = intel?.issues ?? [];
   const monthName = intel?.monthName
     ?? new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const totalChildren = children.reduce((s, o) => s + Number(o.total || 0), 0);
+  const totalChildren   = children.reduce((s, o) => s + Number(o.total || 0), 0);
   const hasCode = (fragment) => issues.some((i) => i.code?.includes(fragment));
+
+  // Enrollment: how many children don't have an approved form
+  const formsApproved   = Number(compliance?.forms_approved ?? 0);
+  const enrollmentMissing = totalChildren > 0 ? totalChildren - formsApproved : 0;
 
   const steps = [
     { label: 'Add sites to your program',   done: (stats.total_sites    ?? 0) > 0,  path: '/dashboard/sponsor/sites' },
     { label: 'Connect a kitchen',           done: (stats.total_kitchens ?? 0) > 0,  path: '/dashboard/sponsor/kitchens' },
     { label: 'Add children to roster',      done: totalChildren > 0,                path: '/dashboard/sponsor/children' },
-    { label: 'Complete income eligibility', done: totalChildren > 0 && !hasCode('income'), path: '/dashboard/sponsor/children' },
+    {
+      label:   enrollmentMissing > 0 ? `${enrollmentMissing} children missing income forms` : 'Income eligibility complete',
+      done:    enrollmentMissing === 0 && totalChildren > 0,
+      warning: enrollmentMissing > 0 && totalChildren > 0,
+      path:    '/dashboard/sponsor/children',
+    },
     { label: `Build ${monthName} menu`,     done: !hasCode('menu'),                 path: '/dashboard/sponsor/menus' },
     { label: 'Record meal counts',          done: !hasCode('no_meal_counts'),       path: '/dashboard/sponsor/meal-counts' },
     { label: 'Submit claim',               done: intel?.claimStatus === 'submitted', path: '/dashboard/sponsor/claims' },
@@ -165,20 +176,31 @@ function MissionCard({ stats, data, navigate }) {
         {steps.map((step, i) => (
           <button
             key={i}
-            onClick={() => !step.done && navigate(step.path)}
-            className={`flex items-center gap-3 text-left group ${step.done ? 'cursor-default' : 'cursor-pointer'}`}
+            onClick={() => navigate(step.path)}
+            className="flex items-center gap-3 text-left group cursor-pointer"
           >
             <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
-              step.done ? 'bg-green-500 border-green-500' : 'border-gray-300 group-hover:border-brand-400'
+              step.done
+                ? 'bg-green-500 border-green-500'
+                : step.warning
+                  ? 'bg-amber-400 border-amber-400'
+                  : 'border-gray-300 group-hover:border-brand-400'
             }`}>
-              {step.done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+              {step.done    && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+              {step.warning && <span className="text-white text-[10px] font-black leading-none">!</span>}
             </div>
-            <span className={`text-sm font-medium ${step.done ? 'text-gray-400 line-through' : 'text-gray-700 group-hover:text-brand-600'}`}>
+            <span className={`text-sm font-medium ${
+              step.done
+                ? 'text-gray-400 line-through'
+                : step.warning
+                  ? 'text-amber-700 font-semibold'
+                  : 'text-gray-700 group-hover:text-brand-600'
+            }`}>
               {step.label}
             </span>
             {!step.done && (
               <span className="ml-auto text-xs text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                Go →
+                Fix →
               </span>
             )}
           </button>
