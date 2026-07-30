@@ -389,6 +389,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
   const [children,  setChildren]  = useState([]);
   const [error,     setError]     = useState('');
   const [importedCount, setImportedCount] = useState(0);
+  const [bulkSigned, setBulkSigned] = useState(false);
   const [colMap,    setColMap]    = useState({});
   const [allHeaders, setAllHeaders] = useState([]);
   const [rawRows,   setRawRows]   = useState([]);
@@ -528,7 +529,8 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
     setStep('importing');
     setError('');
     try {
-      const res = await api.post('/children/import/confirm', { children: valid, org_id: orgId });
+      const payload = bulkSigned ? valid.map(c => ({ ...c, signature_obtained: true })) : valid;
+      const res = await api.post('/children/import/confirm', { children: payload, org_id: orgId });
       setImportedCount(res.data.imported);
       setStep('done');
       if (onImported) onImported(res.data.imported);
@@ -836,6 +838,22 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
                   ))}
                 </div>
               )}
+              {/* Bulk signature confirmation */}
+              <label className={`mt-4 flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                bulkSigned ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={bulkSigned}
+                  onChange={e => setBulkSigned(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-brand-600 flex-shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">All enrollment forms have been signed by parents/guardians</p>
+                  <p className="text-xs text-amber-600 mt-0.5">⚠️ Only select this if you have verified that every imported form is signed.</p>
+                </div>
+              </label>
+
               <button onClick={addBlank}
                 className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-semibold">
                 <Plus className="w-4 h-4" /> Add child manually
