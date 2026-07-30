@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2, AlertCircle, Clock, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
 import api from '../../services/api';
 import ImportEnrollmentModal from '../../components/enrollment/ImportEnrollmentModal';
+import ChildEnrollmentWizard from '../../components/enrollment/ChildEnrollmentWizard';
 
 const STATUS_META = {
   enrolled:  { label: 'Enrolled',  bg: 'bg-green-100',  text: 'text-green-700'  },
@@ -34,12 +35,6 @@ function getMissingCount(child) {
   return REQUIRED_FIELDS.filter(f => !child[f] || String(child[f]).trim() === '').length;
 }
 
-const EMPTY_FORM = {
-  first_name: '', last_name: '', birthdate: '', enrollment_status: 'enrolled',
-  income_tier: 'tier1', age_group: '', enrollment_date: '', parent_name: '',
-  parent_phone: '', notes: '', org_id: '',
-};
-
 export default function ChildRosterPage() {
   const [children, setChildren]   = useState([]);
   const [orgs, setOrgs]           = useState([]);
@@ -51,9 +46,6 @@ export default function ChildRosterPage() {
   const [filterAge, setFilterAge] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing]     = useState(null);
-  const [form, setForm]           = useState(EMPTY_FORM);
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [compliance, setCompliance]     = useState(null);
   const [showImport, setShowImport]     = useState(false);
@@ -95,48 +87,16 @@ export default function ChildRosterPage() {
 
   function openAdd() {
     setEditing(null);
-    setForm(EMPTY_FORM);
     setShowModal(true);
   }
 
   function openEdit(child) {
-    setEditing(child);
-    setForm({
-      first_name:        child.first_name || '',
-      last_name:         child.last_name  || '',
-      birthdate:         child.birthdate  ? child.birthdate.slice(0, 10) : '',
-      enrollment_status: child.enrollment_status || 'enrolled',
-      income_tier:       child.income_tier || 'tier1',
-      age_group:         child.age_group  || '',
-      enrollment_date:   child.enrollment_date ? child.enrollment_date.slice(0, 10) : '',
-      parent_name:       child.parent_name  || '',
-      parent_phone:      child.parent_phone || '',
-      notes:             child.notes || '',
-      org_id:            child.org_id || '',
-    });
+    // Normalize dates to YYYY-MM-DD so date inputs work
+    const norm = { ...child };
+    ['birthdate','enrollment_date','enrollment_expires','income_cert_date','income_cert_expires']
+      .forEach(f => { if (norm[f]) norm[f] = norm[f].slice(0, 10); });
+    setEditing(norm);
     setShowModal(true);
-  }
-
-  async function save() {
-    if (!form.first_name || !form.last_name) {
-      setError('First and last name are required');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      if (editing) {
-        await api.put(`/children/${editing.id}`, form);
-      } else {
-        await api.post('/children', form);
-      }
-      setShowModal(false);
-      load();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function confirmDelete() {
@@ -404,110 +364,14 @@ export default function ChildRosterPage() {
         </div>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit Modal — 8-step enrollment wizard */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900">{editing ? 'Edit Child' : 'Add Child'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</p>}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
-                  <input className="input w-full" value={form.first_name}
-                    onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name *</label>
-                  <input className="input w-full" value={form.last_name}
-                    onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Date of Birth</label>
-                  <input type="date" className="input w-full" value={form.birthdate}
-                    onChange={e => setForm(f => ({ ...f, birthdate: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Enrollment Date</label>
-                  <input type="date" className="input w-full" value={form.enrollment_date}
-                    onChange={e => setForm(f => ({ ...f, enrollment_date: e.target.value }))} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
-                  <select className="input w-full" value={form.enrollment_status}
-                    onChange={e => setForm(f => ({ ...f, enrollment_status: e.target.value }))}>
-                    {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Income Tier</label>
-                  <select className="input w-full" value={form.income_tier}
-                    onChange={e => setForm(f => ({ ...f, income_tier: e.target.value }))}>
-                    <option value="tier1">Tier I</option>
-                    <option value="tier2">Tier II</option>
-                    <option value="paid">Paid</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Age Group</label>
-                  <select className="input w-full" value={form.age_group}
-                    onChange={e => setForm(f => ({ ...f, age_group: e.target.value }))}>
-                    <option value="">Auto (from birthdate)</option>
-                    {Object.entries(AGE_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Site / Kitchen</label>
-                  <select className="input w-full" value={form.org_id}
-                    onChange={e => setForm(f => ({ ...f, org_id: e.target.value }))}>
-                    <option value="">Select site…</option>
-                    {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Parent / Guardian Name</label>
-                  <input className="input w-full" value={form.parent_name}
-                    onChange={e => setForm(f => ({ ...f, parent_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Parent Phone</label>
-                  <input className="input w-full" value={form.parent_phone} placeholder="(555) 000-0000"
-                    onChange={e => setForm(f => ({ ...f, parent_phone: e.target.value }))} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Notes</label>
-                <textarea className="input w-full h-20 resize-none" value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 pb-6">
-              <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={save} disabled={saving} className="btn-primary flex-1">
-                {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Child'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ChildEnrollmentWizard
+          initialChild={editing}
+          sites={(orgs || []).filter(o => o.type === 'site')}
+          onClose={() => { setShowModal(false); setEditing(null); }}
+          onSaved={() => load()}
+        />
       )}
 
       {/* Delete confirm */}
