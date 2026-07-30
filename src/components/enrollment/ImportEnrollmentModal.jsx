@@ -20,12 +20,14 @@ const FIELD_ALIASES = {
   first_name:          ['first_name','first name','firstname','given name','given_name','first','child first','student first','child first name','fname','f name'],
   last_name:           ['last_name','last name','lastname','surname','family name','family_name','last','child last','student last','child last name','lname','l name'],
   birthdate:           ['birthdate','birth_date','dob','date of birth','birthday','birth date','date_of_birth','child dob','child birth date','child birthdate','child date of birth','date of birth (dob)','child age/dob'],
+  age_group:           ['age_group','age group','age','age category','age band','child age','developmental stage','age bracket','group','age class'],
   parent_name:         ['parent_name','parent name','parent/guardian','guardian','contact name','parent guardian','guardian name','contact','parent or guardian','parent / guardian','caregiver','caregiver name'],
   parent_phone:        ['parent_phone','parent phone','phone','contact phone','guardian phone','phone number','telephone','mobile','cell','parent cell','home phone','emergency phone'],
   enrollment_date:     ['enrollment_date','enrollment date','start date','enrolled date','enroll date','date enrolled','start_date','date of enrollment','enrollment start'],
   enrollment_expires:  ['enrollment_expires','enrollment expires','expiry','expiration','expiration date','expire date','expires','end date','enrollment end','enrollment end date','renewal date'],
   income_tier:         ['income_tier','income tier','tier','income level','income','eligibility','income eligibility','free reduced paid','category','benefit category'],
   meal_types:          ['meal_types','meal types','meals','meal type','meal eligibility','meals served','approved meals'],
+  days_enrolled:       ['days_enrolled','days enrolled','enrolled days','attendance days','days','schedule','days per week','days attended','attendance schedule','days of week'],
 };
 
 function detectColumnMap(headers) {
@@ -217,70 +219,139 @@ function ChildCard({ child, index, onChange, onRemove }) {
 
 // ─── Column mapping preview (shown before review in CSV mode) ─────────────────
 
-function ColumnMapPreview({ colMap, headers, onConfirm, onBack }) {
-  const FIELD_LABELS = {
-    first_name: 'First Name', last_name: 'Last Name', birthdate: 'Date of Birth',
-    parent_name: 'Parent Name', parent_phone: 'Parent Phone',
-    enrollment_date: 'Enrollment Date', enrollment_expires: 'Enrollment Expires',
-    income_tier: 'Income Tier', meal_types: 'Meal Types',
-  };
-  const mapped   = Object.entries(colMap).filter(([,v]) => v);
-  const unmapped = headers.filter(h => !Object.values(colMap).includes(h));
+const ALL_FIELD_LABELS = {
+  first_name:         'First Name',
+  last_name:          'Last Name',
+  birthdate:          'Date of Birth',
+  age_group:          'Age Group',
+  parent_name:        'Parent Name',
+  parent_phone:       'Parent Phone',
+  enrollment_date:    'Enrollment Date',
+  enrollment_expires: 'Enrollment Expires',
+  income_tier:        'Income Tier',
+  meal_types:         'Meal Types',
+  days_enrolled:      'Days Enrolled',
+};
 
-  const total = headers.length;
+function ColumnMapPreview({ colMap, headers, onConfirm, onBack }) {
+  // Manual overrides: { 'spreadsheet header' → 'field name or "" to skip' }
+  const [overrides, setOverrides] = useState({});
+
+  // Build the effective colMap by applying overrides
+  const effectiveColMap = { ...colMap };
+  for (const [header, field] of Object.entries(overrides)) {
+    if (field) {
+      // Remove any existing mapping that used this field
+      for (const [f, h] of Object.entries(effectiveColMap)) {
+        if (h === header) delete effectiveColMap[f];
+      }
+      effectiveColMap[field] = header;
+    }
+  }
+
+  const mappedHeaders = new Set(Object.values(effectiveColMap).filter(Boolean));
+  const mapped        = Object.entries(effectiveColMap).filter(([, v]) => v);
+  const unmapped      = headers.filter(h => !mappedHeaders.has(h));
+
+  const total        = headers.length;
   const matchedCount = mapped.length;
+
+  // Fields not yet mapped — available for manual assignment
+  const usedFields     = new Set(Object.keys(effectiveColMap));
+  const availableFields = Object.keys(ALL_FIELD_LABELS).filter(f => !usedFields.has(f));
+
+  const setOverride = (header, field) => setOverrides(prev => ({ ...prev, [header]: field }));
+
+  const handleConfirm = () => onConfirm(effectiveColMap);
 
   return (
     <div>
       {/* Smart match summary */}
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-4 ${
-        matchedCount >= total * 0.8 ? 'bg-green-50 border border-green-100' : 'bg-amber-50 border border-amber-100'
+      <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-3 ${
+        unmapped.length === 0 ? 'bg-green-50 border border-green-100' : 'bg-amber-50 border border-amber-100'
       }`}>
-        <span className="text-base">{matchedCount >= total * 0.8 ? '✅' : '⚠️'}</span>
-        <p className={`text-sm font-semibold ${matchedCount >= total * 0.8 ? 'text-green-800' : 'text-amber-800'}`}>
+        <span className="text-base">{unmapped.length === 0 ? '✅' : '⚠️'}</span>
+        <p className={`text-sm font-semibold ${unmapped.length === 0 ? 'text-green-800' : 'text-amber-800'}`}>
           Matched {matchedCount} of {total} column{total !== 1 ? 's' : ''} automatically
         </p>
         {unmapped.length > 0 && (
-          <span className="ml-auto text-xs text-gray-400">{unmapped.length} skipped</span>
+          <span className="ml-auto text-xs text-amber-600 font-medium">{unmapped.length} need attention</span>
         )}
       </div>
-      <p className="text-sm text-gray-600 mb-4">
-        Review the mapping and click Continue to import.
-      </p>
-      <div className="space-y-1.5 mb-4 max-h-52 overflow-y-auto">
+
+      {/* Matched columns */}
+      <div className="space-y-1.5 mb-3 max-h-40 overflow-y-auto">
         {mapped.map(([field, header]) => (
           <div key={field} className="flex items-center gap-3 text-sm px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
             <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-            <span className="text-gray-500 w-32 flex-shrink-0">"{header}"</span>
+            <span className="text-gray-500 truncate max-w-[130px]" title={header}>"{header}"</span>
             <span className="text-gray-300">→</span>
-            <span className="font-semibold text-gray-800">{FIELD_LABELS[field] || field}</span>
+            <span className="font-semibold text-gray-800">{ALL_FIELD_LABELS[field] || field}</span>
           </div>
         ))}
-        {unmapped.length > 0 && (
-          <div className="pt-2">
-            <p className="text-xs text-gray-400 mb-1.5">Columns not recognized (will be skipped):</p>
-            {unmapped.map(h => (
-              <div key={h} className="flex items-center gap-3 text-sm px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg mb-1">
-                <span className="text-gray-400 text-xs">"{h}"</span>
-                <span className="text-gray-200 text-xs ml-auto">skipped</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Unmatched columns — with manual mapping + impact warning */}
+      {unmapped.length > 0 && (
+        <div className="border border-amber-200 rounded-xl overflow-hidden mb-3">
+          <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border-b border-amber-100">
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-amber-800">
+                {unmapped.length} column{unmapped.length !== 1 ? 's' : ''} not recognized — these fields will be blank after import
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Map them manually below, or leave as "Skip" to import without that data.
+              </p>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-100 bg-white">
+            {unmapped.map(h => {
+              const override = overrides[h] || '';
+              return (
+                <div key={h} className="flex items-center gap-3 px-3 py-2.5">
+                  <span className="text-sm text-gray-600 flex-1 truncate" title={h}>"{h}"</span>
+                  <select
+                    value={override}
+                    onChange={e => setOverride(h, e.target.value)}
+                    className={`text-xs border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      override ? 'border-green-300 bg-green-50 text-green-800' : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <option value="">Skip this column</option>
+                    {availableFields.map(f => (
+                      <option key={f} value={f}>{ALL_FIELD_LABELS[f]}</option>
+                    ))}
+                    {/* Also offer fields that were auto-mapped (to re-assign) */}
+                    {Object.keys(ALL_FIELD_LABELS).filter(f => usedFields.has(f)).map(f => (
+                      <option key={f} value={f}>{ALL_FIELD_LABELS[f]} (replace current)</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {mapped.length < 2 && (
-        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl mb-4">
-          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700">
-            Only {mapped.length} column{mapped.length !== 1 ? 's' : ''} detected. Make sure your spreadsheet has columns named "First Name" and "Last Name". You can correct everything in the review step.
+        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-xl mb-3">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-red-700">
+            First Name and Last Name are required. Make sure your spreadsheet has those columns — rename them if needed, then re-upload.
           </p>
         </div>
       )}
+
       <div className="flex gap-3">
         <button onClick={onBack} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
           Back
         </button>
-        <button onClick={onConfirm} className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700">
+        <button
+          onClick={handleConfirm}
+          disabled={mapped.length < 2}
+          className="flex-1 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 disabled:opacity-40"
+        >
           Continue to Review
         </button>
       </div>
@@ -410,8 +481,8 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
     }
   }
 
-  function confirmColumnMap() {
-    const parsed = parseSheetsRows(rawRows, colMap);
+  function confirmColumnMap(finalColMap) {
+    const parsed = parseSheetsRows(rawRows, finalColMap || colMap);
     setChildren(parsed);
     setStep('review');
   }
@@ -707,7 +778,7 @@ export default function ImportEnrollmentModal({ onClose, onImported, orgId: prop
               ) : (
                 <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <p className="text-xs font-semibold text-blue-800 mb-1">Column names CACFPLink recognizes</p>
-                  <p className="text-xs text-blue-700">First Name, Last Name, Date of Birth, Parent Name, Parent Phone, Enrollment Date, Income Tier. Columns that don't match will be skipped — you can fill them in during review.</p>
+                  <p className="text-xs text-blue-700">First Name, Last Name, Date of Birth, Age Group, Parent Name, Parent Phone, Enrollment Date, Enrollment Expires, Income Tier, Meal Types, Days Enrolled. Unrecognized columns can be mapped manually before import.</p>
                 </div>
               )}
             </div>
