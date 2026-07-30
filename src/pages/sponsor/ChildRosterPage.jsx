@@ -244,13 +244,13 @@ export default function ChildRosterPage() {
                     <span className="text-gray-800 font-medium">{c.first_name} {c.last_name}</span>
                     <span className="text-xs text-gray-400">{c.org_name}</span>
                     <div className="flex gap-2">
-                      <button onClick={() => api.post(`/children/${c.id}/review`, { action: 'approve' }).then(load)}
+                      <button onClick={() => api.post(`/children/${c.id}/review`, { decision: 'approved' }).then(load)}
                         className="text-xs font-semibold text-green-700 hover:text-green-800 px-2 py-1 bg-green-50 rounded-lg">
                         Approve
                       </button>
                       <button onClick={() => {
                         const reason = prompt('Reason for rejection (optional):') ?? '';
-                        api.post(`/children/${c.id}/review`, { action: 'reject', notes: reason }).then(load);
+                        api.post(`/children/${c.id}/review`, { decision: 'rejected', rejection_reason: reason }).then(load);
                       }}
                         className="text-xs font-semibold text-red-600 hover:text-red-700 px-2 py-1 bg-red-50 rounded-lg">
                         Reject
