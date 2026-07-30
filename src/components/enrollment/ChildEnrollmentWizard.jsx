@@ -117,7 +117,7 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
         setChild(data);
         saved = data;
       } else {
-        const { data } = await api.patch(`/children/${childId}`, child);
+        const { data } = await api.put(`/children/${childId}`, child);
         setChild(data);
         saved = data;
       }
