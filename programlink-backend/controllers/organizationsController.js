@@ -47,11 +47,19 @@ exports.listOrganizations = async (req, res) => {
     );
     const total = parseInt(countRows[0].count, 10);
 
-    // Paginated data
+    // Paginated data — include has_site_users flag so frontend can auto-detect entry vs review mode
     const dataParams = [...filterParams, limit, offset];
+    // Rebuild WHERE replacing bare table refs for aliased query
+    const aliasedWhere = where.replace(/\borganizations\b/g, 'o');
     const { rows } = await pool.query(
-      `SELECT * FROM organizations ${where}
-       ORDER BY created_at DESC
+      `SELECT o.*,
+              EXISTS(
+                SELECT 1 FROM users u
+                WHERE u.org_id = o.id AND u.role = 'site' AND u.is_active = true
+              ) AS has_site_users
+       FROM organizations o
+       ${aliasedWhere}
+       ORDER BY o.created_at DESC
        LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
       dataParams
     );

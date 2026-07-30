@@ -36,7 +36,7 @@ router.post('/scan', authorizeRoles('kitchen', 'site', 'admin'), upload.single('
 
 // Kitchen users can now submit counts (previously only 'site')
 // Kitchen submits counts for the meals they produce; sites submit for meals served
-router.post('/', authorizeRoles('site', 'kitchen', 'admin'), submitMealCount);
+router.post('/', authorizeRoles('site', 'kitchen', 'sponsor', 'admin'), submitMealCount);
 
 // Only coordinators and sponsors verify
 router.patch('/:id/verify', authorizeRoles('coordinator', 'sponsor', 'admin'), verifyMealCount);
