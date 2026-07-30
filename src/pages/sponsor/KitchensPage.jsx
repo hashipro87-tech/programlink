@@ -636,7 +636,7 @@ export default function KitchensPage() {
                      text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Invite Kitchen
+          Add Kitchen
         </button>
       </div>
 

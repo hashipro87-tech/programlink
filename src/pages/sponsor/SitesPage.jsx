@@ -699,7 +699,7 @@ export default function SitesPage() {
                      text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
-          Invite Site
+          Add Site
         </button>
       </div>
 
