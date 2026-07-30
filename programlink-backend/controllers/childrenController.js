@@ -525,26 +525,41 @@ async function confirmImport(req, res) {
     for (const child of children) {
       if (!child.first_name && !child.last_name) continue;
       const ageGroup = calcAgeGroup(child.birthdate);
+      const sigObtained = child.signature_obtained === true || child.signature_obtained === 'true';
+      // Auto-approve when all core fields are present and signature is on file
+      const allCoreFilled = child.first_name && child.last_name && child.birthdate &&
+                            child.parent_name && child.parent_phone && child.enrollment_date &&
+                            child.income_cert_date && child.days_enrolled && child.meal_types;
+      const formStatus = (sigObtained && allCoreFilled) ? 'approved' : 'draft';
+
       const { rows } = await pool.query(
         `INSERT INTO children (
-           org_id, first_name, last_name, birthdate, parent_name, parent_phone,
+           org_id, first_name, last_name, birthdate, parent_name, parent_phone, parent_email,
            meal_types, enrollment_date, enrollment_expires, income_tier,
-           age_group, enrollment_status, form_status
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'enrolled','draft')
+           age_group, days_enrolled,
+           income_cert_date, income_cert_expires,
+           signature_obtained, enrollment_status, form_status
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'enrolled',$17)
          ON CONFLICT DO NOTHING
          RETURNING *`,
         [
           targetOrgId,
           (child.first_name || '').trim(),
           (child.last_name  || '').trim(),
-          child.birthdate         || null,
-          child.parent_name       || null,
-          child.parent_phone      || null,
-          child.meal_types        || null,
-          child.enrollment_date   || null,
-          child.enrollment_expires|| null,
-          child.income_tier       || 'tier1',
+          child.birthdate          || null,
+          child.parent_name        || null,
+          child.parent_phone       || null,
+          child.parent_email       || null,
+          child.meal_types         || null,
+          child.enrollment_date    || null,
+          child.enrollment_expires || null,
+          child.income_tier        || 'tier1',
           ageGroup,
+          child.days_enrolled      || null,
+          child.income_cert_date   || null,
+          child.income_cert_expires|| null,
+          sigObtained,
+          formStatus,
         ]
       );
       if (rows[0]) inserted.push(rows[0]);
