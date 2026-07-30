@@ -293,11 +293,12 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
   );
 }
 
-// ─── Invite Kitchen Modal ─────────────────────────────────────────────────────
+// ─── Add Kitchen Modal ────────────────────────────────────────────────────────
 
 const EMPTY_INVITE = { name: '', address: '', phone: '', region: '', contact_name: '', contact_email: '' };
 
 function InviteKitchenModal({ onClose, onAdded }) {
+  const [mode,    setMode]    = useState('');   // '' | 'self' | 'invite'
   const [form,    setForm]    = useState(EMPTY_INVITE);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
@@ -307,18 +308,24 @@ function InviteKitchenModal({ onClose, onAdded }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim())           { setError('Kitchen name is required.'); return; }
-    if (!form.contact_name.trim())   { setError('Contact person name is required.'); return; }
-    if (!form.contact_email.trim())  { setError('Contact email is required.'); return; }
+    if (!form.name.trim()) { setError('Kitchen name is required.'); return; }
+    if (mode === 'invite') {
+      if (!form.contact_name.trim())  { setError('Contact person name is required.'); return; }
+      if (!form.contact_email.trim()) { setError('Contact email is required.'); return; }
+    }
     setSaving(true);
     setError('');
     try {
-      const { data } = await api.post('/organizations/invite-kitchen', form);
-      setSuccess(`Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`);
+      const endpoint = mode === 'self' ? '/organizations/add-kitchen' : '/organizations/invite-kitchen';
+      const { data } = await api.post(endpoint, form);
+      const msg = mode === 'self'
+        ? `${form.name} added. You can manage it directly from your dashboard.`
+        : `Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`;
+      setSuccess(msg);
       onAdded(data.organization ?? data);
       setTimeout(onClose, 2800);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to send invite. Please try again.');
+      setError(err?.response?.data?.error || 'Failed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -330,14 +337,58 @@ function InviteKitchenModal({ onClose, onAdded }) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Invite Kitchen</h2>
+            <h2 className="text-lg font-bold text-gray-900">Add a Kitchen</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              The contact person will receive an email to set up their account.
+              {mode === ''       && 'Choose how this kitchen will be managed.'}
+              {mode === 'self'   && "You'll manage this kitchen from your dashboard."}
+              {mode === 'invite' && 'The contact will receive an email to set up their account.'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* ── Mode Picker ── */}
+        <div className="px-6 pt-5 pb-2">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Who manages this kitchen?</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMode('self')}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                mode === 'self'
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className="text-2xl">🍳</span>
+              <p className={`text-sm font-bold mt-2 leading-tight ${mode === 'self' ? 'text-brand-700' : 'text-gray-800'}`}>
+                I'll manage it myself
+              </p>
+              <p className={`text-xs mt-1 leading-tight ${mode === 'self' ? 'text-brand-500' : 'text-gray-400'}`}>
+                No invite needed. Log meals directly from your dashboard.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode('invite')}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                mode === 'invite'
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className="text-2xl">✉️</span>
+              <p className={`text-sm font-bold mt-2 leading-tight ${mode === 'invite' ? 'text-brand-700' : 'text-gray-800'}`}>
+                Invite a kitchen manager
+              </p>
+              <p className={`text-xs mt-1 leading-tight ${mode === 'invite' ? 'text-brand-500' : 'text-gray-400'}`}>
+                They'll receive an email to set up their login.
+              </p>
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
@@ -369,7 +420,8 @@ function InviteKitchenModal({ onClose, onAdded }) {
             />
           </div>
 
-          {/* Contact person */}
+          {/* Contact fields — only needed when inviting */}
+          {mode === 'invite' && (<>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Contact person <span className="text-red-500">*</span>
@@ -384,7 +436,6 @@ function InviteKitchenModal({ onClose, onAdded }) {
             />
           </div>
 
-          {/* Contact email */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Email address <span className="text-red-500">*</span>
@@ -398,6 +449,7 @@ function InviteKitchenModal({ onClose, onAdded }) {
                          focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
+          </>)}
 
           {/* Phone + Region */}
           <div className="grid grid-cols-2 gap-3">
@@ -447,11 +499,13 @@ function InviteKitchenModal({ onClose, onAdded }) {
             </button>
             <button
               type="submit"
-              disabled={saving || !!success}
+              disabled={saving || !!success || !mode}
               className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
                          text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {saving ? 'Sending invite…' : 'Send Invite'}
+              {saving
+                ? (mode === 'self' ? 'Adding kitchen…' : 'Sending invite…')
+                : (mode === 'self' ? 'Add Kitchen'    : 'Send Invite')}
             </button>
           </div>
         </form>

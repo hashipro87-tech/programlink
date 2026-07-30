@@ -184,6 +184,49 @@ exports.inviteKitchen = async (req, res) => {
 };
 
 /**
+ * Sponsor adds a site they manage themselves — no invite email sent.
+ * The org is created as 'active' immediately.
+ */
+exports.createSelfManagedSite = async (req, res) => {
+  try {
+    const { name, address, phone, region, program_type } = req.body;
+    if (!name?.trim())   return res.status(400).json({ error: 'Site name is required.' });
+    if (!program_type)   return res.status(400).json({ error: 'Please select a program type.' });
+    const sponsorId = req.user.organizationId || req.user.sponsorId;
+    const { rows } = await pool.query(
+      `INSERT INTO organizations (name, type, address, phone, region, program_type, sponsor_id, status)
+       VALUES ($1, 'site', $2, $3, $4, $5, $6, 'active') RETURNING *`,
+      [name.trim(), address || null, phone || null, region || null, program_type || null, sponsorId || null]
+    );
+    res.status(201).json({ organization: rows[0], message: 'Site added.' });
+  } catch (err) {
+    console.error('createSelfManagedSite error:', err);
+    res.status(500).json({ error: `Failed to add site: ${err.message}` });
+  }
+};
+
+/**
+ * Sponsor adds a kitchen they manage themselves — no invite email sent.
+ * The org is created as 'active' immediately.
+ */
+exports.createSelfManagedKitchen = async (req, res) => {
+  try {
+    const { name, address, phone, region } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Kitchen name is required.' });
+    const sponsorId = req.user.organizationId || req.user.sponsorId;
+    const { rows } = await pool.query(
+      `INSERT INTO organizations (name, type, address, phone, region, sponsor_id, status)
+       VALUES ($1, 'kitchen', $2, $3, $4, $5, 'active') RETURNING *`,
+      [name.trim(), address || null, phone || null, region || null, sponsorId || null]
+    );
+    res.status(201).json({ organization: rows[0], message: 'Kitchen added.' });
+  } catch (err) {
+    console.error('createSelfManagedKitchen error:', err);
+    res.status(500).json({ error: `Failed to add kitchen: ${err.message}` });
+  }
+};
+
+/**
  * Sponsor (or coordinator) invites a site director.
  */
 exports.inviteSite = async (req, res) => {

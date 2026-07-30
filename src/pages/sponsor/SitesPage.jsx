@@ -313,29 +313,36 @@ const PROGRAM_TYPES = [
 const EMPTY_FORM = { name: '', address: '', phone: '', region: '', program_type: '', contact_name: '', contact_email: '' };
 
 function InviteSiteModal({ onClose, onAdded }) {
+  const [mode,    setMode]    = useState('');   // '' | 'self' | 'invite'
   const [form,    setForm]    = useState(EMPTY_FORM);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
   const [success, setSuccess] = useState('');
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const set  = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const pick = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.program_type)          { setError('Please select a program type.'); return; }
+    if (!form.program_type)         { setError('Please select a program type.'); return; }
     if (!form.name.trim())          { setError('Site name is required.'); return; }
-    if (!form.contact_name.trim())  { setError('Contact person name is required.'); return; }
-    if (!form.contact_email.trim()) { setError('Contact email is required.'); return; }
+    if (mode === 'invite') {
+      if (!form.contact_name.trim())  { setError('Contact person name is required.'); return; }
+      if (!form.contact_email.trim()) { setError('Contact email is required.'); return; }
+    }
     setSaving(true);
     setError('');
     try {
-      const { data } = await api.post('/organizations/invite-site', form);
-      setSuccess(`Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`);
+      const endpoint = mode === 'self' ? '/organizations/add-site' : '/organizations/invite-site';
+      const { data } = await api.post(endpoint, form);
+      const msg = mode === 'self'
+        ? `${form.name} added. You can manage it directly from your dashboard.`
+        : `Invite sent to ${form.contact_email}! They'll receive a link to set up their account.`;
+      setSuccess(msg);
       onAdded(data.organization ?? data);
       setTimeout(onClose, 2800);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to send invite. Please try again.');
+      setError(err?.response?.data?.error || 'Failed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -350,12 +357,58 @@ function InviteSiteModal({ onClose, onAdded }) {
           <div>
             <h2 className="text-lg font-bold text-gray-900">Add a Site</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              The site director will receive an email to set up their account.
+              {mode === ''       && 'Choose how this site will be managed.'}
+              {mode === 'self'   && 'You\'ll manage this site from your dashboard.'}
+              {mode === 'invite' && 'The site director will receive an email to set up their account.'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* ── Mode Picker ── */}
+        <div className="px-6 pt-5 pb-2">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Who manages this site?</p>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Self-managed option */}
+            <button
+              type="button"
+              onClick={() => setMode('self')}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                mode === 'self'
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className="text-2xl">🏠</span>
+              <p className={`text-sm font-bold mt-2 leading-tight ${mode === 'self' ? 'text-brand-700' : 'text-gray-800'}`}>
+                I'll manage it myself
+              </p>
+              <p className={`text-xs mt-1 leading-tight ${mode === 'self' ? 'text-brand-500' : 'text-gray-400'}`}>
+                No invite needed. Enter data directly from your dashboard.
+              </p>
+            </button>
+
+            {/* Invite option */}
+            <button
+              type="button"
+              onClick={() => setMode('invite')}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                mode === 'invite'
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className="text-2xl">✉️</span>
+              <p className={`text-sm font-bold mt-2 leading-tight ${mode === 'invite' ? 'text-brand-700' : 'text-gray-800'}`}>
+                Invite a site director
+              </p>
+              <p className={`text-xs mt-1 leading-tight ${mode === 'invite' ? 'text-brand-500' : 'text-gray-400'}`}>
+                They'll receive an email to set up their login.
+              </p>
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
@@ -421,7 +474,8 @@ function InviteSiteModal({ onClose, onAdded }) {
             />
           </div>
 
-          {/* Contact person */}
+          {/* Contact fields — only needed when inviting */}
+          {mode === 'invite' && (<>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Site director / contact <span className="text-red-500">*</span>
@@ -436,7 +490,6 @@ function InviteSiteModal({ onClose, onAdded }) {
             />
           </div>
 
-          {/* Contact email */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">
               Email address <span className="text-red-500">*</span>
@@ -450,6 +503,7 @@ function InviteSiteModal({ onClose, onAdded }) {
                          focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
+          </>)}
 
           {/* Phone + Region */}
           <div className="grid grid-cols-2 gap-3">
@@ -499,11 +553,13 @@ function InviteSiteModal({ onClose, onAdded }) {
             </button>
             <button
               type="submit"
-              disabled={saving || !!success}
+              disabled={saving || !!success || !mode}
               className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl
                          text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {saving ? 'Sending invite…' : 'Send Invite'}
+              {saving
+                ? (mode === 'self' ? 'Adding site…' : 'Sending invite…')
+                : (mode === 'self' ? 'Add Site'    : 'Send Invite')}
             </button>
           </div>
           </div>{/* end border-t section */}

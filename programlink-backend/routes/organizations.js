@@ -11,6 +11,8 @@ const {
   inviteKitchen,
   inviteSite,
   inviteCoordinator,
+  createSelfManagedSite,
+  createSelfManagedKitchen,
 } = require('../controllers/organizationsController');
 
 // All org routes require a valid login
@@ -24,6 +26,8 @@ router.post('/',                   authorizeRoles('sponsor', 'coordinator', 'adm
 router.post('/invite-kitchen',     authorizeRoles('sponsor', 'coordinator', 'admin'), inviteKitchen);
 router.post('/invite-site',        authorizeRoles('sponsor', 'coordinator', 'admin'), inviteSite);
 router.post('/invite-coordinator', authorizeRoles('sponsor', 'admin'),                inviteCoordinator);
+router.post('/add-site',           authorizeRoles('sponsor', 'coordinator', 'admin'), createSelfManagedSite);
+router.post('/add-kitchen',        authorizeRoles('sponsor', 'coordinator', 'admin'), createSelfManagedKitchen);
 router.patch('/:id',               authorizeRoles('sponsor', 'coordinator', 'admin'), updateOrganization);
 router.delete('/:id',              authorizeRoles('sponsor', 'admin'),                deleteOrganization);
 
