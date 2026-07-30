@@ -33,7 +33,7 @@ const FIELD_ALIASES = {
   parent_email:        ['parent_email','parent email','email','guardian email','contact email','parent e-mail','email address'],
   income_cert_date:    ['income_cert_date','income cert date','cert date','certification date','income certification date','cert_date','income cert','eligibility date'],
   income_cert_expires: ['income_cert_expires','income cert expires','cert expires','cert expiration','certification expires','cert exp','eligibility expires'],
-  signature_obtained:  ['signature_obtained','signature','signed','parent signature','signature on file','sig','has signature'],
+  signature_obtained:  ['signature_obtained','signature obtained','signature','signed','parent signature','signature on file','sig','has signature'],
 };
 
 function detectColumnMap(headers) {
@@ -87,6 +87,9 @@ function parseSheetsRows(rows, colMap) {
                                                child[field] = normalizeDate(raw);
         else if (field === 'signature_obtained')
                                                child[field] = ['yes','true','1','y'].includes(String(raw).toLowerCase().trim());
+        else if (['meal_types','days_enrolled'].includes(field))
+                                               // support pipe OR comma as separator
+                                               child[field] = String(raw).trim().replace(/\|/g, ',');
         else                                   child[field] = String(raw).trim();
       }
       return child;
