@@ -261,10 +261,14 @@ function MealEntryPanel({ site, onSaved }) {
                 <Minus className="w-3.5 h-3.5 text-gray-600" />
               </button>
               <input
-                type="number"
-                min="0"
-                value={counts[key]}
-                onChange={e => setCounts(c => ({ ...c, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={counts[key] === 0 ? '0' : String(counts[key])}
+                onChange={e => {
+                  const n = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+                  setCounts(c => ({ ...c, [key]: n }));
+                }}
                 className="w-16 text-center text-lg font-bold text-gray-900 border border-gray-200 rounded-xl py-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <button
