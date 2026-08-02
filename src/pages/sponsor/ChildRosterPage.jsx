@@ -56,7 +56,8 @@ export default function ChildRosterPage() {
       setLoading(true);
       const params = new URLSearchParams({ limit: 200 });
       if (search)       params.set('search', search);
-      if (filterStatus) params.set('status', filterStatus);
+      // 'missing' is client-side computed — don't send to backend
+      if (filterStatus && filterStatus !== 'missing') params.set('status', filterStatus);
       if (filterOrg)    params.set('org_id', filterOrg);
       if (filterAge)    params.set('age_group', filterAge);
 
@@ -114,6 +115,11 @@ export default function ChildRosterPage() {
   const enrolledCount  = children.filter(c => c.enrollment_status === 'enrolled').length;
   const pendingCount   = children.filter(c => c.enrollment_status === 'pending').length;
   const infantCount    = children.filter(c => c.age_group?.startsWith('infant')).length;
+
+  // Client-side filter for "Missing Information" (computed field, not a DB status)
+  const displayedChildren = filterStatus === 'missing'
+    ? children.filter(c => getMissingCount(c) > 0)
+    : children;
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -280,6 +286,7 @@ export default function ChildRosterPage() {
           value={filterStatus} onChange={e => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          <option value="missing">⚠️ Missing Information</option>
         </select>
         <select className="border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:border-brand-400"
           value={filterAge} onChange={e => setFilterAge(e.target.value)}>
@@ -302,11 +309,15 @@ export default function ChildRosterPage() {
       {/* Table */}
       {loading ? (
         <div className="card p-12 text-center text-gray-400">Loading roster…</div>
-      ) : children.length === 0 ? (
+      ) : displayedChildren.length === 0 ? (
         <div className="card p-12 text-center">
           <Baby className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">No children found</p>
-          <p className="text-sm text-gray-400 mt-1">Add your first child or adjust your filters</p>
+          <p className="text-gray-500 font-medium">
+            {filterStatus === 'missing' ? 'No children with missing information' : 'No children found'}
+          </p>
+          <p className="text-sm text-gray-400 mt-1">
+            {filterStatus === 'missing' ? 'All enrollments are complete' : 'Add your first child or adjust your filters'}
+          </p>
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -324,7 +335,7 @@ export default function ChildRosterPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {children.map(child => {
+              {displayedChildren.map(child => {
                 const sm      = STATUS_META[child.enrollment_status] || STATUS_META.enrolled;
                 const am      = AGE_META[child.age_group];
                 const tm      = TIER_META[child.income_tier] || TIER_META.tier1;
@@ -383,7 +394,7 @@ export default function ChildRosterPage() {
             </tbody>
           </table>
           <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-400">
-            Showing {children.length} of {total} children
+            Showing {displayedChildren.length}{filterStatus === 'missing' ? ' with missing information' : ` of ${total}`} children
           </div>
         </div>
       )}
