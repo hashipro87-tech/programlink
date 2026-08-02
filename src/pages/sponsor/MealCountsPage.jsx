@@ -516,25 +516,28 @@ function ImportMealCountsModal({ onClose, sites, onImported }) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
-        const buf = ev.target.result;
-        const wb  = XLSX.read(buf, { type: 'array', cellDates: true });
+        const wb  = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
         const ws  = wb.Sheets[wb.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        if (raw.length < 2) { setParseErr('Spreadsheet appears empty.'); return; }
 
-        // Build column map from header row
-        const headers = raw[0].map(h => String(h));
-        const map = {};
-        headers.forEach((h, i) => {
-          const field = detectField(h);
-          if (field && !(field in map)) map[field] = i;
+        // Object-key mode: each row is { "Date": ..., "Breakfast": ..., etc. }
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!raw.length) { setParseErr('Spreadsheet appears empty.'); return; }
+
+        // Map each object key to a known field using aliases
+        const keys = Object.keys(raw[0]);
+        const map = {}; // field → actual key in the row object
+        keys.forEach(k => {
+          const field = detectField(k);
+          if (field && !(field in map)) map[field] = k;
         });
-        if (!map.date) { setParseErr('Could not find a "Date" column. Make sure row 1 has headers (Date, Breakfast, Lunch, Snack, Supper).'); return; }
 
-        // Parse data rows
-        const parsed = raw.slice(1).reduce((acc, row) => {
+        // Fallback: if no date column detected, try the first column
+        if (!map.date && keys[0]) map.date = keys[0];
+
+        // Parse every row
+        const parsed = raw.reduce((acc, row) => {
           const date = normalizeDate(row[map.date]);
-          if (!date) return acc; // skip totals rows or blanks
+          if (!date) return acc; // skip totals / blank rows
           acc.push({
             date,
             breakfast: parseInt(row[map.breakfast]) || 0,
@@ -545,7 +548,7 @@ function ImportMealCountsModal({ onClose, sites, onImported }) {
           return acc;
         }, []);
 
-        if (!parsed.length) { setParseErr('No valid rows found. Make sure dates are in YYYY-MM-DD format.'); return; }
+        if (!parsed.length) { setParseErr('No rows with valid dates found.'); return; }
         setColMap(map);
         setRows(parsed);
         setStep('preview');
@@ -825,39 +828,41 @@ export default function MealCountsPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Page header */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meal Counts</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Enter counts for self-managed sites, or review submissions from connected sites.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowImport(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex-shrink-0"
-        >
-          <FileSpreadsheet className="w-4 h-4 text-brand-600" />
-          Import Spreadsheet
-        </button>
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-gray-900">Meal Counts</h1>
+        <p className="text-gray-500 mt-1 text-sm">
+          Enter counts for self-managed sites, or review submissions from connected sites.
+        </p>
       </div>
 
-      {/* Site selector */}
+      {/* Site selector + Import button side by side */}
       <div className="card px-5 py-4 mb-6">
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Site</label>
-        <div className="relative">
-          <select
-            value={siteId}
-            onChange={e => setSiteId(e.target.value)}
-            className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
+        <div className="flex items-end gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Site</label>
+            <div className="relative">
+              <select
+                value={siteId}
+                onChange={e => setSiteId(e.target.value)}
+                className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
+              >
+                <option value="">— Select a site —</option>
+                {sites.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
           >
-            <option value="">— Select a site —</option>
-            {sites.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <FileSpreadsheet className="w-4 h-4 text-brand-600" />
+            Import Spreadsheet
+          </button>
         </div>
       </div>
 
