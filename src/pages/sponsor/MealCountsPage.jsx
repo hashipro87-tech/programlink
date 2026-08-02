@@ -444,11 +444,10 @@ export default function MealCountsPage() {
     setVerifying((v) => ({ ...v, [entry.id]: true }));
     try {
       await api.patch(`/meal-counts/${entry.id}/verify`, { count_verified: entry.count_submitted });
-      // Update local state then re-fetch to confirm DB state
+      // Update just that row in place — no re-fetch so page doesn't scroll to top
       setEntries((prev) =>
         prev.map((e) => e.id === entry.id ? { ...e, count_verified: entry.count_submitted } : e)
       );
-      fetchEntries();
     } catch {
       alert('Failed to verify — please try again.');
     } finally {
