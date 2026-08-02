@@ -2,11 +2,11 @@
 // Shows per-meal-type counts, scanned slip photo, verification status.
 // Sponsors can click a slip photo to view it full-size, and verify counts in one click.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   UtensilsCrossed, CheckCircle, Clock, Camera,
   ZoomIn, X, AlertTriangle, Filter, RefreshCw,
-  PenLine, Eye, Plus, Minus,
+  PenLine, Eye, Plus, Minus, Upload, ChevronDown,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -191,16 +191,58 @@ const MEAL_ROWS = [
 
 function MealEntryPanel({ site, onSaved }) {
   const today = new Date().toISOString().split('T')[0];
-  const [date,    setDate]    = useState(today);
-  const [counts,  setCounts]  = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [error,   setError]   = useState('');
+  const [date,      setDate]      = useState(today);
+  const [counts,    setCounts]    = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [error,     setError]     = useState('');
+  const [scanning,  setScanning]  = useState(false);
+  const [scanMsg,   setScanMsg]   = useState('');
+  const [fileName,  setFileName]  = useState('');
+  const fileRef = useRef();
 
   const adjust = (meal, delta) =>
     setCounts(c => ({ ...c, [meal]: Math.max(0, (c[meal] || 0) + delta) }));
 
   const total = Object.values(counts).reduce((s, v) => s + (v || 0), 0);
+
+  // Upload a photo/file — try OCR scan, fall back to manual entry
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setScanMsg('');
+    // Only scan images (not PDFs — OCR doesn't support them)
+    if (file.type.startsWith('image/')) {
+      setScanning(true);
+      setScanMsg('Scanning…');
+      try {
+        const form = new FormData();
+        form.append('image', file);
+        const { data } = await api.post('/meal-counts/scan', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        // Map scan result into counts
+        const extracted = {
+          breakfast: data.breakfast ?? data.counts?.breakfast ?? 0,
+          lunch:     data.lunch     ?? data.counts?.lunch     ?? 0,
+          snack:     data.snack     ?? data.counts?.snack     ?? 0,
+          supper:    data.supper    ?? data.counts?.supper    ?? 0,
+        };
+        setCounts(extracted);
+        setScanMsg(`✅ Scanned — counts filled in. Review before saving.`);
+      } catch {
+        setScanMsg('Could not auto-read counts. Enter them manually below.');
+      } finally {
+        setScanning(false);
+      }
+    } else {
+      // PDF or other — just note it's attached
+      setScanMsg(`📎 ${file.name} attached. Enter counts manually below.`);
+    }
+    // Reset input so same file can be re-uploaded
+    e.target.value = '';
+  };
 
   const handleSave = async () => {
     if (!date) { setError('Please select a date.'); return; }
@@ -217,6 +259,8 @@ function MealEntryPanel({ site, onSaved }) {
         count_submitted:  total,
       });
       setSaved(true);
+      setScanMsg('');
+      setFileName('');
       onSaved();
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -244,6 +288,46 @@ function MealEntryPanel({ site, onSaved }) {
           onChange={e => { setDate(e.target.value); setSaved(false); }}
           className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
+      </div>
+
+      {/* File / photo upload */}
+      <div className="mb-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+          Upload Meal Slip or Photo <span className="text-gray-400 font-normal normal-case">(optional)</span>
+        </label>
+        <div
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-brand-300 hover:bg-brand-50/30 transition-colors"
+        >
+          <div className="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
+            {scanning ? (
+              <RefreshCw className="w-4 h-4 text-brand-500 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 text-brand-500" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-700">
+              {scanning ? 'Scanning photo…' : fileName ? fileName : 'Upload photo, image, or PDF'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {scanning ? 'AI is reading your meal slip' : 'Photos auto-fill counts via scan · PDFs attach as records'}
+            </p>
+          </div>
+          <Camera className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0" />
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,.pdf"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        {scanMsg && (
+          <p className={`text-xs mt-2 font-medium ${scanMsg.startsWith('✅') ? 'text-green-600' : 'text-amber-600'}`}>
+            {scanMsg}
+          </p>
+        )}
       </div>
 
       {/* Meal count grid */}
@@ -317,7 +401,7 @@ function MealEntryPanel({ site, onSaved }) {
 
 export default function MealCountsPage() {
   const [sites,      setSites]      = useState([]);
-  const [siteId,     setSiteId]     = useState('all'); // 'all' | org uuid
+  const [siteId,     setSiteId]     = useState(''); // '' = none selected
   const [entries,    setEntries]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [lightbox,   setLightbox]   = useState(null);
@@ -347,7 +431,7 @@ export default function MealCountsPage() {
     const start = `${month}-01`;
     const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0)
                     .toISOString().split('T')[0];
-    const siteParam = siteId !== 'all' ? `&site_id=${siteId}` : '';
+    const siteParam = siteId ? `&site_id=${siteId}` : '';
     api.get(`/meal-counts?start_date=${start}&end_date=${end}${siteParam}`)
       .then(({ data }) => setEntries(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => setEntries([]))
@@ -390,62 +474,35 @@ export default function MealCountsPage() {
         </p>
       </div>
 
-      {/* Site picker tabs */}
-      {sites.length > 0 && (
-        <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setSiteId('all')}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
-              siteId === 'all'
-                ? 'bg-brand-600 text-white border-brand-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-            }`}
+      {/* Site selector */}
+      <div className="card px-5 py-4 mb-6">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Site</label>
+        <div className="relative">
+          <select
+            value={siteId}
+            onChange={e => setSiteId(e.target.value)}
+            className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
           >
-            All Sites
-          </button>
-          {sites.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setSiteId(s.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
-                siteId === s.id
-                  ? 'bg-brand-600 text-white border-brand-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {s.name}
-              {!s.has_site_users
-                ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${siteId === s.id ? 'bg-white/20 text-white' : 'bg-brand-50 text-brand-600'}`}>ENTER</span>
-                : <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${siteId === s.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>REVIEW</span>
-              }
-            </button>
-          ))}
+            <option value="">— Choose a site —</option>
+            {sites.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Nothing selected — prompt */}
+      {!siteId && (
+        <div className="card p-12 text-center text-gray-400 mb-6">
+          <UtensilsCrossed className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="font-medium text-gray-500">Select a site above to enter or review meal counts</p>
         </div>
       )}
 
-      {/* ALL SITES view — show entry panels for every self-managed site */}
-      {siteId === 'all' && (() => {
-        const selfManaged = sites.filter(s => !s.has_site_users);
-        if (!selfManaged.length) return null;
-        return (
-          <div className="mb-6">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Enter Meal Counts</p>
-            <div className="space-y-5">
-              {selfManaged.map(site => (
-                <div key={site.id} className="card p-4">
-                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <PenLine className="w-3.5 h-3.5 text-brand-500" />
-                    {site.name}
-                  </p>
-                  <MealEntryPanel site={site} onSaved={fetchEntries} />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* SINGLE SITE view — mode banner + entry or review */}
+      {/* Site selected — entry form or review banner */}
       {selectedSite && (
         <>
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
@@ -454,7 +511,7 @@ export default function MealCountsPage() {
               : 'bg-gray-50 border border-gray-200 text-gray-600'
           }`}>
             {isEntryMode
-              ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter meal counts directly below.</>
+              ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter counts and upload meal slips below.</>
               : <><Eye className="w-4 h-4 flex-shrink-0" /> This site submits their own counts — review and verify below.</>
             }
           </div>
@@ -462,15 +519,17 @@ export default function MealCountsPage() {
         </>
       )}
 
-      {/* Submissions section header */}
-      <div className="mb-1">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-          {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
-        </p>
-      </div>
+      {/* Submissions section — always visible once site is selected */}
+      {selectedSite && (
+        <div className="mb-1">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+            {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
+          </p>
+        </div>
+      )}
 
-      {/* Summary stat bar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Summary stat bar + filters — only when site selected */}
+      {selectedSite && <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total submissions', value: total,      color: 'text-gray-900' },
           { label: 'Awaiting verification', value: unverified, color: unverified > 0 ? 'text-yellow-600' : 'text-gray-900' },
@@ -481,10 +540,10 @@ export default function MealCountsPage() {
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
-      </div>
+      </div>}
 
-      {/* Filters + month picker */}
-      <div className="card mb-4">
+      {/* Filters + month picker + submission list — only when site selected */}
+      {selectedSite && <div className="card mb-4">
         <div className="px-5 py-3 flex flex-wrap items-center gap-3">
           <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
 
@@ -525,10 +584,10 @@ export default function MealCountsPage() {
             Refresh
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Count entries */}
-      <div className="card">
+      {selectedSite && <div className="card">
         {loading ? (
           <div className="py-16 text-center text-sm text-gray-400">Loading submissions…</div>
         ) : visible.length === 0 ? (
@@ -571,7 +630,7 @@ export default function MealCountsPage() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Lightbox */}
       <Lightbox entry={lightbox} onClose={() => setLightbox(null)} />
