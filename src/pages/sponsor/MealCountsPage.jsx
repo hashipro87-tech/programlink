@@ -3,10 +3,12 @@
 // Sponsors can click a slip photo to view it full-size, and verify counts in one click.
 
 import { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import {
   UtensilsCrossed, CheckCircle, Clock, Camera,
   ZoomIn, X, AlertTriangle, Filter, RefreshCw,
   PenLine, Eye, Plus, Minus, Upload, ChevronDown,
+  FileSpreadsheet, Check,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -280,7 +282,13 @@ function MealEntryPanel({ site, onSaved }) {
           supper:    data.supper    ?? data.counts?.supper    ?? 0,
         };
         setCounts(extracted);
-        setScanMsg(`✅ Scanned — counts filled in. Review before saving.`);
+        // Auto-fill date if the scan detected one
+        if (data.date) {
+          setDate(data.date);
+          setScanMsg(`✅ Scanned — counts and date filled in (${data.date}). Review before saving.`);
+        } else {
+          setScanMsg(`✅ Scanned — counts filled in. Check the date before saving.`);
+        }
       } catch {
         setScanMsg('Could not auto-read counts. Enter them manually below.');
       } finally {
@@ -447,6 +455,269 @@ function MealEntryPanel({ site, onSaved }) {
   );
 }
 
+// ─── Spreadsheet Import Modal ─────────────────────────────────────────────────
+
+// Column aliases — recognise common header names
+const COL_ALIASES = {
+  date:      ['date', 'day', 'service date', 'meal date', 'count date'],
+  breakfast: ['breakfast', 'bk', 'brkfst', 'am', 'am meal', 'breakfast count'],
+  lunch:     ['lunch', 'ln', 'lnch', 'dinner', 'lunch count'],
+  snack:     ['snack', 'sp', 'snk', 'pm snack', 'afternoon snack', 'snack count'],
+  supper:    ['supper', 'su', 'sup', 'evening', 'evening meal', 'supper count'],
+};
+
+function detectField(header) {
+  const h = header.toLowerCase().trim();
+  for (const [field, aliases] of Object.entries(COL_ALIASES)) {
+    if (aliases.some(a => h === a || h.includes(a))) return field;
+  }
+  return null;
+}
+
+function normalizeDate(val) {
+  if (!val) return null;
+  // SheetJS Date object
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  // Excel serial
+  if (typeof val === 'number') {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  // String — try common formats
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const parsed = new Date(s);
+  if (!isNaN(parsed)) return parsed.toISOString().split('T')[0];
+  return null;
+}
+
+function ImportMealCountsModal({ onClose, sites, onImported }) {
+  const [step, setStep]         = useState('upload'); // upload | preview | done
+  const [rows, setRows]         = useState([]);
+  const [colMap, setColMap]     = useState({});
+  const [fileName, setFileName] = useState('');
+  const [siteId, setSiteId]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [results, setResults]   = useState({ ok: 0, skip: 0 });
+  const [parseErr, setParseErr] = useState('');
+  const fileRef = useRef();
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setParseErr('');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const buf = ev.target.result;
+        const wb  = XLSX.read(buf, { type: 'array', cellDates: true });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (raw.length < 2) { setParseErr('Spreadsheet appears empty.'); return; }
+
+        // Build column map from header row
+        const headers = raw[0].map(h => String(h));
+        const map = {};
+        headers.forEach((h, i) => {
+          const field = detectField(h);
+          if (field && !(field in map)) map[field] = i;
+        });
+        if (!map.date) { setParseErr('Could not find a "Date" column. Make sure row 1 has headers (Date, Breakfast, Lunch, Snack, Supper).'); return; }
+
+        // Parse data rows
+        const parsed = raw.slice(1).reduce((acc, row) => {
+          const date = normalizeDate(row[map.date]);
+          if (!date) return acc; // skip totals rows or blanks
+          acc.push({
+            date,
+            breakfast: parseInt(row[map.breakfast]) || 0,
+            lunch:     parseInt(row[map.lunch])     || 0,
+            snack:     parseInt(row[map.snack])     || 0,
+            supper:    parseInt(row[map.supper])    || 0,
+          });
+          return acc;
+        }, []);
+
+        if (!parsed.length) { setParseErr('No valid rows found. Make sure dates are in YYYY-MM-DD format.'); return; }
+        setColMap(map);
+        setRows(parsed);
+        setStep('preview');
+      } catch (err) {
+        setParseErr(`Could not read file: ${err.message}`);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  const handleSubmit = async () => {
+    if (!siteId) { alert('Please select a site first.'); return; }
+    setSubmitting(true);
+    let ok = 0, skip = 0;
+    for (const row of rows) {
+      try {
+        await api.post('/meal-counts', {
+          site_id:         siteId,
+          date:            row.date,
+          breakfast_count: row.breakfast,
+          lunch_count:     row.lunch,
+          snack_count:     row.snack,
+          supper_count:    row.supper,
+        });
+        ok++;
+      } catch {
+        skip++;
+      }
+    }
+    setResults({ ok, skip });
+    setStep('done');
+    setSubmitting(false);
+    onImported();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-brand-600" />
+            <h2 className="text-lg font-bold text-gray-900">Import from Spreadsheet</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {/* Step: upload */}
+          {step === 'upload' && (
+            <div>
+              <p className="text-sm text-gray-600 mb-4">
+                Upload an Excel (.xlsx) or CSV file with columns: <strong>Date, Breakfast, Lunch, Snack, Supper</strong>.
+                Column names don't have to match exactly — the system will detect them automatically.
+              </p>
+              {parseErr && (
+                <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  {parseErr}
+                </div>
+              )}
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="w-full border-2 border-dashed border-brand-300 rounded-xl py-10 flex flex-col items-center gap-2 hover:bg-brand-50 transition-colors cursor-pointer"
+              >
+                <Upload className="w-8 h-8 text-brand-400" />
+                <span className="text-sm font-semibold text-brand-600">Click to choose file</span>
+                <span className="text-xs text-gray-400">.xlsx or .csv — up to 1,000 rows</span>
+              </button>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" onChange={handleFile} className="hidden" />
+            </div>
+          )}
+
+          {/* Step: preview */}
+          {step === 'preview' && (
+            <div>
+              <div className="flex items-center gap-2 p-3 mb-4 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                Found <strong>{rows.length} days</strong> in {fileName}
+              </div>
+
+              {/* Detected columns */}
+              <div className="flex gap-2 flex-wrap mb-4">
+                {Object.entries(colMap).map(([field, idx]) => (
+                  <span key={field} className="px-2.5 py-1 bg-brand-50 border border-brand-200 rounded-full text-xs font-semibold text-brand-700 capitalize">
+                    ✓ {field}
+                  </span>
+                ))}
+              </div>
+
+              {/* Site picker */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Import to Site</label>
+                <select
+                  value={siteId}
+                  onChange={e => setSiteId(e.target.value)}
+                  className="w-full appearance-none px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                >
+                  <option value="">— Select a site —</option>
+                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              {/* Preview table */}
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <div className="overflow-y-auto max-h-64">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        {['Date','Breakfast','Lunch','Snack','Supper','Total'].map(h => (
+                          <th key={h} className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, i) => {
+                        const total = row.breakfast + row.lunch + row.snack + row.supper;
+                        return (
+                          <tr key={i} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-3 py-2 text-gray-700 font-medium">{row.date}</td>
+                            <td className="px-3 py-2 text-gray-700">{row.breakfast}</td>
+                            <td className="px-3 py-2 text-gray-700">{row.lunch}</td>
+                            <td className="px-3 py-2 text-gray-700">{row.snack}</td>
+                            <td className="px-3 py-2 text-gray-700">{row.supper}</td>
+                            <td className="px-3 py-2 font-bold text-brand-600">{total}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step: done */}
+          {step === 'done' && (
+            <div className="text-center py-8">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-green-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Import Complete</h3>
+              <p className="text-sm text-gray-600">
+                {results.ok} day{results.ok !== 1 ? 's' : ''} imported successfully.
+                {results.skip > 0 && ` ${results.skip} skipped (already exist or error).`}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          {step === 'preview' && (
+            <>
+              <button onClick={() => { setStep('upload'); setRows([]); }} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800">
+                Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !siteId}
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40"
+              >
+                {submitting ? 'Importing…' : `Import ${rows.length} Days`}
+              </button>
+            </>
+          )}
+          {(step === 'upload' || step === 'done') && (
+            <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800">
+              {step === 'done' ? 'Close' : 'Cancel'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MealCountsPage() {
@@ -457,6 +728,7 @@ export default function MealCountsPage() {
   const [lightbox,   setLightbox]   = useState(null);
   const [verifying,  setVerifying]  = useState({});
   const [filter,     setFilter]     = useState('all');
+  const [showImport, setShowImport] = useState(false);
 
   const today = new Date();
   const [month, setMonth] = useState(
@@ -547,11 +819,20 @@ export default function MealCountsPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Page header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900">Meal Counts</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          Enter counts for self-managed sites, or review submissions from connected sites.
-        </p>
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Meal Counts</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Enter counts for self-managed sites, or review submissions from connected sites.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm flex-shrink-0"
+        >
+          <FileSpreadsheet className="w-4 h-4 text-brand-600" />
+          Import Spreadsheet
+        </button>
       </div>
 
       {/* Site selector */}
@@ -708,6 +989,15 @@ export default function MealCountsPage() {
 
       {/* Lightbox */}
       <Lightbox entry={lightbox} onClose={() => setLightbox(null)} />
+
+      {/* Import modal */}
+      {showImport && (
+        <ImportMealCountsModal
+          sites={sites}
+          onClose={() => setShowImport(false)}
+          onImported={() => { fetchEntries(); }}
+        />
+      )}
     </div>
   );
 }
