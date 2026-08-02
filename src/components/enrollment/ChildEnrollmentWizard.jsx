@@ -71,12 +71,22 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
   // Editing opens at audit summary so sponsor sees what's missing.
   // Adding always starts at step 1.
   const [step,    setStep]    = useState(initialChild ? 8 : 1);
-  const [child,   setChild]   = useState(initialChild || {});
+  const [child,   setChild]   = useState(initialChild ? normalizeDates(initialChild) : {});
   const [childId, setChildId] = useState(initialChild?.id || null);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
 
   const patch = (updates) => setChild(c => ({ ...c, ...updates }));
+
+  // Normalize dates from server (ISO timestamps → YYYY-MM-DD for <input type="date">)
+  function normalizeDates(data) {
+    const DATE_FIELDS = ['birthdate', 'enrollment_date', 'enrollment_expires', 'income_cert_date', 'income_cert_expires'];
+    const out = { ...data };
+    DATE_FIELDS.forEach(f => {
+      if (out[f]) out[f] = String(out[f]).slice(0, 10);
+    });
+    return out;
+  }
 
   // ── Toggles for days and meals (comma-separated strings in DB) ──
   const daysSet  = new Set((child.days_enrolled || '').split(',').map(d => d.trim()).filter(Boolean));
@@ -121,11 +131,11 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
         // Step 1 creates the record
         const { data } = await api.post('/children', child);
         setChildId(data.id);
-        setChild(data);
+        setChild(normalizeDates(data));
         saved = data;
       } else {
         const { data } = await api.put(`/children/${childId}`, child);
-        setChild(data);
+        setChild(normalizeDates(data));
         saved = data;
       }
       onSaved(saved);      // keep parent list in sync after each save
