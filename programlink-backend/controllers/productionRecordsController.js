@@ -332,7 +332,25 @@ async function getSummary(req, res) {
   }
 }
 
+async function deleteRecord(req, res) {
+  try {
+    const { id } = req.params;
+    const { organizationId, role } = req.user;
+    const own = await pool.query(`SELECT org_id FROM production_records WHERE id = $1`, [id]);
+    if (!own.rows.length) return res.status(404).json({ error: 'Record not found' });
+    if (role !== 'sponsor' && role !== 'admin' && own.rows[0].org_id !== organizationId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    // Cascade deletes items automatically (FK ON DELETE CASCADE in schema)
+    await pool.query(`DELETE FROM production_records WHERE id = $1`, [id]);
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error('deleteRecord error:', err);
+    res.status(500).json({ error: 'Failed to delete record' });
+  }
+}
+
 module.exports = {
-  listRecords, getRecord, upsertRecord, updateRecord,
+  listRecords, getRecord, upsertRecord, updateRecord, deleteRecord,
   autoFill, upsertItem, deleteItem, getSummary,
 };

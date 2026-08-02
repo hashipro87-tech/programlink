@@ -3,7 +3,7 @@ const express = require('express');
 const router  = express.Router();
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
-  listRecords, getRecord, upsertRecord, updateRecord,
+  listRecords, getRecord, upsertRecord, updateRecord, deleteRecord,
   autoFill, upsertItem, deleteItem, getSummary,
 } = require('../controllers/productionRecordsController');
 
@@ -17,7 +17,8 @@ router.post('/auto-fill', authenticate, canWrite, autoFill);
 router.get('/',    authenticate, listRecords);
 router.get('/:id', authenticate, getRecord);
 router.post('/',   authenticate, canWrite, upsertRecord);
-router.put('/:id', authenticate, canWrite, updateRecord);
+router.put('/:id',    authenticate, canWrite, updateRecord);
+router.delete('/:id', authenticate, canWrite, deleteRecord);
 
 // Items
 router.post('/:id/items',        authenticate, canWrite, upsertItem);
