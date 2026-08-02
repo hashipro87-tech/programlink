@@ -476,18 +476,24 @@ function detectField(header) {
 
 function normalizeDate(val) {
   if (!val) return null;
-  // SheetJS Date object
-  if (val instanceof Date) return val.toISOString().split('T')[0];
-  // Excel serial
-  if (typeof val === 'number') {
-    const d = XLSX.SSF.parse_date_code(val);
-    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  // SheetJS Date object (cellDates:true converts serial numbers automatically)
+  if (val instanceof Date && !isNaN(val)) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
-  // String — try common formats
+  // String — try YYYY-MM-DD first, then any parseable format
   const s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Try MM/DD/YYYY, M/D/YY, etc.
   const parsed = new Date(s);
-  if (!isNaN(parsed)) return parsed.toISOString().split('T')[0];
+  if (!isNaN(parsed)) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   return null;
 }
 
@@ -722,7 +728,7 @@ function ImportMealCountsModal({ onClose, sites, onImported }) {
 
 export default function MealCountsPage() {
   const [sites,      setSites]      = useState([]);
-  const [siteId,     setSiteId]     = useState('all'); // 'all' | org uuid
+  const [siteId,     setSiteId]     = useState(''); // '' = all | org uuid
   const [entries,    setEntries]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [lightbox,   setLightbox]   = useState(null);
@@ -742,7 +748,7 @@ export default function MealCountsPage() {
       .catch(() => {});
   }, []);
 
-  // Selected site object — null when 'all'
+  // Selected site object — null when no site picked
   const selectedSite = sites.find(s => s.id === siteId) ?? null;
 
   // A site is self-managed when it has NO connected site users
@@ -753,7 +759,7 @@ export default function MealCountsPage() {
     const [y, m] = month.split('-').map(Number);
     const start  = `${month}-01`;
     const end    = new Date(y, m, 0).toISOString().split('T')[0]; // last day of selected month
-    const siteParam = siteId !== 'all' ? `&site_id=${siteId}` : '';
+    const siteParam = siteId ? `&site_id=${siteId}` : '';
     api.get(`/meal-counts?start_date=${start}&end_date=${end}${siteParam}`)
       .then(({ data }) => setEntries(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => setEntries([]))
@@ -844,7 +850,7 @@ export default function MealCountsPage() {
             onChange={e => setSiteId(e.target.value)}
             className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
           >
-            <option value="all">All Sites</option>
+            <option value="">— Select a site —</option>
             {sites.map(s => (
               <option key={s.id} value={s.id}>
                 {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
