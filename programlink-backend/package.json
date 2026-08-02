@@ -28,8 +28,6 @@
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.15.0",
     "pg": "^8.11.3",
-    "sharp": "^0.33.3",
-    "tesseract.js": "^5.0.5",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
