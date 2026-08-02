@@ -99,8 +99,15 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
 
   // ── Save current step data and advance ──
   async function saveAndNext() {
-    // Step 8 = already saved — just close
+    // Step 8 = audit summary — if audit ready, auto-approve then close
     if (step === 8) {
+      if (auditReady && childId) {
+        try {
+          await api.post(`/children/${childId}/review`, { approved: true });
+        } catch {
+          // Non-fatal — still close even if review call fails
+        }
+      }
       onSaved(child);
       onClose();
       return;

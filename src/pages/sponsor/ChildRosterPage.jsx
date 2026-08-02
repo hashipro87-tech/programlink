@@ -171,7 +171,7 @@ export default function ChildRosterPage() {
               <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-xl font-bold text-red-700">{compliance.forms_incomplete}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Missing income forms</p>
+                <p className="text-xs text-gray-500 mt-0.5">Needs review</p>
               </div>
             </div>
             <div className="bg-amber-50 rounded-xl p-3 flex items-start gap-3">
