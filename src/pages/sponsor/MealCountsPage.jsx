@@ -241,7 +241,7 @@ const MEAL_ROWS = [
   { key: 'supper',    label: 'Supper',    emoji: '🍽️', color: 'bg-purple-50 border-purple-200' },
 ];
 
-function MealEntryPanel({ site, onSaved }) {
+function MealEntryPanel({ site, onSaved, onImportClick }) {
   const today = new Date().toISOString().split('T')[0];
   const [date,      setDate]      = useState(today);
   const [counts,    setCounts]    = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
@@ -386,6 +386,23 @@ function MealEntryPanel({ site, onSaved }) {
             {scanMsg}
           </p>
         )}
+        {/* Spreadsheet import as secondary option */}
+        {onImportClick && (
+          <div className="flex items-center gap-2 mt-2">
+            <div className="flex-1 border-t border-gray-100" />
+            <span className="text-xs text-gray-400">or</span>
+            <div className="flex-1 border-t border-gray-100" />
+          </div>
+        )}
+        {onImportClick && (
+          <button
+            onClick={onImportClick}
+            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-brand-500" />
+            Import from spreadsheet
+          </button>
+        )}
       </div>
 
       {/* Meal count grid */}
@@ -497,12 +514,12 @@ function normalizeDate(val) {
   return null;
 }
 
-function ImportMealCountsModal({ onClose, sites, onImported }) {
+function ImportMealCountsModal({ onClose, sites, onImported, preselectedSiteId, preselectedSiteName }) {
   const [step, setStep]         = useState('upload'); // upload | preview | done
   const [rows, setRows]         = useState([]);
   const [colMap, setColMap]     = useState({});
   const [fileName, setFileName] = useState('');
-  const [siteId, setSiteId]     = useState('');
+  const [siteId, setSiteId]     = useState(preselectedSiteId || '');
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults]   = useState({ ok: 0, skip: 0 });
   const [parseErr, setParseErr] = useState('');
@@ -640,18 +657,25 @@ function ImportMealCountsModal({ onClose, sites, onImported }) {
                 ))}
               </div>
 
-              {/* Site picker */}
-              <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Import to Site</label>
-                <select
-                  value={siteId}
-                  onChange={e => setSiteId(e.target.value)}
-                  className="w-full appearance-none px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-                >
-                  <option value="">— Select a site —</option>
-                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
+              {/* Site picker — only show if no site pre-selected */}
+              {preselectedSiteId ? (
+                <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-brand-50 border border-brand-200 rounded-xl">
+                  <CheckCircle className="w-4 h-4 text-brand-600 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-brand-700">Importing to: {preselectedSiteName}</span>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Import to Site</label>
+                  <select
+                    value={siteId}
+                    onChange={e => setSiteId(e.target.value)}
+                    className="w-full appearance-none px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                  >
+                    <option value="">— Select a site —</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               {/* Preview table */}
               <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -835,34 +859,23 @@ export default function MealCountsPage() {
         </p>
       </div>
 
-      {/* Site selector + Import button side by side */}
+      {/* Site selector */}
       <div className="card px-5 py-4 mb-6">
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Site</label>
-            <div className="relative">
-              <select
-                value={siteId}
-                onChange={e => setSiteId(e.target.value)}
-                className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
-              >
-                <option value="">— Select a site —</option>
-                {sites.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex-shrink-0"
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Site</label>
+        <div className="relative">
+          <select
+            value={siteId}
+            onChange={e => setSiteId(e.target.value)}
+            className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
           >
-            <FileSpreadsheet className="w-4 h-4 text-brand-600" />
-            Import Spreadsheet
-          </button>
+            <option value="">— Select a site —</option>
+            {sites.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
@@ -879,7 +892,13 @@ export default function MealCountsPage() {
               : <><Eye className="w-4 h-4 flex-shrink-0" /> This site submits their own counts — review and verify below.</>
             }
           </div>
-          {isEntryMode && <MealEntryPanel site={selectedSite} onSaved={fetchEntries} />}
+          {isEntryMode && (
+            <MealEntryPanel
+              site={selectedSite}
+              onSaved={fetchEntries}
+              onImportClick={() => setShowImport(true)}
+            />
+          )}
         </>
       )}
 
@@ -1006,7 +1025,9 @@ export default function MealCountsPage() {
         <ImportMealCountsModal
           sites={sites}
           onClose={() => setShowImport(false)}
-          onImported={() => { fetchEntries(); }}
+          onImported={fetchEntries}
+          preselectedSiteId={selectedSite?.id || ''}
+          preselectedSiteName={selectedSite?.name || ''}
         />
       )}
     </div>
