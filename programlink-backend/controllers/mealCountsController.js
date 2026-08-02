@@ -27,29 +27,36 @@ exports.submitMealCount = async (req, res) => {
   try {
     const {
       site_id, kitchen_id, date, notes,
+      // Accept both naming conventions: breakfast_count (UI) and breakfast (API/seed)
       breakfast_count, lunch_count, snack_count, supper_count,
       count_submitted
     } = req.body;
 
-    const breakfast = parseInt(breakfast_count) || 0;
-    const lunch     = parseInt(lunch_count)     || 0;
-    const snack     = parseInt(snack_count)     || 0;
-    const supper    = parseInt(supper_count)    || 0;
-    // Use provided total, or derive from per-type counts
+    const breakfast = parseInt(breakfast_count ?? req.body.breakfast) || 0;
+    const lunch     = parseInt(lunch_count     ?? req.body.lunch)     || 0;
+    const snack     = parseInt(snack_count     ?? req.body.snack)     || 0;
+    const supper    = parseInt(supper_count    ?? req.body.supper)    || 0;
     const total = parseInt(count_submitted) || (breakfast + lunch + snack + supper);
+
+    // Sponsor/admin entering counts themselves — auto-verify immediately
+    const role = req.user.role;
+    const autoVerify = role === 'sponsor' || role === 'admin';
 
     const { rows } = await pool.query(
       `INSERT INTO meal_counts
-         (site_id, kitchen_id, date, breakfast, lunch, snack, supper, count_submitted, submitted_by, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         (site_id, kitchen_id, date, breakfast, lunch, snack, supper,
+          count_submitted, count_verified, submitted_by, verified_by, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        ON CONFLICT (site_id, date) DO UPDATE
-         SET breakfast      = $4,
-             lunch          = $5,
-             snack          = $6,
-             supper         = $7,
+         SET breakfast       = $4,
+             lunch           = $5,
+             snack           = $6,
+             supper          = $7,
              count_submitted = $8,
-             submitted_by   = $9,
-             notes          = $10
+             count_verified  = $9,
+             submitted_by    = $10,
+             verified_by     = $11,
+             notes           = $12
        RETURNING *`,
       [
         site_id || req.user.organizationId,
@@ -57,7 +64,9 @@ exports.submitMealCount = async (req, res) => {
         date,
         breakfast, lunch, snack, supper,
         total,
+        autoVerify ? total : null,   // count_verified
         req.user.id,
+        autoVerify ? req.user.id : null,  // verified_by
         notes || null
       ]
     );
