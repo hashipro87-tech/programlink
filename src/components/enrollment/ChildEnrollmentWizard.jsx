@@ -372,16 +372,39 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
           {step === 5 && (
             <div className="space-y-4">
               <p className="text-sm text-gray-500">
-                Income tier determines reimbursement rate. Required for the monthly claim.
+                Income tier sets the reimbursement rate CACFPLink uses to calculate your claim. It comes from the income form the family signed — you are recording what that form shows.
               </p>
+
+              {/* How to determine tier */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 text-xs text-blue-800 space-y-2">
+                <p className="font-bold">How to determine the tier:</p>
+                <div className="space-y-1">
+                  <p>✅ <span className="font-semibold">Tier I</span> — Family income is at or below 185% of the Federal Poverty Level (FPL). This is the same threshold as free/reduced school lunch. If the family qualifies for WIC, SNAP, TANF, or Head Start, they are Tier I.</p>
+                  <p>⬜ <span className="font-semibold">Tier II</span> — Family income is above 185% FPL and they do not qualify for any of the above programs.</p>
+                  <p className="text-blue-600 mt-1">Tier I pays a higher reimbursement rate. Always collect a signed income statement from the family and keep it on file for audits.</p>
+                </div>
+              </div>
+
+              {/* 2026 FPL quick reference */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600">
+                <p className="font-bold text-gray-700 mb-1">2025–2026 Tier I income limits (185% FPL)</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                  <span>Family of 1: $27,861/yr</span><span>($2,322/mo)</span>
+                  <span>Family of 2: $37,814/yr</span><span>($3,151/mo)</span>
+                  <span>Family of 3: $47,767/yr</span><span>($3,981/mo)</span>
+                  <span>Family of 4: $57,720/yr</span><span>($4,810/mo)</span>
+                  <span>Family of 5: $67,673/yr</span><span>($5,640/mo)</span>
+                  <span>Each add'l: +$9,953/yr</span><span>(+$829/mo)</span>
+                </div>
+              </div>
 
               {/* Tier picker */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Income Tier</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Select Tier Based on Income Form</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { val: 'tier1', label: 'Tier I',  note: 'At or below 185% poverty' },
-                    { val: 'tier2', label: 'Tier II', note: 'Above 185% poverty'       },
+                    { val: 'tier1', label: 'Tier I',  note: 'At or below 185% FPL — higher reimbursement' },
+                    { val: 'tier2', label: 'Tier II', note: 'Above 185% FPL — standard reimbursement'     },
                   ].map(({ val, label, note }) => (
                     <button
                       key={val}
