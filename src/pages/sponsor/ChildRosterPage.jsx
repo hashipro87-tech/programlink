@@ -199,24 +199,37 @@ export default function ChildRosterPage() {
                 <div className="space-y-2">
                   {incomplete.map(c => {
                     const missing = REQUIRED_FIELDS.filter(f => !c[f] || String(c[f]).trim() === '');
+                    const allFilled = missing.length === 0;
                     return (
-                      <div key={c.id} className="flex items-start justify-between gap-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+                      <div key={c.id} className={`flex items-start justify-between gap-4 px-4 py-3 rounded-xl border ${allFilled ? 'bg-amber-50 border-amber-100' : 'bg-red-50 border-red-100'}`}>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-gray-900">{c.first_name} {c.last_name}</p>
-                          {missing.length > 0 ? (
+                          {allFilled ? (
+                            <p className="text-xs text-amber-600 mt-0.5">All fields complete — ready to approve</p>
+                          ) : (
                             <p className="text-xs text-red-600 mt-0.5">
                               Missing: {missing.map(f => FIELD_LABELS_LOCAL[f]).join(', ')}
                             </p>
-                          ) : (
-                            <p className="text-xs text-amber-600 mt-0.5">All fields filled — needs sponsor review</p>
                           )}
                         </div>
-                        <button
-                          onClick={() => { setEditing(c); setShowModal(true); }}
-                          className="flex-shrink-0 text-xs font-bold text-brand-600 hover:text-brand-700 px-3 py-1.5 bg-white border border-brand-200 rounded-lg transition-colors"
-                        >
-                          Fix →
-                        </button>
+                        {allFilled ? (
+                          <button
+                            onClick={async () => {
+                              await api.post(`/children/${c.id}/review`, { approved: true });
+                              load();
+                            }}
+                            className="flex-shrink-0 text-xs font-bold text-green-700 hover:text-green-800 px-3 py-1.5 bg-white border border-green-300 rounded-lg transition-colors"
+                          >
+                            Approve ✓
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setEditing(c); setShowModal(true); }}
+                            className="flex-shrink-0 text-xs font-bold text-brand-600 hover:text-brand-700 px-3 py-1.5 bg-white border border-brand-200 rounded-lg transition-colors"
+                          >
+                            Fix →
+                          </button>
+                        )}
                       </div>
                     );
                   })}
