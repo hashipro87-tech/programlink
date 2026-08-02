@@ -89,10 +89,10 @@ function Lightbox({ entry, onClose }) {
           </p>
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: 'Breakfast', value: entry.breakfast_count },
-              { label: 'Lunch',     value: entry.lunch_count },
-              { label: 'Supper',    value: entry.supper_count },
-              { label: 'Snack',     value: entry.snack_count },
+              { label: 'Breakfast', value: entry.breakfast ?? entry.breakfast_count },
+              { label: 'Lunch',     value: entry.lunch     ?? entry.lunch_count },
+              { label: 'Supper',    value: entry.supper    ?? entry.supper_count },
+              { label: 'Snack',     value: entry.snack     ?? entry.snack_count },
             ].map((m) => (
               <div key={m.label} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500 mb-1">{m.label}</p>
@@ -142,10 +142,10 @@ function CountRow({ entry, onExpand, onVerify, verifying }) {
 
       {/* Meal type breakdown */}
       <div className="flex items-center gap-4 flex-shrink-0">
-        <MealPill label="BK"  value={entry.breakfast_count} />
-        <MealPill label="LN"  value={entry.lunch_count} />
-        <MealPill label="SP"  value={entry.supper_count} />
-        <MealPill label="SNK" value={entry.snack_count} />
+        <MealPill label="BK"  value={entry.breakfast ?? entry.breakfast_count} />
+        <MealPill label="LN"  value={entry.lunch     ?? entry.lunch_count} />
+        <MealPill label="SP"  value={entry.supper    ?? entry.supper_count} />
+        <MealPill label="SNK" value={entry.snack     ?? entry.snack_count} />
         <div className="w-px h-8 bg-gray-100" />
         <div className="text-center">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Total</p>
@@ -428,9 +428,9 @@ export default function MealCountsPage() {
 
   const fetchEntries = () => {
     setLoading(true);
-    const start = `${month}-01`;
-    const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-                    .toISOString().split('T')[0];
+    const [y, m] = month.split('-').map(Number);
+    const start  = `${month}-01`;
+    const end    = new Date(y, m, 0).toISOString().split('T')[0]; // last day of selected month
     const siteParam = siteId !== 'all' ? `&site_id=${siteId}` : '';
     api.get(`/meal-counts?start_date=${start}&end_date=${end}${siteParam}`)
       .then(({ data }) => setEntries(data.meal_counts ?? (Array.isArray(data) ? data : [])))
@@ -444,9 +444,11 @@ export default function MealCountsPage() {
     setVerifying((v) => ({ ...v, [entry.id]: true }));
     try {
       await api.patch(`/meal-counts/${entry.id}/verify`, { count_verified: entry.count_submitted });
+      // Update local state then re-fetch to confirm DB state
       setEntries((prev) =>
         prev.map((e) => e.id === entry.id ? { ...e, count_verified: entry.count_submitted } : e)
       );
+      fetchEntries();
     } catch {
       alert('Failed to verify — please try again.');
     } finally {
@@ -454,9 +456,10 @@ export default function MealCountsPage() {
     }
   };
 
-  const total      = entries.length;
-  const unverified = entries.filter((e) => e.count_verified == null).length;
-  const scanned    = entries.filter((e) => e.scanned_by_ai).length;
+  const totalDays   = entries.length;
+  const totalMeals  = entries.reduce((sum, e) => sum + (e.count_submitted || 0), 0);
+  const unverified  = entries.filter((e) => e.count_verified == null).length;
+  const scanned     = entries.filter((e) => e.scanned_by_ai).length;
 
   const visible = entries.filter((e) => {
     if (filter === 'unverified') return e.count_verified == null;
@@ -540,11 +543,12 @@ export default function MealCountsPage() {
       </div>
 
       {/* Summary stat bar */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total submissions', value: total,      color: 'text-gray-900' },
-          { label: 'Awaiting verification', value: unverified, color: unverified > 0 ? 'text-yellow-600' : 'text-gray-900' },
-          { label: 'OCR scanned', value: scanned, color: 'text-brand-600' },
+          { label: 'Days submitted',       value: totalDays,                       color: 'text-gray-900' },
+          { label: 'Total meals this month', value: totalMeals.toLocaleString(),   color: 'text-brand-600' },
+          { label: 'Awaiting verification', value: unverified,                     color: unverified > 0 ? 'text-yellow-600' : 'text-gray-900' },
+          { label: 'OCR scanned',           value: scanned,                        color: 'text-brand-600' },
         ].map((s) => (
           <div key={s.label} className="card px-5 py-4">
             <p className="text-xs font-medium text-gray-500 mb-1">{s.label}</p>
