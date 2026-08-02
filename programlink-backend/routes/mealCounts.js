@@ -34,7 +34,7 @@ router.get('/trend',    getTrend);
 
 // POST /api/meal-counts/scan — upload a slip photo, get back extracted counts
 // Kitchen and site staff can both use this
-router.post('/scan', authorizeRoles('kitchen', 'site', 'admin'), upload.single('image'), scanMealSlip);
+router.post('/scan', authorizeRoles('kitchen', 'site', 'sponsor', 'admin'), upload.single('image'), scanMealSlip);
 
 // Kitchen users can now submit counts (previously only 'site')
 // Kitchen submits counts for the meals they produce; sites submit for meals served
