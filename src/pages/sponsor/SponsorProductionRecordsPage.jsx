@@ -2,7 +2,7 @@
 // Sponsors can see which kitchens are keeping complete USDA-required production logs.
 
 import { useState, useEffect } from 'react';
-import { CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp, FileText, Plus, X, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
 const MEALS   = ['breakfast', 'lunch', 'snack', 'supper'];
@@ -133,15 +133,216 @@ function KitchenRow({ kitchen, records }) {
   );
 }
 
+// ─── Log Record Modal ─────────────────────────────────────────────────────────
+
+const MEAL_OPTIONS  = ['breakfast', 'lunch', 'snack', 'supper'];
+const COMPONENTS    = ['grain', 'protein', 'fruit', 'vegetable', 'dairy', 'other'];
+
+function emptyItem() {
+  return { food_name: '', component: 'other', quantity_planned: '', quantity_actual: '' };
+}
+
+function LogRecordModal({ kitchens, onClose, onSaved }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [kitchenId,  setKitchenId]  = useState(kitchens[0]?.id || '');
+  const [date,       setDate]       = useState(today);
+  const [mealType,   setMealType]   = useState('lunch');
+  const [servings,   setServings]   = useState('');
+  const [notes,      setNotes]      = useState('');
+  const [items,      setItems]      = useState([emptyItem()]);
+  const [markDone,   setMarkDone]   = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState('');
+
+  const updateItem = (i, field, val) =>
+    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
+  const addItem    = () => setItems(prev => [...prev, emptyItem()]);
+  const removeItem = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const handleSave = async () => {
+    if (!kitchenId) { setError('Select a kitchen.'); return; }
+    if (!date)      { setError('Select a date.'); return; }
+    const filledItems = items.filter(it => it.food_name.trim());
+    setSaving(true); setError('');
+    try {
+      // 1. Create/update the record
+      const { data } = await api.post('/production-records', {
+        org_id:            kitchenId,
+        date,
+        meal_type:         mealType,
+        servings_planned:  parseInt(servings) || 0,
+        servings_prepared: parseInt(servings) || 0,
+        notes:             notes || null,
+        status:            markDone ? 'complete' : 'draft',
+      });
+      const recordId = data.record?.id;
+
+      // 2. Add food items
+      if (recordId) {
+        for (const it of filledItems) {
+          await api.post(`/production-records/${recordId}/items`, {
+            food_name:        it.food_name.trim(),
+            component:        it.component,
+            quantity_planned: it.quantity_planned || null,
+            quantity_actual:  it.quantity_actual  || null,
+          });
+        }
+      }
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save — please try again.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900">Log Production Record</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Kitchen + Date + Meal type */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Kitchen</label>
+              <select
+                value={kitchenId}
+                onChange={e => setKitchenId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                {kitchens.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Date</label>
+              <input
+                type="date" value={date} max={today}
+                onChange={e => setDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Meal</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {MEAL_OPTIONS.map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setMealType(m)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
+                      mealType === m
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >{m}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Servings prepared</label>
+              <input
+                type="number" min="0" value={servings}
+                onChange={e => setServings(e.target.value)}
+                placeholder="e.g. 80"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          </div>
+
+          {/* Food items */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">What was made</label>
+              <button onClick={addItem} className="text-xs text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
+                <Plus className="w-3 h-3" /> Add item
+              </button>
+            </div>
+            <div className="space-y-2">
+              {items.map((it, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text" value={it.food_name} placeholder="Food name (e.g. Chicken breast)"
+                    onChange={e => updateItem(i, 'food_name', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  <select
+                    value={it.component}
+                    onChange={e => updateItem(i, 'component', e.target.value)}
+                    className="px-2 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
+                  >
+                    {COMPONENTS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input
+                    type="text" value={it.quantity_actual} placeholder="Qty"
+                    onChange={e => updateItem(i, 'quantity_actual', e.target.value)}
+                    className="w-16 px-2 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  {items.length > 1 && (
+                    <button onClick={() => removeItem(i)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Notes (optional)</label>
+            <textarea
+              value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              placeholder="Any substitutions, issues, or notes from the kitchen…"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+            />
+          </div>
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{error}</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
+            <input
+              type="checkbox" checked={markDone} onChange={e => setMarkDone(e.target.checked)}
+              className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            Mark as complete
+          </label>
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800">Cancel</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40"
+          >
+            {saving ? 'Saving…' : 'Save Record'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SponsorProductionRecordsPage() {
   const { month, name } = monthRange();
 
-  const [kitchens,  setKitchens]  = useState([]);
-  const [records,   setRecords]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const [kitchens,   setKitchens]   = useState([]);
+  const [records,    setRecords]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [showLog,    setShowLog]    = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
     Promise.allSettled([
       api.get('/organizations', { params: { type: 'kitchen', limit: 200 } }),
       api.get('/production-records', { params: { month } }),
@@ -155,7 +356,9 @@ export default function SponsorProductionRecordsPage() {
       setKitchens(k);
       setRecords(r);
     }).finally(() => setLoading(false));
-  }, [month]);
+  };
+
+  useEffect(() => { loadData(); }, [month]);
 
   // Group records by kitchen org_id
   const byKitchen = {};
@@ -180,9 +383,20 @@ export default function SponsorProductionRecordsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Production Records</h1>
-        <p className="text-sm text-gray-500 mt-1">{name} — USDA-required kitchen production logs</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Production Records</h1>
+          <p className="text-sm text-gray-500 mt-1">{name} — USDA-required kitchen production logs</p>
+        </div>
+        {kitchens.length > 0 && (
+          <button
+            onClick={() => setShowLog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-colors flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Log for Kitchen
+          </button>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -224,9 +438,18 @@ export default function SponsorProductionRecordsPage() {
       <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
         <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-gray-500">
-          USDA 7 CFR Part 226 requires production records for every meal service. Records must be retained for 3 years and made available during state agency reviews. Kitchens log records from their <strong>Daily Ops → Production Records</strong> page.
+          USDA 7 CFR Part 226 requires production records for every meal service. Records must be retained for 3 years and made available during state agency reviews. Kitchens can log their own records, or use <strong>Log for Kitchen</strong> above to enter records on their behalf.
         </p>
       </div>
+
+      {/* Log record modal */}
+      {showLog && (
+        <LogRecordModal
+          kitchens={kitchens}
+          onClose={() => setShowLog(false)}
+          onSaved={loadData}
+        />
+      )}
     </div>
   );
 }
