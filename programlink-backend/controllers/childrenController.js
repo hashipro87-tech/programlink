@@ -112,14 +112,15 @@ async function createChild(req, res) {
           days_enrolled, meal_types,
           income_cert_date, income_cert_expires,
           signature_obtained, notes, form_status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'draft')
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [targetOrgId, first_name, last_name, birthdate || null, enrollment_status,
        income_tier, ageGrp || null, enrollment_date || null, enrollment_expires || null,
        parent_name || null, parent_phone || null, parent_email || null,
        days_enrolled || null, meal_types || null,
        income_cert_date || null, income_cert_expires || null,
-       signature_obtained || false, notes || null]
+       signature_obtained || false, notes || null,
+       (role === 'sponsor' || role === 'admin') ? 'approved' : 'draft']
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -149,12 +150,19 @@ async function updateChild(req, res) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // If a site edits a previously-approved form, reset to draft for re-review
+    // Sponsors/admins always own the form — auto-approve on any update
+    // Sites editing an approved form reset to draft for re-review
     const wasApproved = child.form_status === 'approved';
     const keyFieldChanged = [first_name, last_name, birthdate, parent_name, parent_phone,
       days_enrolled, meal_types, income_tier].some(f => f !== undefined);
-    const newFormStatus = (wasApproved && keyFieldChanged && role !== 'sponsor' && role !== 'admin')
-      ? 'draft' : undefined;
+    let newFormStatus;
+    if (role === 'sponsor' || role === 'admin') {
+      // Sponsor touch → approved (covers draft children like jj hashi)
+      newFormStatus = 'approved';
+    } else if (wasApproved && keyFieldChanged) {
+      // Site changed key fields on an approved form → back to draft for re-review
+      newFormStatus = 'draft';
+    }
 
     const { rows } = await pool.query(
       `UPDATE children SET
