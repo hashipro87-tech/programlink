@@ -86,6 +86,42 @@ exports.submitMealCount = async (req, res) => {
   }
 };
 
+exports.updateMealCount = async (req, res) => {
+  try {
+    const breakfast = parseInt(req.body.breakfast_count ?? req.body.breakfast) || 0;
+    const lunch     = parseInt(req.body.lunch_count     ?? req.body.lunch)     || 0;
+    const snack     = parseInt(req.body.snack_count     ?? req.body.snack)     || 0;
+    const supper    = parseInt(req.body.supper_count    ?? req.body.supper)    || 0;
+    const total     = breakfast + lunch + snack + supper;
+    const { rows } = await pool.query(
+      `UPDATE meal_counts
+          SET breakfast = $1, lunch = $2, snack = $3, supper = $4,
+              count_submitted = $5, count_verified = $5, verified_by = $6,
+              notes = $7
+        WHERE id = $8 RETURNING *`,
+      [breakfast, lunch, snack, supper, total, req.user.id, req.body.notes || null, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found.' });
+    res.json({ meal_count: rows[0] });
+  } catch (err) {
+    console.error('updateMealCount error:', err);
+    res.status(500).json({ error: 'Failed to update meal count.' });
+  }
+};
+
+exports.deleteMealCount = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `DELETE FROM meal_counts WHERE id = $1 RETURNING id`, [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found.' });
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error('deleteMealCount error:', err);
+    res.status(500).json({ error: 'Failed to delete meal count.' });
+  }
+};
+
 exports.verifyMealCount = async (req, res) => {
   try {
     const { count_verified } = req.body;

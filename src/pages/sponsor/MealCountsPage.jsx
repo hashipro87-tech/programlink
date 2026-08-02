@@ -111,15 +111,66 @@ function Lightbox({ entry, onClose }) {
 
 // ─── Single Row ───────────────────────────────────────────────────────────────
 
-function CountRow({ entry, onExpand, onVerify, verifying }) {
-  const isVerified   = entry.count_verified != null;
-  const wasScanned   = entry.scanned_by_ai;
-  const hasPhoto     = !!entry.scan_image_data;
+const EDIT_MEALS = ['breakfast','lunch','snack','supper'];
+
+function CountRow({ entry, onExpand, onVerify, verifying, onEdit, onDelete, deleting }) {
+  const isVerified = entry.count_verified != null;
+  const wasScanned = entry.scanned_by_ai;
+  const [editing,   setEditing]   = useState(false);
+  const [editCounts, setEditCounts] = useState({
+    breakfast: entry.breakfast ?? 0,
+    lunch:     entry.lunch     ?? 0,
+    snack:     entry.snack     ?? 0,
+    supper:    entry.supper    ?? 0,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const editTotal = Object.values(editCounts).reduce((s,v) => s + (v||0), 0);
+
+  const handleSaveEdit = async () => {
+    setSaving(true);
+    await onEdit(entry.id, editCounts);
+    setSaving(false);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="px-5 py-4 border-b border-gray-100 bg-brand-50/30">
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-sm font-bold text-gray-800">{fmtDate(entry.date)}</p>
+          <span className="text-xs text-gray-400">— editing</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          {EDIT_MEALS.map(k => (
+            <div key={k} className="text-center">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">{k}</p>
+              <input
+                type="number" min="0"
+                value={editCounts[k]}
+                onChange={e => setEditCounts(c => ({ ...c, [k]: parseInt(e.target.value)||0 }))}
+                className="w-full text-center border border-gray-200 rounded-lg py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Total: <strong>{editTotal}</strong></span>
+          <button onClick={handleSaveEdit} disabled={saving}
+            className="ml-auto px-4 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+          <button onClick={() => setEditing(false)}
+            className="px-4 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`px-5 py-4 flex flex-wrap sm:flex-nowrap items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors ${
-      isVerified ? '' : 'bg-white'
-    }`}>
+    <div className="px-5 py-4 flex flex-wrap sm:flex-nowrap items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors group">
 
       {/* Slip photo */}
       <SlipPhoto imageData={entry.scan_image_data} onExpand={() => onExpand(entry)} />
@@ -131,11 +182,8 @@ function CountRow({ entry, onExpand, onVerify, verifying }) {
           <p className="text-xs text-gray-500">{fmtDate(entry.date)}</p>
           {wasScanned && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-full">
-              <Camera className="w-2.5 h-2.5" /> OCR scanned
+              <Camera className="w-2.5 h-2.5" /> OCR
             </span>
-          )}
-          {entry.submitted_by_name && (
-            <span className="text-[10px] text-gray-400">by {entry.submitted_by_name}</span>
           )}
         </div>
       </div>
@@ -153,26 +201,28 @@ function CountRow({ entry, onExpand, onVerify, verifying }) {
         </div>
       </div>
 
-      {/* Verify button / verified badge */}
-      <div className="flex-shrink-0">
+      {/* Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Edit + Delete — show on hover */}
+        <button onClick={() => setEditing(true)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg">
+          Edit
+        </button>
+        <button onClick={() => onDelete(entry.id)} disabled={deleting}
+          className="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-30">
+          {deleting ? '…' : 'Delete'}
+        </button>
+
+        {/* Verify badge */}
         {isVerified ? (
           <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 border border-green-100 px-3 py-1.5 rounded-full">
-            <CheckCircle className="w-3.5 h-3.5" />
-            Verified
-            {entry.count_verified !== entry.count_submitted && (
-              <span className="text-[10px] text-green-500 font-normal ml-1">
-                (adjusted to {entry.count_verified})
-              </span>
-            )}
+            <CheckCircle className="w-3.5 h-3.5" /> Verified
           </div>
         ) : (
-          <button
-            onClick={() => onVerify(entry)}
-            disabled={verifying}
-            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => onVerify(entry)} disabled={verifying}
+            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50">
             <CheckCircle className="w-3.5 h-3.5" />
-            {verifying ? 'Verifying…' : 'Verify'}
+            {verifying ? '…' : 'Verify'}
           </button>
         )}
       </div>
@@ -440,6 +490,34 @@ export default function MealCountsPage() {
 
   useEffect(() => { fetchEntries(); }, [month, siteId]);
 
+  const [deleting, setDeleting] = useState({});
+
+  const handleEdit = async (id, counts) => {
+    try {
+      await api.put(`/meal-counts/${id}`, counts);
+      const total = Object.values(counts).reduce((s,v) => s+(v||0), 0);
+      setEntries(prev => prev.map(e => e.id === id
+        ? { ...e, ...counts, count_submitted: total, count_verified: total }
+        : e
+      ));
+    } catch {
+      alert('Failed to save changes — please try again.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this meal count? This cannot be undone.')) return;
+    setDeleting(v => ({ ...v, [id]: true }));
+    try {
+      await api.delete(`/meal-counts/${id}`);
+      setEntries(prev => prev.filter(e => e.id !== id));
+    } catch {
+      alert('Failed to delete — please try again.');
+    } finally {
+      setDeleting(v => ({ ...v, [id]: false }));
+    }
+  };
+
   const handleVerify = async (entry) => {
     setVerifying((v) => ({ ...v, [entry.id]: true }));
     try {
@@ -496,28 +574,7 @@ export default function MealCountsPage() {
         </div>
       </div>
 
-      {/* All Sites view — entry panels for every self-managed site */}
-      {siteId === 'all' && (() => {
-        const selfManaged = sites.filter(s => !s.has_site_users);
-        if (!selfManaged.length) return null;
-        return (
-          <div className="mb-6">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Enter Meal Counts</p>
-            <div className="space-y-4">
-              {selfManaged.map(site => (
-                <div key={site.id} className="card p-1">
-                  <p className="text-sm font-bold text-gray-700 px-5 pt-4 pb-2 flex items-center gap-2">
-                    <PenLine className="w-3.5 h-3.5 text-brand-500" />{site.name}
-                  </p>
-                  <MealEntryPanel site={site} onSaved={fetchEntries} />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Single site view — mode banner + entry or review */}
+      {/* Site-specific entry panel — only when a specific site is selected */}
       {selectedSite && (
         <>
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
@@ -526,7 +583,7 @@ export default function MealCountsPage() {
               : 'bg-gray-50 border border-gray-200 text-gray-600'
           }`}>
             {isEntryMode
-              ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter counts and upload meal slips below.</>
+              ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter counts below.</>
               : <><Eye className="w-4 h-4 flex-shrink-0" /> This site submits their own counts — review and verify below.</>
             }
           </div>
@@ -640,6 +697,9 @@ export default function MealCountsPage() {
                 onExpand={setLightbox}
                 onVerify={handleVerify}
                 verifying={verifying[entry.id]}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                deleting={deleting[entry.id]}
               />
             ))}
           </div>

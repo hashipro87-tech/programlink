@@ -7,6 +7,8 @@ const {
   listMealCounts,
   submitMealCount,
   verifyMealCount,
+  updateMealCount,
+  deleteMealCount,
   getMonthlySummary,
   getTrend,
 } = require('../controllers/mealCountsController');
@@ -40,5 +42,9 @@ router.post('/', authorizeRoles('site', 'kitchen', 'sponsor', 'admin'), submitMe
 
 // Only coordinators and sponsors verify
 router.patch('/:id/verify', authorizeRoles('coordinator', 'sponsor', 'admin'), verifyMealCount);
+
+// Sponsors can edit or delete their own submissions
+router.put('/:id',    authorizeRoles('sponsor', 'admin'), updateMealCount);
+router.delete('/:id', authorizeRoles('sponsor', 'admin'), deleteMealCount);
 
 module.exports = router;
