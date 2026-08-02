@@ -423,33 +423,51 @@ export default function MealCountsPage() {
         </div>
       )}
 
-      {/* Mode banner */}
+      {/* ALL SITES view — show entry panels for every self-managed site */}
+      {siteId === 'all' && (() => {
+        const selfManaged = sites.filter(s => !s.has_site_users);
+        if (!selfManaged.length) return null;
+        return (
+          <div className="mb-6">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Enter Meal Counts</p>
+            <div className="space-y-5">
+              {selfManaged.map(site => (
+                <div key={site.id} className="card p-4">
+                  <p className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <PenLine className="w-3.5 h-3.5 text-brand-500" />
+                    {site.name}
+                  </p>
+                  <MealEntryPanel site={site} onSaved={fetchEntries} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* SINGLE SITE view — mode banner + entry or review */}
       {selectedSite && (
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
-          isEntryMode
-            ? 'bg-brand-50 border border-brand-200 text-brand-700'
-            : 'bg-gray-50 border border-gray-200 text-gray-600'
-        }`}>
-          {isEntryMode
-            ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter meal counts directly below.</>
-            : <><Eye className="w-4 h-4 flex-shrink-0" /> This site submits their own counts — review and verify below.</>
-          }
-        </div>
+        <>
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
+            isEntryMode
+              ? 'bg-brand-50 border border-brand-200 text-brand-700'
+              : 'bg-gray-50 border border-gray-200 text-gray-600'
+          }`}>
+            {isEntryMode
+              ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this site — enter meal counts directly below.</>
+              : <><Eye className="w-4 h-4 flex-shrink-0" /> This site submits their own counts — review and verify below.</>
+            }
+          </div>
+          {isEntryMode && <MealEntryPanel site={selectedSite} onSaved={fetchEntries} />}
+        </>
       )}
 
-      {/* Entry mode — self-managed site */}
-      {isEntryMode && (
-        <MealEntryPanel site={selectedSite} onSaved={fetchEntries} />
-      )}
-
-      {/* Review section header */}
-      {(!isEntryMode || entries.length > 0) && (
-        <div className="mb-1">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-            {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
-          </p>
-        </div>
-      )}
+      {/* Submissions section header */}
+      <div className="mb-1">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+          {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
+        </p>
+      </div>
 
       {/* Summary stat bar */}
       <div className="grid grid-cols-3 gap-4 mb-6">
