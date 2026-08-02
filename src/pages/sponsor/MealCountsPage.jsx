@@ -401,7 +401,7 @@ function MealEntryPanel({ site, onSaved }) {
 
 export default function MealCountsPage() {
   const [sites,      setSites]      = useState([]);
-  const [siteId,     setSiteId]     = useState(''); // '' = none selected
+  const [siteId,     setSiteId]     = useState('all'); // 'all' | org uuid
   const [entries,    setEntries]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [lightbox,   setLightbox]   = useState(null);
@@ -431,7 +431,7 @@ export default function MealCountsPage() {
     const start = `${month}-01`;
     const end   = new Date(today.getFullYear(), today.getMonth() + 1, 0)
                     .toISOString().split('T')[0];
-    const siteParam = siteId ? `&site_id=${siteId}` : '';
+    const siteParam = siteId !== 'all' ? `&site_id=${siteId}` : '';
     api.get(`/meal-counts?start_date=${start}&end_date=${end}${siteParam}`)
       .then(({ data }) => setEntries(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => setEntries([]))
@@ -483,7 +483,7 @@ export default function MealCountsPage() {
             onChange={e => setSiteId(e.target.value)}
             className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
           >
-            <option value="">— Choose a site —</option>
+            <option value="all">All Sites</option>
             {sites.map(s => (
               <option key={s.id} value={s.id}>
                 {s.name} {!s.has_site_users ? '(you enter counts)' : '(site submits)'}
@@ -494,15 +494,28 @@ export default function MealCountsPage() {
         </div>
       </div>
 
-      {/* Nothing selected — prompt */}
-      {!siteId && (
-        <div className="card p-12 text-center text-gray-400 mb-6">
-          <UtensilsCrossed className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-          <p className="font-medium text-gray-500">Select a site above to enter or review meal counts</p>
-        </div>
-      )}
+      {/* All Sites view — entry panels for every self-managed site */}
+      {siteId === 'all' && (() => {
+        const selfManaged = sites.filter(s => !s.has_site_users);
+        if (!selfManaged.length) return null;
+        return (
+          <div className="mb-6">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Enter Meal Counts</p>
+            <div className="space-y-4">
+              {selfManaged.map(site => (
+                <div key={site.id} className="card p-1">
+                  <p className="text-sm font-bold text-gray-700 px-5 pt-4 pb-2 flex items-center gap-2">
+                    <PenLine className="w-3.5 h-3.5 text-brand-500" />{site.name}
+                  </p>
+                  <MealEntryPanel site={site} onSaved={fetchEntries} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
-      {/* Site selected — entry form or review banner */}
+      {/* Single site view — mode banner + entry or review */}
       {selectedSite && (
         <>
           <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
@@ -519,17 +532,15 @@ export default function MealCountsPage() {
         </>
       )}
 
-      {/* Submissions section — always visible once site is selected */}
-      {selectedSite && (
-        <div className="mb-1">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-            {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
-          </p>
-        </div>
-      )}
+      {/* Submissions header */}
+      <div className="mb-1">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+          {isEntryMode ? 'Previous Submissions' : 'Submissions This Month'}
+        </p>
+      </div>
 
-      {/* Summary stat bar + filters — only when site selected */}
-      {selectedSite && <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Summary stat bar */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total submissions', value: total,      color: 'text-gray-900' },
           { label: 'Awaiting verification', value: unverified, color: unverified > 0 ? 'text-yellow-600' : 'text-gray-900' },
@@ -540,10 +551,10 @@ export default function MealCountsPage() {
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
-      </div>}
+      </div>
 
-      {/* Filters + month picker + submission list — only when site selected */}
-      {selectedSite && <div className="card mb-4">
+      {/* Filters + month picker */}
+      <div className="card mb-4">
         <div className="px-5 py-3 flex flex-wrap items-center gap-3">
           <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
 
@@ -584,10 +595,10 @@ export default function MealCountsPage() {
             Refresh
           </button>
         </div>
-      </div>}
+      </div>
 
       {/* Count entries */}
-      {selectedSite && <div className="card">
+      <div className="card">
         {loading ? (
           <div className="py-16 text-center text-sm text-gray-400">Loading submissions…</div>
         ) : visible.length === 0 ? (
@@ -630,7 +641,7 @@ export default function MealCountsPage() {
             ))}
           </div>
         )}
-      </div>}
+      </div>
 
       {/* Lightbox */}
       <Lightbox entry={lightbox} onClose={() => setLightbox(null)} />
