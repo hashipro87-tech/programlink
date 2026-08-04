@@ -1,23 +1,22 @@
 // SponsorProductionRecordsPage.jsx
-// Kitchen-first layout matching Meal Counts pattern.
-// Self-managed kitchens: sponsor enters records inline.
-// Connected kitchens: sponsor reviews submissions.
+// Kitchen-first layout. Self-managed kitchens: sponsor enters records inline.
+// Two-column: entry form (left) + Previous Record sidebar (right).
 
 import { useState, useEffect } from 'react';
 import {
-  CheckCircle, Clock, AlertCircle, ChevronDown, FileText,
-  Plus, X, Trash2, PenLine, Eye, Edit2,
+  CheckCircle, Clock, ChevronDown, FileText,
+  Plus, Trash2, PenLine, Eye, Edit2, Wand2, Copy,
 } from 'lucide-react';
 import api from '../../services/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MEAL_TYPES = [
-  { key: 'breakfast', label: 'Breakfast',  emoji: '🥣' },
-  { key: 'am_snack',  label: 'AM Snack',   emoji: '🍌' },
-  { key: 'lunch',     label: 'Lunch',      emoji: '🥗' },
-  { key: 'pm_snack',  label: 'PM Snack',   emoji: '🍎' },
-  { key: 'supper',    label: 'Supper',     emoji: '🍽️' },
+  { key: 'breakfast', label: 'Breakfast', emoji: '🥣' },
+  { key: 'am_snack',  label: 'AM Snack',  emoji: '🍌' },
+  { key: 'lunch',     label: 'Lunch',     emoji: '🥗' },
+  { key: 'pm_snack',  label: 'PM Snack',  emoji: '🍎' },
+  { key: 'supper',    label: 'Supper',    emoji: '🍽️' },
 ];
 
 const COMPONENTS = ['grain', 'protein', 'fruit', 'vegetable', 'dairy', 'other'];
@@ -30,43 +29,134 @@ const MEAL_COLOR = {
   supper:    'bg-violet-100 text-violet-700 border-violet-200',
 };
 
-function mealLabel(key) {
-  return MEAL_TYPES.find(m => m.key === key)?.label ?? key;
-}
-
-function todayISO() { return new Date().toISOString().split('T')[0]; }
+function mealLabel(key) { return MEAL_TYPES.find(m => m.key === key)?.label ?? key; }
+function mealEmoji(key) { return MEAL_TYPES.find(m => m.key === key)?.emoji ?? ''; }
+function todayISO()     { return new Date().toISOString().split('T')[0]; }
+function emptyItem()    { return { food_name: '', component: 'other', quantity_actual: '' }; }
 
 function fmtDate(d) {
   if (!d) return '—';
-  // Postgres may return a full ISO timestamp; take only YYYY-MM-DD
-  const dateStr = String(d).slice(0, 10);
-  return new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-US', {
+  const s = String(d).slice(0, 10);
+  return new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
   });
 }
 
-function emptyItem() { return { food_name: '', component: 'other', quantity_actual: '' }; }
+// ─── Previous Record Sidebar ──────────────────────────────────────────────────
 
-// ─── Production Record Entry Form ────────────────────────────────────────────
+function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll }) {
+  if (loading) return (
+    <div className="card p-5 sticky top-6">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Previous Record</p>
+      <div className="py-8 text-center text-sm text-gray-400">Loading…</div>
+    </div>
+  );
 
-function RecordForm({ kitchen, onSaved }) {
+  if (!prevRecord) return (
+    <div className="card p-5 sticky top-6 text-center py-10">
+      <Copy className="w-6 h-6 text-gray-200 mx-auto mb-2" />
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Previous Record</p>
+      <p className="text-xs text-gray-400 mt-1">No previous {mealLabel(meal)} record found.</p>
+      <p className="text-xs text-gray-300 mt-1">Log one to enable copying next time.</p>
+    </div>
+  );
+
+  return (
+    <div className="card p-5 sticky top-6 space-y-4">
+      {/* Header */}
+      <div>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Previous Record</p>
+        <p className="text-sm font-semibold text-gray-700">
+          {mealEmoji(prevRecord.meal_type)} {mealLabel(prevRecord.meal_type)} — {fmtDate(prevRecord.date)}
+        </p>
+        <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+          <span>Planned {prevRecord.servings_planned}</span>
+          <span>·</span>
+          <span>Actual {prevRecord.servings_prepared}</span>
+        </div>
+      </div>
+
+      {/* Copy entire meal */}
+      {prevRecord.items?.length > 0 && (
+        <button
+          onClick={() => onCopyAll(prevRecord.items)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition-colors">
+          <Copy className="w-3.5 h-3.5" /> Copy Entire Meal
+        </button>
+      )}
+
+      {/* Individual items */}
+      {prevRecord.items?.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest">Items</p>
+          {prevRecord.items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700 truncate">{item.food_name}</p>
+                <p className="text-xs text-gray-400 capitalize">{item.component}</p>
+              </div>
+              <button
+                onClick={() => onCopyItem(item)}
+                className="flex-shrink-0 text-xs text-brand-600 font-semibold hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50">
+                Copy
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 italic">No food items were logged for this record.</p>
+      )}
+
+      {prevRecord.notes && (
+        <div>
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-widest mb-1">Notes</p>
+          <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-2.5">{prevRecord.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Entry Form (controlled — state lives in main page) ───────────────────────
+
+function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, onSaved }) {
   const today = todayISO();
-  const [date,     setDate]     = useState(today);
-  const [meal,     setMeal]     = useState('breakfast');
   const [planned,  setPlanned]  = useState('');
   const [actual,   setActual]   = useState('');
   const [prepBy,   setPrepBy]   = useState('');
   const [notes,    setNotes]    = useState('');
-  const [items,    setItems]    = useState([emptyItem()]);
   const [markDone, setMarkDone] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
+  const [filling,  setFilling]  = useState(false);
   const [error,    setError]    = useState('');
 
   const leftovers = Math.max(0, (parseInt(planned) || 0) - (parseInt(actual) || 0));
 
   const updateItem = (i, field, val) =>
     setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
+
+  const handleAutoFill = async () => {
+    setFilling(true); setError('');
+    try {
+      const { data } = await api.post('/production-records/auto-fill', {
+        org_id: kitchen.id, date, meal_type: meal,
+      });
+      if (data.items?.length) {
+        setItems(data.items.map(i => ({
+          food_name:      i.food_name,
+          component:      i.component || 'other',
+          quantity_actual: '',
+        })));
+      } else {
+        setError('No menu items found for this date and meal. Build a menu first.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'No menu found for this date.');
+    } finally {
+      setFilling(false);
+    }
+  };
 
   const handleSave = async () => {
     setError(''); setSaving(true); setSaved(false);
@@ -90,7 +180,6 @@ function RecordForm({ kitchen, onSaved }) {
           });
         }
       }
-      // Reset form
       setPlanned(''); setActual(''); setPrepBy(''); setNotes('');
       setItems([emptyItem()]); setMarkDone(false); setSaved(true);
       onSaved();
@@ -104,9 +193,17 @@ function RecordForm({ kitchen, onSaved }) {
 
   return (
     <div className="card p-6 mb-6">
-      <div className="flex items-center gap-2 mb-5">
-        <PenLine className="w-4 h-4 text-brand-600" />
-        <p className="text-sm font-bold text-gray-700">New Production Record — {kitchen.name}</p>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <PenLine className="w-4 h-4 text-brand-600" />
+          <p className="text-sm font-bold text-gray-700">New Production Record — {kitchen.name}</p>
+        </div>
+        <button
+          onClick={handleAutoFill} disabled={filling}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 transition-colors disabled:opacity-40">
+          <Wand2 className="w-3.5 h-3.5" />
+          {filling ? 'Filling…' : 'Auto-fill from Menu'}
+        </button>
       </div>
 
       {/* Date + Meal */}
@@ -120,14 +217,12 @@ function RecordForm({ kitchen, onSaved }) {
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Meal</label>
           <select value={meal} onChange={e => setMeal(e.target.value)}
             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
-            {MEAL_TYPES.map(m => (
-              <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>
-            ))}
+            {MEAL_TYPES.map(m => <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Menu / food items */}
+      {/* Menu items */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Menu Items</label>
@@ -158,18 +253,18 @@ function RecordForm({ kitchen, onSaved }) {
         </div>
       </div>
 
-      {/* Servings */}
+      {/* Planned / Actual / Leftovers */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Planned</label>
-          <input type="number" min="0" value={planned} onChange={e => setPlanned(e.target.value)}
-            placeholder="40"
+          <input type="number" min="0" value={planned} placeholder="40"
+            onChange={e => setPlanned(e.target.value)}
             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Actual</label>
-          <input type="number" min="0" value={actual} onChange={e => setActual(e.target.value)}
-            placeholder="38"
+          <input type="number" min="0" value={actual} placeholder="38"
+            onChange={e => setActual(e.target.value)}
             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
         <div>
@@ -184,14 +279,14 @@ function RecordForm({ kitchen, onSaved }) {
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Prepared By</label>
-          <input type="text" value={prepBy} onChange={e => setPrepBy(e.target.value)}
-            placeholder="Cook's name"
+          <input type="text" value={prepBy} placeholder="Cook's name"
+            onChange={e => setPrepBy(e.target.value)}
             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Notes</label>
-          <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="Substitutions, issues…"
+          <input type="text" value={notes} placeholder="Substitutions, issues…"
+            onChange={e => setNotes(e.target.value)}
             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
         </div>
       </div>
@@ -206,7 +301,6 @@ function RecordForm({ kitchen, onSaved }) {
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
           <input type="checkbox" checked={markDone} onChange={e => setMarkDone(e.target.checked)}
@@ -225,8 +319,8 @@ function RecordForm({ kitchen, onSaved }) {
 // ─── Record History ───────────────────────────────────────────────────────────
 
 function RecordHistory({ records, loading, onDelete, onRefresh }) {
-  const [editingId, setEditingId] = useState(null);
-  const [editData,  setEditData]  = useState(null);
+  const [editingId,  setEditingId]  = useState(null);
+  const [editData,   setEditData]   = useState(null);
   const [editSaving, setEditSaving] = useState(false);
 
   const startEdit = async (r) => {
@@ -241,9 +335,9 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
         notes:    data.notes || '',
         complete: data.status === 'complete',
         items:    (data.items || []).map(i => ({
-          id:             i.id,
-          food_name:      i.food_name || '',
-          component:      i.component || 'other',
+          id:              i.id,
+          food_name:       i.food_name || '',
+          component:       i.component || 'other',
           quantity_actual: String(i.quantity_actual || ''),
         })),
       });
@@ -254,7 +348,6 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
   const saveEdit = async (id) => {
     setEditSaving(true);
     try {
-      // 1. Update date / meal / servings / notes / status
       await api.put(`/production-records/${id}`, {
         date:              editData.date     || null,
         meal_type:         editData.meal     || null,
@@ -263,7 +356,6 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
         notes:  editData.notes || null,
         status: editData.complete ? 'complete' : 'draft',
       });
-      // 2. Delete existing items then re-add (replaces them cleanly)
       for (const item of editData.items.filter(i => i.id)) {
         await api.delete(`/production-records/items/${item.id}`);
       }
@@ -282,14 +374,11 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
 
   const updateEditItem = (i, field, val) =>
     setEditData(p => ({ ...p, items: p.items.map((it, idx) => idx === i ? { ...it, [field]: val } : it) }));
-
   const addEditItem = () =>
     setEditData(p => ({ ...p, items: [...p.items, { food_name: '', component: 'other', quantity_actual: '' }] }));
-
   const removeEditItem = (i) =>
     setEditData(p => ({ ...p, items: p.items.filter((_, idx) => idx !== i) }));
 
-  // Group by date
   const byDate = {};
   for (const r of records) {
     const key = String(r.date).slice(0, 10);
@@ -298,9 +387,7 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
   }
   const dates = Object.keys(byDate).sort().reverse();
 
-  if (loading) return (
-    <div className="card py-10 text-center text-sm text-gray-400">Loading records…</div>
-  );
+  if (loading) return <div className="card py-10 text-center text-sm text-gray-400">Loading records…</div>;
 
   if (!records.length) return (
     <div className="card py-12 text-center">
@@ -325,43 +412,32 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${MEAL_COLOR[r.meal_type] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                     {mealLabel(r.meal_type)}
                   </span>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-1.5 text-xs">
                     {r.status === 'complete'
-                      ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                      : <Clock className="w-3.5 h-3.5 text-amber-400" />}
-                    <span className={r.status === 'complete' ? 'text-green-600 font-semibold' : 'text-amber-600'}>
-                      {r.status === 'complete' ? 'Complete' : 'Draft'}
-                    </span>
+                      ? <><CheckCircle className="w-3.5 h-3.5 text-green-500" /><span className="text-green-600 font-semibold">Complete</span></>
+                      : <><Clock className="w-3.5 h-3.5 text-amber-400" /><span className="text-amber-600">Draft</span></>}
                   </div>
                   {r.servings_prepared > 0 && (
                     <span className="text-xs text-gray-400">{r.servings_prepared} served</span>
                   )}
                   <div className="ml-auto flex items-center gap-2">
-                    <button
-                      onClick={() => startEdit(r)}
-                      className="text-gray-300 hover:text-brand-500 transition-colors"
-                      title="Edit record">
+                    <button onClick={() => startEdit(r)} className="text-gray-300 hover:text-brand-500 transition-colors" title="Edit">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => onDelete(r.id)}
-                      className="text-gray-200 hover:text-red-400 transition-colors"
-                      title="Delete record">
+                    <button onClick={() => onDelete(r.id)} className="text-gray-200 hover:text-red-400 transition-colors" title="Delete">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Food items summary — always visible */}
                 {r.food_items_summary && (
                   <p className="mt-1 text-xs text-gray-400 pl-1">{r.food_items_summary}</p>
                 )}
 
-                {/* Inline edit panel */}
                 {editingId === r.id && editData && (
                   <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
 
-                    {/* Date + Meal type */}
+                    {/* Date + Meal */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Date</label>
@@ -374,9 +450,7 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                         <select value={editData.meal}
                           onChange={e => setEditData(p => ({ ...p, meal: e.target.value }))}
                           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
-                          {MEAL_TYPES.map(m => (
-                            <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>
-                          ))}
+                          {MEAL_TYPES.map(m => <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>)}
                         </select>
                       </div>
                     </div>
@@ -397,23 +471,24 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                               onChange={e => updateEditItem(i, 'food_name', e.target.value)}
                               className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                             <select value={it.component} onChange={e => updateEditItem(i, 'component', e.target.value)}
-                              className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 capitalize">
+                              className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none capitalize">
                               {COMPONENTS.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                             <input type="text" value={it.quantity_actual} placeholder="Qty"
                               onChange={e => updateEditItem(i, 'quantity_actual', e.target.value)}
                               className="w-16 px-2 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
-                            <button onClick={() => removeEditItem(i)}
-                              className="text-gray-300 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => removeEditItem(i)} className="text-gray-300 hover:text-red-400">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         ))}
                         {editData.items.length === 0 && (
-                          <p className="text-xs text-gray-400 italic">No items — click Add item to add one.</p>
+                          <p className="text-xs text-gray-400 italic">No items — click Add item.</p>
                         )}
                       </div>
                     </div>
 
-                    {/* Servings */}
+                    {/* Planned / Actual / Leftovers */}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Planned</label>
@@ -476,18 +551,26 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SponsorProductionRecordsPage() {
-  const today    = new Date();
+  const today = new Date();
   const [month, setMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   );
 
-  const [kitchens,  setKitchens]  = useState([]);
-  const [kitchenId, setKitchenId] = useState('');
-  const [records,   setRecords]   = useState([]);
-  const [recLoading, setRecLoading] = useState(false);
+  const [kitchens,    setKitchens]    = useState([]);
+  const [kitchenId,   setKitchenId]   = useState('');
+  const [records,     setRecords]     = useState([]);
+  const [recLoading,  setRecLoading]  = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
-  // Load kitchens once
+  // Lifted form state so sidebar can write into it
+  const [formDate,  setFormDate]  = useState(todayISO());
+  const [formMeal,  setFormMeal]  = useState('breakfast');
+  const [formItems, setFormItems] = useState([emptyItem()]);
+
+  // Previous record sidebar
+  const [prevRecord,  setPrevRecord]  = useState(null);
+  const [prevLoading, setPrevLoading] = useState(false);
+
   useEffect(() => {
     api.get('/organizations', { params: { type: 'kitchen', limit: 200 } })
       .then(({ data }) => setKitchens(data.organizations ?? []))
@@ -498,7 +581,6 @@ export default function SponsorProductionRecordsPage() {
   const selectedKitchen = kitchens.find(k => k.id === kitchenId) ?? null;
   const isEntryMode     = selectedKitchen && !selectedKitchen.has_kitchen_users;
 
-  // Load records when kitchen or month changes
   const loadRecords = () => {
     if (!kitchenId) { setRecords([]); return; }
     setRecLoading(true);
@@ -509,6 +591,39 @@ export default function SponsorProductionRecordsPage() {
   };
 
   useEffect(() => { loadRecords(); }, [kitchenId, month]);
+
+  // Auto-load previous record when kitchen / date / meal changes
+  useEffect(() => {
+    if (!kitchenId || !isEntryMode) { setPrevRecord(null); return; }
+
+    const candidates = records
+      .filter(r => String(r.date).slice(0, 10) < formDate && r.meal_type === formMeal)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    if (!candidates.length) { setPrevRecord(null); return; }
+
+    setPrevLoading(true);
+    api.get(`/production-records/${candidates[0].id}`)
+      .then(({ data }) => setPrevRecord(data))
+      .catch(() => setPrevRecord(null))
+      .finally(() => setPrevLoading(false));
+  }, [kitchenId, formDate, formMeal, records, isEntryMode]);
+
+  const handleCopyItem = (item) => {
+    setFormItems(prev => {
+      const hasEmpty = prev.length === 1 && !prev[0].food_name.trim();
+      const base = hasEmpty ? [] : prev;
+      return [...base, { food_name: item.food_name, component: item.component || 'other', quantity_actual: '' }];
+    });
+  };
+
+  const handleCopyAll = (items) => {
+    setFormItems(items.map(i => ({
+      food_name:      i.food_name,
+      component:      i.component || 'other',
+      quantity_actual: '',
+    })));
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this production record?')) return;
@@ -527,25 +642,19 @@ export default function SponsorProductionRecordsPage() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto">
-      {/* Header */}
+    <div className="max-w-5xl mx-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Production Records</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          USDA-required logs of what each kitchen prepared for every meal service.
-        </p>
+        <p className="text-gray-500 mt-1 text-sm">USDA-required logs of what each kitchen prepared for every meal service.</p>
       </div>
 
-      {/* Kitchen selector */}
+      {/* Kitchen + month picker */}
       <div className="card px-5 py-4 mb-6">
         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Select a Kitchen</label>
         <div className="flex items-end gap-3">
           <div className="relative flex-1">
-            <select
-              value={kitchenId}
-              onChange={e => setKitchenId(e.target.value)}
-              className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10"
-            >
+            <select value={kitchenId} onChange={e => setKitchenId(e.target.value)}
+              className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white pr-10">
               <option value="">— Select a kitchen —</option>
               {kitchens.map(k => (
                 <option key={k.id} value={k.id}>
@@ -555,16 +664,12 @@ export default function SponsorProductionRecordsPage() {
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
-
-          {/* Month picker */}
-          <input
-            type="month" value={month} onChange={e => setMonth(e.target.value)}
-            className="px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 flex-shrink-0"
-          />
+          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
+            className="px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 flex-shrink-0" />
         </div>
       </div>
 
-      {/* Kitchen selected — show mode banner */}
+      {/* Mode banner */}
       {selectedKitchen && (
         <div className={`flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium ${
           isEntryMode
@@ -573,36 +678,48 @@ export default function SponsorProductionRecordsPage() {
         }`}>
           {isEntryMode
             ? <><PenLine className="w-4 h-4 flex-shrink-0" /> You manage this kitchen — log production records below.</>
-            : <><Eye className="w-4 h-4 flex-shrink-0" /> This kitchen logs its own records — review submissions below.</>
-          }
+            : <><Eye className="w-4 h-4 flex-shrink-0" /> This kitchen logs its own records — review submissions below.</>}
         </div>
       )}
 
-      {/* Entry form — self-managed kitchens only */}
-      {isEntryMode && (
-        <RecordForm kitchen={selectedKitchen} onSaved={loadRecords} />
-      )}
+      {selectedKitchen ? (
+        <div className={isEntryMode ? 'grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6' : ''}>
+          {/* Left: form + history */}
+          <div>
+            {isEntryMode && (
+              <RecordForm
+                kitchen={selectedKitchen}
+                date={formDate}  setDate={setFormDate}
+                meal={formMeal}  setMeal={setFormMeal}
+                items={formItems} setItems={setFormItems}
+                onSaved={loadRecords}
+              />
+            )}
+            <RecordHistory
+              records={records}
+              loading={recLoading}
+              onDelete={handleDelete}
+              onRefresh={loadRecords}
+            />
+          </div>
 
-      {/* History */}
-      {selectedKitchen && (
-        <RecordHistory
-          records={records}
-          loading={recLoading}
-          onDelete={handleDelete}
-          onRefresh={loadRecords}
-        />
-      )}
-
-      {/* No kitchen selected — prompt */}
-      {!selectedKitchen && kitchens.length > 0 && (
+          {/* Right: previous record sidebar */}
+          {isEntryMode && (
+            <PreviousRecordPanel
+              prevRecord={prevRecord}
+              loading={prevLoading}
+              meal={formMeal}
+              onCopyItem={handleCopyItem}
+              onCopyAll={handleCopyAll}
+            />
+          )}
+        </div>
+      ) : kitchens.length > 0 ? (
         <div className="card py-14 text-center">
           <FileText className="w-8 h-8 text-gray-200 mx-auto mb-3" />
           <p className="text-sm text-gray-500 font-medium">Select a kitchen to view or log production records.</p>
         </div>
-      )}
-
-      {/* No kitchens at all */}
-      {kitchens.length === 0 && (
+      ) : (
         <div className="card py-14 text-center">
           <FileText className="w-8 h-8 text-gray-200 mx-auto mb-3" />
           <p className="text-sm text-gray-500 font-medium">No kitchens yet.</p>
@@ -610,7 +727,6 @@ export default function SponsorProductionRecordsPage() {
         </div>
       )}
 
-      {/* USDA note */}
       <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 mt-6">
         <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-gray-500">
