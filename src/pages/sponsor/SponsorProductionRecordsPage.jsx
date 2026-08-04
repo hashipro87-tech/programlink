@@ -44,7 +44,8 @@ function fmtDate(d) {
 
 // ─── Previous Record Sidebar ──────────────────────────────────────────────────
 
-function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll }) {
+function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll,
+                               yesterdayCount, onCopyYesterday, copyingYesterday, copiedYesterday }) {
   if (loading) return (
     <div className="card p-5 sticky top-6">
       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Previous Record</p>
@@ -76,7 +77,7 @@ function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll 
         </div>
       </div>
 
-      {/* Copy entire meal */}
+      {/* Copy entire meal (this meal type only) */}
       {prevRecord.items?.length > 0 && (
         <button
           onClick={() => onCopyAll(prevRecord.items)}
@@ -84,6 +85,31 @@ function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll 
           <Copy className="w-3.5 h-3.5" /> Copy Entire Meal
         </button>
       )}
+
+      {/* Copy Yesterday — copies ALL meals from yesterday as today's drafts */}
+      <div className="border-t border-gray-100 pt-3 space-y-2">
+        {copiedYesterday && (
+          <div className="flex items-center gap-2 p-2 bg-green-50 rounded-xl border border-green-100">
+            <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+            <p className="text-xs text-green-700 font-semibold">Yesterday's records copied as drafts.</p>
+          </div>
+        )}
+        {yesterdayCount > 0 ? (
+          <>
+            <p className="text-xs text-gray-400">
+              Yesterday had <strong className="text-gray-600">{yesterdayCount} meal record{yesterdayCount !== 1 ? 's' : ''}</strong> — copy all as today's drafts.
+            </p>
+            <button
+              onClick={onCopyYesterday}
+              disabled={copyingYesterday}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-brand-300 text-brand-700 bg-brand-50 hover:bg-brand-100 text-xs font-bold rounded-xl transition-colors disabled:opacity-40">
+              📅 {copyingYesterday ? 'Copying…' : 'Copy Yesterday'}
+            </button>
+          </>
+        ) : (
+          <p className="text-xs text-gray-300 text-center">No records from yesterday to copy.</p>
+        )}
+      </div>
 
       {/* Individual items */}
       {prevRecord.items?.length > 0 ? (
@@ -568,8 +594,10 @@ export default function SponsorProductionRecordsPage() {
   const [formItems, setFormItems] = useState([emptyItem()]);
 
   // Previous record sidebar
-  const [prevRecord,  setPrevRecord]  = useState(null);
-  const [prevLoading, setPrevLoading] = useState(false);
+  const [prevRecord,      setPrevRecord]      = useState(null);
+  const [prevLoading,     setPrevLoading]     = useState(false);
+  const [copyingYesterday, setCopyingYesterday] = useState(false);
+  const [copiedYesterday,  setCopiedYesterday]  = useState(false);
 
   useEffect(() => {
     api.get('/organizations', { params: { type: 'kitchen', limit: 200 } })
@@ -623,6 +651,49 @@ export default function SponsorProductionRecordsPage() {
       component:      i.component || 'other',
       quantity_actual: '',
     })));
+  };
+
+  // Compute yesterday's date relative to the form date
+  const yesterday = (() => {
+    const d = new Date(formDate + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const yesterdayRecords = records.filter(r => String(r.date).slice(0, 10) === yesterday);
+
+  const handleCopyYesterday = async () => {
+    if (!yesterdayRecords.length || !selectedKitchen) return;
+    setCopyingYesterday(true);
+    try {
+      for (const rec of yesterdayRecords) {
+        const { data: full } = await api.get(`/production-records/${rec.id}`);
+        const { data: newRec } = await api.post('/production-records', {
+          org_id:            selectedKitchen.id,
+          date:              formDate,
+          meal_type:         full.meal_type,
+          servings_planned:  full.servings_planned,
+          servings_prepared: 0,   // reset actual — user fills in today's count
+          notes:             null,
+          status:            'draft',
+        });
+        if (newRec.id) {
+          for (const item of full.items || []) {
+            await api.post(`/production-records/${newRec.id}/items`, {
+              food_name: item.food_name,
+              component: item.component || 'other',
+            });
+          }
+        }
+      }
+      loadRecords();
+      setCopiedYesterday(true);
+      setTimeout(() => setCopiedYesterday(false), 4000);
+    } catch {
+      alert('Failed to copy yesterday\'s records.');
+    } finally {
+      setCopyingYesterday(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -711,6 +782,10 @@ export default function SponsorProductionRecordsPage() {
               meal={formMeal}
               onCopyItem={handleCopyItem}
               onCopyAll={handleCopyAll}
+              yesterdayCount={yesterdayRecords.length}
+              onCopyYesterday={handleCopyYesterday}
+              copyingYesterday={copyingYesterday}
+              copiedYesterday={copiedYesterday}
             />
           )}
         </div>
