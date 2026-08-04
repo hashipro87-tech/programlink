@@ -38,7 +38,9 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', {
+  // Postgres may return a full ISO timestamp; take only YYYY-MM-DD
+  const dateStr = String(d).slice(0, 10);
+  return new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
   });
 }
@@ -222,12 +224,46 @@ function RecordForm({ kitchen, onSaved }) {
 
 // ─── Record History ───────────────────────────────────────────────────────────
 
-function RecordHistory({ records, loading, onDelete }) {
+function RecordHistory({ records, loading, onDelete, onRefresh }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editData,  setEditData]  = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startEdit = async (r) => {
+    if (editingId === r.id) { setEditingId(null); return; }
+    try {
+      const { data } = await api.get(`/production-records/${r.id}`);
+      setEditData({
+        planned: String(data.servings_planned || ''),
+        actual:  String(data.servings_prepared || ''),
+        notes:   data.notes || '',
+        complete: data.status === 'complete',
+      });
+      setEditingId(r.id);
+    } catch { /* ignore */ }
+  };
+
+  const saveEdit = async (id) => {
+    setEditSaving(true);
+    try {
+      await api.put(`/production-records/${id}`, {
+        servings_planned:  parseInt(editData.planned)  || 0,
+        servings_prepared: parseInt(editData.actual)   || 0,
+        notes:  editData.notes || null,
+        status: editData.complete ? 'complete' : 'draft',
+      });
+      setEditingId(null);
+      onRefresh();
+    } catch { alert('Failed to save changes.'); }
+    finally { setEditSaving(false); }
+  };
+
   // Group by date
   const byDate = {};
   for (const r of records) {
-    if (!byDate[r.date]) byDate[r.date] = [];
-    byDate[r.date].push(r);
+    const key = String(r.date).slice(0, 10);
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(r);
   }
   const dates = Object.keys(byDate).sort().reverse();
 
@@ -253,27 +289,88 @@ function RecordHistory({ records, loading, onDelete }) {
           <p className="text-xs font-semibold text-gray-400 mb-2">{fmtDate(date)}</p>
           <div className="space-y-2">
             {byDate[date].map(r => (
-              <div key={r.id} className="flex items-center gap-3">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${MEAL_COLOR[r.meal_type] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                  {mealLabel(r.meal_type)}
-                </span>
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  {r.status === 'complete'
-                    ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                    : <Clock className="w-3.5 h-3.5 text-amber-400" />}
-                  <span className={r.status === 'complete' ? 'text-green-600 font-semibold' : 'text-amber-600'}>
-                    {r.status === 'complete' ? 'Complete' : 'Draft'}
+              <div key={r.id}>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${MEAL_COLOR[r.meal_type] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                    {mealLabel(r.meal_type)}
                   </span>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    {r.status === 'complete'
+                      ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                      : <Clock className="w-3.5 h-3.5 text-amber-400" />}
+                    <span className={r.status === 'complete' ? 'text-green-600 font-semibold' : 'text-amber-600'}>
+                      {r.status === 'complete' ? 'Complete' : 'Draft'}
+                    </span>
+                  </div>
+                  {r.servings_prepared > 0 && (
+                    <span className="text-xs text-gray-400">{r.servings_prepared} served</span>
+                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={() => startEdit(r)}
+                      className="text-gray-300 hover:text-brand-500 transition-colors"
+                      title="Edit record">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(r.id)}
+                      className="text-gray-200 hover:text-red-400 transition-colors"
+                      title="Delete record">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                {r.servings_prepared > 0 && (
-                  <span className="text-xs text-gray-400">{r.servings_prepared} served</span>
+
+                {/* Inline edit panel */}
+                {editingId === r.id && editData && (
+                  <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Planned</label>
+                        <input type="number" min="0" value={editData.planned}
+                          onChange={e => setEditData(p => ({ ...p, planned: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Actual</label>
+                        <input type="number" min="0" value={editData.actual}
+                          onChange={e => setEditData(p => ({ ...p, actual: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Leftovers</label>
+                        <div className="w-full px-3 py-2 border border-gray-100 rounded-xl text-sm text-gray-400 bg-white">
+                          {editData.planned && editData.actual
+                            ? Math.max(0, parseInt(editData.planned) - parseInt(editData.actual))
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Notes</label>
+                      <input type="text" value={editData.notes}
+                        onChange={e => setEditData(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Substitutions, issues…"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
+                        <input type="checkbox" checked={editData.complete}
+                          onChange={e => setEditData(p => ({ ...p, complete: e.target.checked }))}
+                          className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                        Mark as complete
+                      </label>
+                      <button onClick={() => setEditingId(null)}
+                        className="px-4 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-100">
+                        Cancel
+                      </button>
+                      <button onClick={() => saveEdit(r.id)} disabled={editSaving}
+                        className="px-4 py-1.5 text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl disabled:opacity-40">
+                        {editSaving ? 'Saving…' : 'Save Changes'}
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <button
-                  onClick={() => onDelete(r.id)}
-                  className="ml-auto text-gray-200 hover:text-red-400 transition-colors"
-                  title="Delete record">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
               </div>
             ))}
           </div>
@@ -399,6 +496,7 @@ export default function SponsorProductionRecordsPage() {
           records={records}
           loading={recLoading}
           onDelete={handleDelete}
+          onRefresh={loadRecords}
         />
       )}
 
