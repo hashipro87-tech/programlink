@@ -234,10 +234,16 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
     try {
       const { data } = await api.get(`/production-records/${r.id}`);
       setEditData({
-        planned: String(data.servings_planned || ''),
-        actual:  String(data.servings_prepared || ''),
-        notes:   data.notes || '',
+        planned:  String(data.servings_planned  || ''),
+        actual:   String(data.servings_prepared || ''),
+        notes:    data.notes || '',
         complete: data.status === 'complete',
+        items:    (data.items || []).map(i => ({
+          id:             i.id,
+          food_name:      i.food_name || '',
+          component:      i.component || 'other',
+          quantity_actual: String(i.quantity_actual || ''),
+        })),
       });
       setEditingId(r.id);
     } catch { /* ignore */ }
@@ -246,17 +252,38 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
   const saveEdit = async (id) => {
     setEditSaving(true);
     try {
+      // 1. Update servings / notes / status
       await api.put(`/production-records/${id}`, {
         servings_planned:  parseInt(editData.planned)  || 0,
         servings_prepared: parseInt(editData.actual)   || 0,
         notes:  editData.notes || null,
         status: editData.complete ? 'complete' : 'draft',
       });
+      // 2. Delete existing items then re-add (replaces them cleanly)
+      for (const item of editData.items.filter(i => i.id)) {
+        await api.delete(`/production-records/items/${item.id}`);
+      }
+      for (const item of editData.items.filter(i => i.food_name.trim())) {
+        await api.post(`/production-records/${id}/items`, {
+          food_name:       item.food_name.trim(),
+          component:       item.component,
+          quantity_actual: item.quantity_actual || null,
+        });
+      }
       setEditingId(null);
       onRefresh();
     } catch { alert('Failed to save changes.'); }
     finally { setEditSaving(false); }
   };
+
+  const updateEditItem = (i, field, val) =>
+    setEditData(p => ({ ...p, items: p.items.map((it, idx) => idx === i ? { ...it, [field]: val } : it) }));
+
+  const addEditItem = () =>
+    setEditData(p => ({ ...p, items: [...p.items, { food_name: '', component: 'other', quantity_actual: '' }] }));
+
+  const removeEditItem = (i) =>
+    setEditData(p => ({ ...p, items: p.items.filter((_, idx) => idx !== i) }));
 
   // Group by date
   const byDate = {};
@@ -321,21 +348,60 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                   </div>
                 </div>
 
+                {/* Food items summary — always visible */}
+                {r.food_items_summary && (
+                  <p className="mt-1 text-xs text-gray-400 pl-1">{r.food_items_summary}</p>
+                )}
+
                 {/* Inline edit panel */}
                 {editingId === r.id && editData && (
-                  <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                  <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
+
+                    {/* Food items */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Menu Items</label>
+                        <button onClick={addEditItem}
+                          className="text-xs text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
+                          <Plus className="w-3 h-3" /> Add item
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {editData.items.map((it, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input type="text" value={it.food_name} placeholder="Food name"
+                              onChange={e => updateEditItem(i, 'food_name', e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
+                            <select value={it.component} onChange={e => updateEditItem(i, 'component', e.target.value)}
+                              className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 capitalize">
+                              {COMPONENTS.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <input type="text" value={it.quantity_actual} placeholder="Qty"
+                              onChange={e => updateEditItem(i, 'quantity_actual', e.target.value)}
+                              className="w-16 px-2 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
+                            <button onClick={() => removeEditItem(i)}
+                              className="text-gray-300 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        ))}
+                        {editData.items.length === 0 && (
+                          <p className="text-xs text-gray-400 italic">No items — click Add item to add one.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Servings */}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Planned</label>
                         <input type="number" min="0" value={editData.planned}
                           onChange={e => setEditData(p => ({ ...p, planned: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Actual</label>
                         <input type="number" min="0" value={editData.actual}
                           onChange={e => setEditData(p => ({ ...p, actual: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Leftovers</label>
@@ -346,13 +412,18 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                         </div>
                       </div>
                     </div>
+
+                    {/* Notes */}
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Notes</label>
                       <input type="text" value={editData.notes}
                         onChange={e => setEditData(p => ({ ...p, notes: e.target.value }))}
                         placeholder="Substitutions, issues…"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                     </div>
+
+                    <p className="text-xs text-gray-400">To change the date or meal type, delete this record and create a new one.</p>
+
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
                         <input type="checkbox" checked={editData.complete}

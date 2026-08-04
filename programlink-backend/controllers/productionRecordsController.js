@@ -60,7 +60,9 @@ async function listRecords(req, res) {
         pr.*,
         o.name AS org_name,
         o.type AS org_type,
-        (SELECT COUNT(*) FROM production_record_items WHERE record_id = pr.id) AS item_count
+        (SELECT COUNT(*) FROM production_record_items WHERE record_id = pr.id) AS item_count,
+        (SELECT string_agg(food_name, ', ' ORDER BY sort_order, created_at)
+         FROM production_record_items WHERE record_id = pr.id) AS food_items_summary
       FROM production_records pr
       JOIN organizations o ON o.id = pr.org_id
       WHERE ${orgFilter} ${dateFilter}
