@@ -40,8 +40,12 @@ const ROLE_DASHBOARD = {
 
 function PrivateRoute({ children, roles }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const destination = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirectTo=${destination}`} replace />;
+  }
   if (roles && !roles.includes(user.role) && user.role !== 'admin') return <Navigate to={ROLE_DASHBOARD[user.role] ?? '/login'} replace />;
   return children;
 }

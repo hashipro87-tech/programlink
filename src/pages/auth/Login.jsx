@@ -2,7 +2,7 @@
 // After login, users are automatically routed to their role-specific dashboard
 
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 // Maps each role to its dashboard path
@@ -18,6 +18,7 @@ const ROLE_ROUTES = {
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -31,9 +32,13 @@ export default function Login() {
 
     try {
       const user = await login(email, password);
-      // Route to the correct dashboard based on the user's role
-      const destination = ROLE_ROUTES[user.role] || '/dashboard';
-      navigate(destination, { replace: true });
+      // If a deep link brought them here, send them back after login
+      const redirectTo = searchParams.get('redirectTo');
+      if (redirectTo) {
+        navigate(decodeURIComponent(redirectTo), { replace: true });
+      } else {
+        navigate(ROLE_ROUTES[user.role] || '/dashboard', { replace: true });
+      }
     } catch (err) {
       // If email isn't verified, send them to CheckEmailPage with a resend button
       if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
