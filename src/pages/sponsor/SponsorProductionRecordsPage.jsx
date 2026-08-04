@@ -80,7 +80,7 @@ function RecordForm({ kitchen, onSaved }) {
         notes: [prepBy ? `Prepared by: ${prepBy}` : '', notes].filter(Boolean).join('\n') || null,
         status: markDone ? 'complete' : 'draft',
       });
-      const recordId = data.record?.id;
+      const recordId = data.id;
       if (recordId) {
         for (const it of items.filter(i => i.food_name.trim())) {
           await api.post(`/production-records/${recordId}/items`, {
