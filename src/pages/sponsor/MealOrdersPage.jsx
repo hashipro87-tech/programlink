@@ -124,8 +124,9 @@ function StopRow({ stop, status }) {
 
       {/* Count + meal type */}
       <span className="text-sm text-gray-700 font-medium flex-shrink-0">
-        {stop.meal_count} {mealLabel(stop.meal_type)}
-        {stop.meal_count === 1 ? '' : 's'}
+        {stop.meal_count} {stop.meal_count === 1
+          ? mealLabel(stop.meal_type)
+          : (MEAL_TYPES.find(m => m.value === stop.meal_type)?.plural ?? mealLabel(stop.meal_type) + 's')}
       </span>
 
       {/* Pickup time */}
