@@ -13,11 +13,11 @@ import api from '../../services/api';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MEAL_TYPES = [
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'am_snack',  label: 'AM Snack' },
-  { value: 'lunch',     label: 'Lunch' },
-  { value: 'pm_snack',  label: 'PM Snack' },
-  { value: 'dinner',    label: 'Dinner' },
+  { value: 'breakfast', label: 'Breakfast', plural: 'Breakfasts' },
+  { value: 'am_snack',  label: 'AM Snack',  plural: 'AM Snacks' },
+  { value: 'lunch',     label: 'Lunch',     plural: 'Lunches' },
+  { value: 'pm_snack',  label: 'PM Snack',  plural: 'PM Snacks' },
+  { value: 'dinner',    label: 'Dinner',    plural: 'Dinners' },
 ];
 
 const STATUS_CFG = {
@@ -41,15 +41,16 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-/** Pretty date label for a YYYY-MM-DD string */
+/** Pretty date label for a YYYY-MM-DD string (or full ISO timestamp) */
 function dateLabel(iso) {
   if (!iso) return '—';
+  const s = String(iso).slice(0, 10);
   const t = today();
   const tm = tomorrow();
-  if (iso === t)  return 'Today';
-  if (iso === tm) return 'Tomorrow';
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
+  if (s === t)  return 'Today';
+  if (s === tm) return 'Tomorrow';
+  return new Date(s + 'T00:00:00Z').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 }
 
@@ -73,7 +74,7 @@ function mealLabel(value) {
 function groupByDateKitchen(routes) {
   const map = {};
   for (const route of routes) {
-    const d = route.date ?? 'unknown';
+    const d = String(route.date ?? 'unknown').slice(0, 10);
     if (!map[d]) map[d] = {};
     const kid = route.delivery_provider_id ?? 'unknown';
     if (!map[d][kid]) {
@@ -354,14 +355,14 @@ function AddDeliveryModal({ kitchens, sites, onClose, onCreated }) {
                                focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
                     {MEAL_TYPES.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}s</option>
+                      <option key={m.value} value={m.value}>{m.label}</option>
                     ))}
                   </select>
                 </div>
                 {/* Natural language preview */}
                 {form.site_id && form.meal_count && (
                   <p className="text-xs text-brand-600 mt-2 font-medium">
-                    {selectedSite?.name} needs {form.meal_count} {mealLabel(form.meal_type).toLowerCase()}s
+                    {selectedSite?.name} needs {form.meal_count} {(MEAL_TYPES.find(m => m.value === form.meal_type)?.plural ?? mealLabel(form.meal_type)).toLowerCase()}
                   </p>
                 )}
               </div>
@@ -383,7 +384,7 @@ function AddDeliveryModal({ kitchens, sites, onClose, onCreated }) {
               {/* Summary of step 1 */}
               <div className="bg-brand-50 border border-brand-100 rounded-xl px-4 py-3">
                 <p className="text-sm font-semibold text-brand-800">
-                  {selectedSite?.name} · {form.meal_count} {mealLabel(form.meal_type).toLowerCase()}s
+                  {selectedSite?.name} · {form.meal_count} {(MEAL_TYPES.find(m => m.value === form.meal_type)?.plural ?? mealLabel(form.meal_type)).toLowerCase()}
                 </p>
                 <button
                   type="button"
