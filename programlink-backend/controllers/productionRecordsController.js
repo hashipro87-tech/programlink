@@ -146,7 +146,7 @@ async function updateRecord(req, res) {
   try {
     const { id } = req.params;
     const { organizationId, role } = req.user;
-    const { servings_planned, servings_prepared, notes, status } = req.body;
+    const { date, meal_type, servings_planned, servings_prepared, notes, status } = req.body;
 
     // Ownership check
     const own = await pool.query(`SELECT org_id FROM production_records WHERE id = $1`, [id]);
@@ -158,14 +158,16 @@ async function updateRecord(req, res) {
     const { rows } = await pool.query(`
       UPDATE production_records
       SET
-        servings_planned  = COALESCE($1, servings_planned),
-        servings_prepared = COALESCE($2, servings_prepared),
-        notes             = COALESCE($3, notes),
-        status            = COALESCE($4, status),
+        date              = COALESCE($1, date),
+        meal_type         = COALESCE($2, meal_type),
+        servings_planned  = COALESCE($3, servings_planned),
+        servings_prepared = COALESCE($4, servings_prepared),
+        notes             = COALESCE($5, notes),
+        status            = COALESCE($6, status),
         updated_at        = NOW()
-      WHERE id = $5
+      WHERE id = $7
       RETURNING *
-    `, [servings_planned ?? null, servings_prepared ?? null, notes ?? null, status ?? null, id]);
+    `, [date ?? null, meal_type ?? null, servings_planned ?? null, servings_prepared ?? null, notes ?? null, status ?? null, id]);
 
     res.json(rows[0]);
   } catch (err) {

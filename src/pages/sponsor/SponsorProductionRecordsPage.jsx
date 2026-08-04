@@ -234,6 +234,8 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
     try {
       const { data } = await api.get(`/production-records/${r.id}`);
       setEditData({
+        date:     String(data.date).slice(0, 10),
+        meal:     data.meal_type || 'breakfast',
         planned:  String(data.servings_planned  || ''),
         actual:   String(data.servings_prepared || ''),
         notes:    data.notes || '',
@@ -252,8 +254,10 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
   const saveEdit = async (id) => {
     setEditSaving(true);
     try {
-      // 1. Update servings / notes / status
+      // 1. Update date / meal / servings / notes / status
       await api.put(`/production-records/${id}`, {
+        date:              editData.date     || null,
+        meal_type:         editData.meal     || null,
         servings_planned:  parseInt(editData.planned)  || 0,
         servings_prepared: parseInt(editData.actual)   || 0,
         notes:  editData.notes || null,
@@ -357,6 +361,26 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                 {editingId === r.id && editData && (
                   <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
 
+                    {/* Date + Meal type */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Date</label>
+                        <input type="date" value={editData.date}
+                          onChange={e => setEditData(p => ({ ...p, date: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Meal</label>
+                        <select value={editData.meal}
+                          onChange={e => setEditData(p => ({ ...p, meal: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                          {MEAL_TYPES.map(m => (
+                            <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Food items */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -421,8 +445,6 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                         placeholder="Substitutions, issues…"
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                     </div>
-
-                    <p className="text-xs text-gray-400">To change the date or meal type, delete this record and create a new one.</p>
 
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
