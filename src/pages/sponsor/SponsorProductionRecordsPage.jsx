@@ -19,7 +19,15 @@ const MEAL_TYPES = [
   { key: 'supper',    label: 'Supper',    emoji: '🍽️' },
 ];
 
-const COMPONENTS = ['grain', 'protein', 'fruit', 'vegetable', 'dairy', 'other'];
+const COMPONENTS = ['grain', 'meat/alt', 'fruit', 'vegetable', 'dairy', 'other'];
+const COMPONENT_LABEL = {
+  'grain':     'Grain',
+  'meat/alt':  'Meat/Alt',
+  'fruit':     'Fruit',
+  'vegetable': 'Vegetable',
+  'dairy':     'Dairy',
+  'other':     'Other',
+};
 
 const MEAL_COLOR = {
   breakfast: 'bg-orange-100 text-orange-700 border-orange-200',
@@ -119,7 +127,7 @@ function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll,
             <div key={i} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-700 truncate">{item.food_name}</p>
-                <p className="text-xs text-gray-400 capitalize">{item.component}</p>
+                <p className="text-xs text-gray-400">{COMPONENT_LABEL[item.component] || item.component}</p>
               </div>
               <button
                 onClick={() => onCopyItem(item)}
@@ -282,7 +290,7 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
               <select value={it.component} onChange={e => updateItem(i, 'component', e.target.value)}
                 className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 capitalize">
-                {COMPONENTS.map(c => <option key={c} value={c}>{c}</option>)}
+                {COMPONENTS.map(c => <option key={c} value={c}>{COMPONENT_LABEL[c]}</option>)}
               </select>
               <input type="text" value={it.quantity_actual} placeholder="Qty"
                 onChange={e => updateItem(i, 'quantity_actual', e.target.value)}
@@ -388,7 +396,7 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
                     className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
                   <div>
                     <p className="text-sm font-medium text-gray-800">{item.food_name}</p>
-                    <p className="text-xs text-gray-400 capitalize">{item.component}</p>
+                    <p className="text-xs text-gray-400">{COMPONENT_LABEL[item.component] || item.component}</p>
                   </div>
                 </label>
               ))}
@@ -578,7 +586,7 @@ function RecordHistory({ records, loading, onDelete, onRefresh }) {
                               className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
                             <select value={it.component} onChange={e => updateEditItem(i, 'component', e.target.value)}
                               className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none capitalize">
-                              {COMPONENTS.map(c => <option key={c} value={c}>{c}</option>)}
+                              {COMPONENTS.map(c => <option key={c} value={c}>{COMPONENT_LABEL[c]}</option>)}
                             </select>
                             <input type="text" value={it.quantity_actual} placeholder="Qty"
                               onChange={e => updateEditItem(i, 'quantity_actual', e.target.value)}
