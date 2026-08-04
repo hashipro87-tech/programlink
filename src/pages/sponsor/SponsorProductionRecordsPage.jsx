@@ -147,21 +147,26 @@ function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll,
 
 function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, onSaved }) {
   const today = todayISO();
-  const [planned,  setPlanned]  = useState('');
-  const [actual,   setActual]   = useState('');
-  const [prepBy,   setPrepBy]   = useState('');
-  const [notes,    setNotes]    = useState('');
-  const [markDone, setMarkDone] = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [saved,    setSaved]    = useState(false);
-  const [filling,  setFilling]  = useState(false);
-  const [error,    setError]    = useState('');
+  const [planned,      setPlanned]      = useState('');
+  const [actual,       setActual]       = useState('');
+  const [prepBy,       setPrepBy]       = useState('');
+  const [notes,        setNotes]        = useState('');
+  const [markDone,     setMarkDone]     = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [saved,        setSaved]        = useState(false);
+  const [filling,      setFilling]      = useState(false);
+  const [error,        setError]        = useState('');
+  // Auto-fill preview modal
+  const [fillModal,    setFillModal]    = useState(null); // array of items when open
+  const [fillSelected, setFillSelected] = useState({});
+  const [fillPlanned,  setFillPlanned]  = useState('');
 
   const leftovers = Math.max(0, (parseInt(planned) || 0) - (parseInt(actual) || 0));
 
   const updateItem = (i, field, val) =>
     setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
 
+  // Auto-fill: fetch items then show preview modal
   const handleAutoFill = async () => {
     setFilling(true); setError('');
     try {
@@ -169,11 +174,14 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
         org_id: kitchen.id, date, meal_type: meal,
       });
       if (data.items?.length) {
-        setItems(data.items.map(i => ({
+        const mapped = data.items.map(i => ({
           food_name:      i.food_name,
           component:      i.component || 'other',
           quantity_actual: '',
-        })));
+        }));
+        setFillModal(mapped);
+        setFillSelected(Object.fromEntries(mapped.map((_, i) => [i, true])));
+        setFillPlanned(planned || '');
       } else {
         setError('No menu items found for this date and meal. Build a menu first.');
       }
@@ -184,7 +192,16 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
     }
   };
 
-  const handleSave = async () => {
+  // Apply selected items from preview modal
+  const handleFillDone = () => {
+    const selected = fillModal.filter((_, i) => fillSelected[i] !== false);
+    setItems(selected.length ? selected : [emptyItem()]);
+    if (fillPlanned) setPlanned(fillPlanned);
+    setFillModal(null);
+  };
+
+  // Save with explicit status ('draft' or 'complete')
+  const handleSave = async (status = 'draft') => {
     setError(''); setSaving(true); setSaved(false);
     try {
       const { data } = await api.post('/production-records', {
@@ -194,7 +211,7 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
         servings_planned:  parseInt(planned) || 0,
         servings_prepared: parseInt(actual)  || 0,
         notes: [prepBy ? `Prepared by: ${prepBy}` : '', notes].filter(Boolean).join('\n') || null,
-        status: markDone ? 'complete' : 'draft',
+        status,
       });
       const recordId = data.id;
       if (recordId) {
@@ -327,17 +344,80 @@ function RecordForm({ kitchen, date, setDate, meal, setMeal, items, setItems, on
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer mr-auto">
+      {/* Action bar */}
+      <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" checked={markDone} onChange={e => setMarkDone(e.target.checked)}
             className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
-          Mark as complete
+          <span className={markDone ? 'text-green-600 font-semibold' : 'text-gray-600'}>
+            {markDone ? '✓ Ready to Complete' : 'Mark Complete'}
+          </span>
         </label>
-        <button onClick={handleSave} disabled={saving}
-          className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40">
-          {saving ? 'Saving…' : markDone ? 'Submit' : 'Save Draft'}
-        </button>
+        <div className="flex gap-2 ml-auto">
+          <button onClick={() => handleSave('draft')} disabled={saving}
+            className="px-4 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-xl text-sm transition-colors disabled:opacity-40">
+            {saving ? 'Saving…' : 'Save Draft'}
+          </button>
+          <button onClick={() => handleSave('complete')} disabled={saving}
+            className={`px-5 py-2 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-40 ${
+              markDone
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-brand-600 hover:bg-brand-700'
+            }`}>
+            {saving ? 'Saving…' : markDone ? 'Complete' : 'Complete Record'}
+          </button>
+        </div>
       </div>
+
+      {/* Auto-fill preview modal */}
+      {fillModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-base font-bold text-gray-900 mb-0.5">Auto-fill today's planned menu?</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              {mealLabel(meal)} — {fmtDate(date)}
+            </p>
+
+            <div className="space-y-1 mb-5">
+              {fillModal.map((item, i) => (
+                <label key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={fillSelected[i] !== false}
+                    onChange={e => setFillSelected(p => ({ ...p, [i]: e.target.checked }))}
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{item.food_name}</p>
+                    <p className="text-xs text-gray-400 capitalize">{item.component}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">
+                Planned Count
+              </label>
+              <input
+                type="number" min="0" value={fillPlanned}
+                onChange={e => setFillPlanned(e.target.value)}
+                placeholder="40"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setFillModal(null)}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={handleFillDone}
+                className="flex-1 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
