@@ -301,6 +301,7 @@ function TodayDeliveriesTab({ date, onDateChange }) {
   const [loading, setLoading]         = useState(true);
   const [notifyingAll, setNotifyingAll] = useState(false);
   const [notifyDone, setNotifyDone]   = useState(false);
+  const [nextDate, setNextDate]       = useState(null); // nearest future delivery date
 
   const load = useCallback(() => {
     setLoading(true);
@@ -311,6 +312,32 @@ function TodayDeliveriesTab({ date, onDateChange }) {
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
+
+  // When no deliveries today, find the next date that has a scheduled delivery
+  useEffect(() => {
+    if (loading || deliveries.length > 0) { setNextDate(null); return; }
+    api.get('/delivery-plans').then(({ data }) => {
+      const plans = (data.plans ?? []).filter((p) => p.active);
+      if (!plans.length) { setNextDate(null); return; }
+
+      const DAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+      const cur = new Date(date + 'T00:00:00');
+
+      // Search up to 60 days ahead for the nearest match
+      for (let i = 1; i <= 60; i++) {
+        const d = new Date(cur); d.setDate(d.getDate() + i);
+        const dayName = DAY_KEYS[d.getDay()];
+        const iso = d.toISOString().split('T')[0];
+        const hit = plans.find((p) => {
+          const start = p.start_date?.slice(0,10) ?? '0000-00-00';
+          const end   = p.end_date?.slice(0,10)   ?? '9999-12-31';
+          return iso >= start && iso <= end && (p.days_of_week ?? []).includes(dayName);
+        });
+        if (hit) { setNextDate(iso); return; }
+      }
+      setNextDate(null);
+    }).catch(() => setNextDate(null));
+  }, [loading, deliveries.length, date]);
 
   const handleUpdate = (instanceId, updated) => {
     setDeliveries((prev) =>
@@ -354,9 +381,21 @@ function TodayDeliveriesTab({ date, onDateChange }) {
         <p className="font-bold text-gray-700 mb-1">
           {isToday ? 'No deliveries scheduled for today' : `No deliveries on ${formatDateLong(date)}`}
         </p>
-        <p className="text-sm text-gray-400 mb-6 max-w-xs mx-auto">
-          Deliveries are generated automatically from your delivery schedules. Set one up to get started.
-        </p>
+        {nextDate ? (
+          <div className="mt-3">
+            <p className="text-sm text-gray-500 mb-3">
+              Your next scheduled delivery is <span className="font-semibold text-gray-700">{formatDateLong(nextDate)}</span>.
+            </p>
+            <button onClick={() => onDateChange(nextDate)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors">
+              Jump to {formatDateLong(nextDate)} →
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 mt-2 max-w-xs mx-auto">
+            Deliveries are generated automatically from your delivery schedules. Set one up to get started.
+          </p>
+        )}
       </div>
     );
   }
