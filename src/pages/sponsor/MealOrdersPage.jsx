@@ -812,6 +812,7 @@ function DayBadges({ days }) {
 
 function PlanCard({ plan, onEdit, onToggle, onDelete, deleting }) {
   const totalM = MEAL_KEYS.reduce((s, k) => s + (plan[k] ?? 0), 0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <div className={`card px-5 py-4 ${!plan.active ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between gap-4">
@@ -842,9 +843,20 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, deleting }) {
           <button onClick={onToggle} className="p-2 hover:bg-gray-100 rounded-lg">
             {plan.active ? <PauseCircle className="w-4 h-4 text-yellow-500" /> : <PlayCircle className="w-4 h-4 text-green-500" />}
           </button>
-          <button onClick={onDelete} disabled={deleting} className="p-2 hover:bg-red-50 rounded-lg">
-            <Trash2 className={`w-4 h-4 ${deleting ? 'text-gray-300' : 'text-red-400'}`} />
-          </button>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-red-600 font-semibold">Delete schedule?</span>
+              <button onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={deleting}
+                className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-lg">
+                {deleting ? '…' : 'Yes'}
+              </button>
+              <button onClick={() => setConfirmDelete(false)} className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg">No</button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)} disabled={deleting} className="p-2 hover:bg-red-50 rounded-lg" title="Delete schedule">
+              <Trash2 className={`w-4 h-4 ${deleting ? 'text-gray-300' : 'text-red-400'}`} />
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -122,14 +122,30 @@ exports.updatePlan = async (req, res) => {
   }
 };
 
-// ─── Delete (deactivate) plan ─────────────────────────────────────────────────
+// ─── Delete plan ──────────────────────────────────────────────────────────────
+// Hard-deletes the plan + all future (non-delivered) instances.
+// Delivered instances are kept for records.
 exports.deletePlan = async (req, res) => {
   try {
     const sponsorId = req.user.organizationId;
-    await pool.query(
-      `UPDATE delivery_plans SET active = FALSE, updated_at = NOW() WHERE id = $1 AND sponsor_id = $2`,
-      [req.params.id, sponsorId]
+    const planId = req.params.id;
+
+    // Verify ownership
+    const { rows } = await pool.query(
+      `SELECT id FROM delivery_plans WHERE id = $1 AND sponsor_id = $2`,
+      [planId, sponsorId]
     );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found.' });
+
+    // Delete future instances (keep delivered ones for audit trail)
+    await pool.query(
+      `DELETE FROM delivery_instances WHERE plan_id = $1 AND status NOT IN ('delivered')`,
+      [planId]
+    );
+
+    // Delete the plan itself
+    await pool.query(`DELETE FROM delivery_plans WHERE id = $1`, [planId]);
+
     res.json({ success: true });
   } catch (err) {
     console.error('deletePlan error:', err);
