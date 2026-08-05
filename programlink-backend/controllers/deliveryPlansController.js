@@ -44,6 +44,11 @@ exports.createPlan = async (req, res) => {
       return res.status(400).json({ error: 'site_id, days_of_week, and start_date are required.' });
     }
 
+    // arrival_time: use explicit value, or derive from earliest per-meal time, or default to 09:00
+    const effectiveArrivalTime = arrival_time
+      || [breakfast_time, lunch_time, snack_time, supper_time].filter(Boolean).sort()[0]
+      || '09:00';
+
     const { rows } = await pool.query(`
       INSERT INTO delivery_plans
         (sponsor_id, site_id, kitchen_id, name, days_of_week, arrival_time,
@@ -53,7 +58,7 @@ exports.createPlan = async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING *
     `, [sponsorId, site_id, kitchen_id || null, name || null,
-        days_of_week, arrival_time || null,
+        days_of_week, effectiveArrivalTime,
         breakfast, lunch, snack, supper,
         breakfast_time || null, lunch_time || null, snack_time || null, supper_time || null,
         start_date, end_date || null, auto_notify]);
@@ -524,6 +529,8 @@ exports.bulkCreatePlans = async (req, res) => {
     if (!days_of_week?.length) return res.status(400).json({ error: 'days_of_week is required.' });
     if (!start_date)           return res.status(400).json({ error: 'start_date is required.' });
 
+    const effectiveArrivalTime = [breakfast_time, lunch_time, snack_time, supper_time].filter(Boolean).sort()[0] || '09:00';
+
     const created = [];
 
     for (const siteId of site_ids) {
@@ -534,14 +541,14 @@ exports.bulkCreatePlans = async (req, res) => {
 
       const { rows } = await pool.query(`
         INSERT INTO delivery_plans
-          (sponsor_id, site_id, kitchen_id, name, days_of_week,
+          (sponsor_id, site_id, kitchen_id, name, days_of_week, arrival_time,
            breakfast, lunch, snack, supper,
            breakfast_time, lunch_time, snack_time, supper_time,
            start_date, end_date, auto_notify)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         RETURNING *
       `, [sponsorId, siteId, kitchen_id || null, planName,
-          days_of_week,
+          days_of_week, effectiveArrivalTime,
           breakfast, lunch, snack, supper,
           breakfast_time || null, lunch_time || null, snack_time || null, supper_time || null,
           start_date, end_date || null, auto_notify]);
