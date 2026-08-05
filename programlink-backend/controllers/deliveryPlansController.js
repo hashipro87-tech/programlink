@@ -251,6 +251,8 @@ exports.getTodayDeliveries = async (req, res) => {
       LEFT JOIN organizations k ON k.id = dp.kitchen_id
       WHERE dp.sponsor_id = $1
         AND di.date = $2
+        AND di.date >= dp.start_date
+        AND (dp.end_date IS NULL OR di.date <= dp.end_date)
       ORDER BY dp.arrival_time ASC NULLS LAST, s.name ASC
     `, [sponsorId, date]);
 
