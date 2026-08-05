@@ -167,6 +167,32 @@ These are features no other CACFP platform has. Build them once real sponsor fee
 
 > Work on these after landing a few paying/pilot sponsors. Build based on their feedback.
 
+### Deliveries UX Consolidation (Task #160) — ✅ BUILT 2026-08-05
+Merged "Deliveries" and "Delivery Plans" into a single nav item with two tabs. Sponsors think "check today's deliveries" not "manage delivery plans."
+
+**UI:** Single "Deliveries" nav item → two tabs inside:
+- **Scheduled Routes** (currently Delivery Plans) — recurring templates: Kitchen A → Sunshine Daycare, Lunch, Mon–Fri, 11:30 AM, Active
+- **One-Time Deliveries** (currently Deliveries) — exceptions and one-offs
+
+**Add Delivery modal** gets a "How often?" step at the start:
+- ○ One time → creates a delivery route (current flow)
+- ○ Repeat every weekday / Weekly / Monthly → creates a delivery plan (current DeliveryPlansPage flow)
+Recurrence becomes a property of a delivery, not a separate concept.
+
+**Dashboard stat card changes:**
+```
+Deliveries
+Today's Deliveries: 12
+Recurring Routes: 8
+Exceptions: 1
+```
+
+**Implementation:**
+- Remove "Delivery Plans" from sidebar NAV_ITEMS (keep the route so deep links don't break)
+- MealOrdersPage.jsx: add tab switcher, render DeliveryPlansPage content inside "Scheduled Routes" tab
+- Add "How often?" step 0 to AddDeliveryModal — one-time vs repeat branches to different API calls
+- Note: SponsorDashboard.jsx line 55 already had "Delivery Plans" nav item removed in prep (2026-08-04)
+
 ### Sponsor
 - Activity Feed
 - Notification Center
@@ -756,6 +782,7 @@ Click the query box → Cmd+A → delete → paste SQL → Run.
 | 156 | Meal count spreadsheet import (2026-08-02) — "Import Spreadsheet" button in page header; ImportMealCountsModal component: upload .xlsx/.csv → auto-detect column names (COL_ALIASES map supports 20+ synonyms for date/breakfast/lunch/snack/supper) → preview table with detected columns + site picker → submit all rows via POST /meal-counts; uses SheetJS (already a dep); skips rows with invalid/missing dates; reports ok/skipped count when done. Fixed date parsing to use object-key mode (no XLSX.SSF dependency); moved button next to upload area inside MealEntryPanel; modal skips site picker when site already selected (shows "Importing to: [Site]" badge instead); removed "All Sites" option from site dropdown. Files: src/pages/sponsor/MealCountsPage.jsx | ✅ |
 | 157 | Sponsor can log production records for kitchens (2026-08-02) — "Log for Kitchen" button on SponsorProductionRecordsPage; LogRecordModal: kitchen picker, date, meal type chips, servings field, food items list (food name + component + quantity, add/remove rows), notes, "Mark as complete" checkbox; saves via POST /production-records + POST /production-records/:id/items; page reloads after save; backend already allowed sponsor role for writes; enables workflow where kitchen emails/calls production info and sponsor enters it. Files: src/pages/sponsor/SponsorProductionRecordsPage.jsx | ✅ |
 | 158 | Production Records full redesign (2026-08-02) — kitchen-first layout matching Meal Counts pattern; kitchen selector with "(I'll log records)" vs "(kitchen logs records)" label; mode banner after selection; inline RecordForm: date, meal type dropdown (Breakfast/AM Snack/Lunch/PM Snack/Supper), menu items list (food name + component + qty), Planned/Actual/Leftovers (auto-calc), Prepared By, Notes, Save Draft / Submit; multiple records per day supported (separate by meal_type); RecordHistory grouped by date with meal chip + status badge + delete button; new DELETE /production-records/:id backend endpoint (cascades to items); month picker in header. Files: src/pages/sponsor/SponsorProductionRecordsPage.jsx, programlink-backend/routes/productionRecords.js, programlink-backend/controllers/productionRecordsController.js | ✅ |
+| 160 | Deliveries UX Consolidation (2026-08-05) — merged "Deliveries" + "Delivery Plans" into one nav item with two tabs. MealOrdersPage.jsx fully rewritten: tab bar "Scheduled Routes" | "One-Time Deliveries"; "Add Delivery" modal now starts with "How often?" step 0 — One time → 2-step one-time flow, Recurring schedule → switches to Scheduled Routes tab + opens PlanModal; PlanCard, PlanModal, BulkWizardModal all moved into MealOrdersPage.jsx; "Delivery Plans" nav item removed from SponsorDashboard.jsx NAV_ITEMS (route kept at /delivery-plans for deep link compat). Files: src/pages/sponsor/MealOrdersPage.jsx, src/pages/sponsor/SponsorDashboard.jsx | ✅ |
 | 159 | Production Records polish (2026-08-03) — (1) Date parsing fix: Postgres returns full ISO timestamp; sliced to 10 chars before passing to Date constructor — fixed "Invalid Date" in history; (2) Inline edit: pencil icon per record opens edit panel with date picker, meal type dropdown, food items list (add/remove), planned/actual/notes, Save Changes; (3) Food items save fix: upsertRecord returns data directly not data.record — was data.record?.id → data.id; (4) Food names shown in collapsed history row via food_items_summary subquery in listRecords; (5) Previous Record sidebar: 2-column layout (form left, sidebar right); auto-fetches most recent prior record for the currently selected meal type — switches when user changes meal dropdown; (6) Auto-fill from Menu button → preview modal with item checkboxes (all pre-checked), Planned Count field, Done to apply; (7) Copy Entire Meal from sidebar fills form items; (8) Copy Yesterday: bulk copies all meal records from prior day as today's draft records (iterates yesterdayRecords, fetches full items per record, POSTs new records + items); (9) Redesigned action bar: Mark Complete checkbox (label changes to "✓ Ready to Complete" when checked), Save Draft button (always draft), Complete Record button (always complete, turns green when checkbox checked). Files: SponsorProductionRecordsPage.jsx, productionRecordsController.js (food_items_summary subquery + date/meal_type in updateRecord) | ✅ |
 
 ---

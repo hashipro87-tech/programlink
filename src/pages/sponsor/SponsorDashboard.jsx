@@ -52,7 +52,6 @@ const NAV_ITEMS = [
   { label: 'Meal Counts',         path: '/dashboard/sponsor/meal-counts',          icon: UtensilsCrossed },
   { label: 'Production Records',  path: '/dashboard/sponsor/production-records',   icon: ClipboardList },
   { label: 'Deliveries',          path: '/dashboard/sponsor/meal-orders',           icon: Truck },
-  { label: 'Delivery Plans',      path: '/dashboard/sponsor/delivery-plans',       icon: Repeat },
   { label: 'Menus',               path: '/dashboard/sponsor/menus',                icon: BookOpen },
 
   { sectionLabel: 'Finance' },
