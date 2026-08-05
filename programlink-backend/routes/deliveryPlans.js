@@ -11,6 +11,8 @@ const {
   updateInstance,
   getKitchenProduction,
   bulkCreatePlans,
+  getTodayDeliveries,
+  notifyKitchen,
 } = require('../controllers/deliveryPlansController');
 
 router.use(authenticate);
@@ -22,13 +24,19 @@ router.post('/bulk',      authorizeRoles('sponsor', 'admin'),                   
 router.patch('/:id',      authorizeRoles('sponsor', 'admin'),                         updatePlan);
 router.delete('/:id',     authorizeRoles('sponsor', 'admin'),                         deletePlan);
 
+// Sponsor: today's (or any date's) delivery checklist
+router.get('/today',      authorizeRoles('sponsor', 'admin'),                         getTodayDeliveries);
+
+// Sponsor: manually send today's list to a kitchen
+router.post('/notify-kitchen', authorizeRoles('sponsor', 'admin'),                   notifyKitchen);
+
 // Site: view upcoming delivery schedule from plans
 router.get('/schedule',   authorizeRoles('site', 'coordinator', 'sponsor'),           getSiteSchedule);
 
 // Kitchen: today's production list
 router.get('/production', authorizeRoles('kitchen', 'coordinator', 'sponsor'),        getKitchenProduction);
 
-// Update a single instance (skip, deliver, etc.)
+// Update a single instance (skip, deliver, qty override, etc.)
 router.patch('/instances/:instanceId', updateInstance);
 
 module.exports = router;

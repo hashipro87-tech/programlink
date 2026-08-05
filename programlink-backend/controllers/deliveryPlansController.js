@@ -182,21 +182,141 @@ exports.getSiteSchedule = async (req, res) => {
   }
 };
 
+// ─── Get today's deliveries (sponsor) ────────────────────────────────────────
+// Returns all delivery instances for a given date for this sponsor's plans.
+// Applies qty overrides so the frontend always sees the effective counts.
+exports.getTodayDeliveries = async (req, res) => {
+  try {
+    const sponsorId = req.user.organizationId;
+    const date = req.query.date ?? new Date().toISOString().split('T')[0];
+
+    const { rows } = await pool.query(`
+      SELECT
+        di.id                                                  AS instance_id,
+        di.plan_id,
+        di.date,
+        di.status,
+        di.notes,
+        COALESCE(di.breakfast_override, dp.breakfast)          AS breakfast,
+        COALESCE(di.lunch_override,     dp.lunch)              AS lunch,
+        COALESCE(di.snack_override,     dp.snack)              AS snack,
+        COALESCE(di.supper_override,    dp.supper)             AS supper,
+        dp.breakfast                                           AS plan_breakfast,
+        dp.lunch                                               AS plan_lunch,
+        dp.snack                                               AS plan_snack,
+        dp.supper                                              AS plan_supper,
+        dp.arrival_time,
+        dp.kitchen_id,
+        s.name                                                 AS site_name,
+        k.name                                                 AS kitchen_name
+      FROM delivery_instances di
+      JOIN delivery_plans  dp ON dp.id  = di.plan_id
+      JOIN organizations   s  ON s.id   = dp.site_id
+      LEFT JOIN organizations k ON k.id = dp.kitchen_id
+      WHERE dp.sponsor_id = $1
+        AND di.date = $2
+      ORDER BY dp.arrival_time ASC NULLS LAST, s.name ASC
+    `, [sponsorId, date]);
+
+    res.json({ date, deliveries: rows });
+  } catch (err) {
+    console.error('getTodayDeliveries error:', err);
+    res.status(500).json({ error: 'Failed to fetch deliveries.' });
+  }
+};
+
 // ─── Skip / update a single instance ─────────────────────────────────────────
+// Supports: status, notes, breakfast_override, lunch_override, snack_override, supper_override
+// Only updates fields that are explicitly present in the request body.
+// Send null for an override to clear it (revert to plan value).
 exports.updateInstance = async (req, res) => {
   try {
-    const { status, notes } = req.body;
-    const { rows } = await pool.query(`
-      UPDATE delivery_instances
-      SET status = COALESCE($1, status), notes = COALESCE($2, notes)
-      WHERE id = $3
-      RETURNING *
-    `, [status, notes, req.params.instanceId]);
+    const { status, notes, breakfast_override, lunch_override, snack_override, supper_override } = req.body;
+
+    const setClauses = [];
+    const values     = [];
+    let   i          = 1;
+
+    if (status             !== undefined) { setClauses.push(`status = $${i++}`);             values.push(status); }
+    if (notes              !== undefined) { setClauses.push(`notes = $${i++}`);              values.push(notes); }
+    if (breakfast_override !== undefined) { setClauses.push(`breakfast_override = $${i++}`); values.push(breakfast_override === null ? null : parseInt(breakfast_override)); }
+    if (lunch_override     !== undefined) { setClauses.push(`lunch_override = $${i++}`);     values.push(lunch_override     === null ? null : parseInt(lunch_override)); }
+    if (snack_override     !== undefined) { setClauses.push(`snack_override = $${i++}`);     values.push(snack_override     === null ? null : parseInt(snack_override)); }
+    if (supper_override    !== undefined) { setClauses.push(`supper_override = $${i++}`);    values.push(supper_override    === null ? null : parseInt(supper_override)); }
+
+    if (!setClauses.length) {
+      const { rows } = await pool.query(`SELECT * FROM delivery_instances WHERE id = $1`, [req.params.instanceId]);
+      return res.json({ instance: rows[0] ?? null });
+    }
+
+    values.push(req.params.instanceId);
+    const { rows } = await pool.query(
+      `UPDATE delivery_instances SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`,
+      values
+    );
     if (!rows.length) return res.status(404).json({ error: 'Instance not found.' });
     res.json({ instance: rows[0] });
   } catch (err) {
     console.error('updateInstance error:', err);
     res.status(500).json({ error: 'Failed to update instance.' });
+  }
+};
+
+// ─── Notify kitchen for a date ────────────────────────────────────────────────
+// Sponsor sends today's delivery list to a kitchen manually (not the auto cron).
+exports.notifyKitchen = async (req, res) => {
+  try {
+    const { kitchen_id, date } = req.body;
+    if (!kitchen_id || !date) return res.status(400).json({ error: 'kitchen_id and date are required.' });
+
+    const { rows } = await pool.query(`
+      SELECT
+        s.name                                          AS site_name,
+        dp.arrival_time,
+        COALESCE(di.breakfast_override, dp.breakfast)  AS eff_breakfast,
+        COALESCE(di.lunch_override,     dp.lunch)      AS eff_lunch,
+        COALESCE(di.snack_override,     dp.snack)      AS eff_snack,
+        COALESCE(di.supper_override,    dp.supper)     AS eff_supper
+      FROM delivery_instances di
+      JOIN delivery_plans dp ON dp.id = di.plan_id
+      JOIN organizations  s  ON s.id  = dp.site_id
+      WHERE dp.kitchen_id = $1
+        AND di.date = $2
+        AND di.status NOT IN ('skipped','cancelled')
+      ORDER BY dp.arrival_time ASC NULLS LAST, s.name ASC
+    `, [kitchen_id, date]);
+
+    if (!rows.length) return res.json({ notified: false, message: 'No deliveries for this kitchen on that date.' });
+
+    const lines = rows.map((r) => {
+      const meals = [];
+      if (r.eff_breakfast > 0) meals.push(`Breakfast ×${r.eff_breakfast}`);
+      if (r.eff_lunch     > 0) meals.push(`Lunch ×${r.eff_lunch}`);
+      if (r.eff_snack     > 0) meals.push(`Snack ×${r.eff_snack}`);
+      if (r.eff_supper    > 0) meals.push(`Supper ×${r.eff_supper}`);
+      const time = r.arrival_time ? ` at ${formatTime(r.arrival_time.slice(0, 5))}` : '';
+      return `• ${r.site_name}: ${meals.join(', ')}${time}`;
+    });
+
+    const kitchenUsers = await pool.query(
+      `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`,
+      [kitchen_id]
+    );
+
+    if (kitchenUsers.rows.length) {
+      await createNotification(kitchenUsers.rows.map((u) => ({
+        userId:    u.id,
+        type:      'general',
+        title:     `🚚 Today's delivery schedule`,
+        body:      lines.join('\n'),
+        actionUrl: '/dashboard/kitchen/deliveries',
+      })));
+    }
+
+    res.json({ notified: true, kitchenUserCount: kitchenUsers.rows.length });
+  } catch (err) {
+    console.error('notifyKitchen error:', err);
+    res.status(500).json({ error: 'Failed to notify kitchen.' });
   }
 };
 
