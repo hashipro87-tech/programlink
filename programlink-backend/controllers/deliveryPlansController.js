@@ -36,22 +36,26 @@ exports.createPlan = async (req, res) => {
       site_id, kitchen_id, name,
       days_of_week, arrival_time,
       breakfast = 0, lunch = 0, snack = 0, supper = 0,
+      breakfast_time, lunch_time, snack_time, supper_time,
       start_date, end_date, auto_notify = true,
     } = req.body;
 
-    if (!site_id || !days_of_week?.length || !arrival_time || !start_date) {
-      return res.status(400).json({ error: 'site_id, days_of_week, arrival_time, and start_date are required.' });
+    if (!site_id || !days_of_week?.length || !start_date) {
+      return res.status(400).json({ error: 'site_id, days_of_week, and start_date are required.' });
     }
 
     const { rows } = await pool.query(`
       INSERT INTO delivery_plans
         (sponsor_id, site_id, kitchen_id, name, days_of_week, arrival_time,
-         breakfast, lunch, snack, supper, start_date, end_date, auto_notify)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         breakfast, lunch, snack, supper,
+         breakfast_time, lunch_time, snack_time, supper_time,
+         start_date, end_date, auto_notify)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
       RETURNING *
     `, [sponsorId, site_id, kitchen_id || null, name || null,
-        days_of_week, arrival_time,
+        days_of_week, arrival_time || null,
         breakfast, lunch, snack, supper,
+        breakfast_time || null, lunch_time || null, snack_time || null, supper_time || null,
         start_date, end_date || null, auto_notify]);
 
     // Generate instances for the next 60 days immediately
@@ -72,31 +76,38 @@ exports.updatePlan = async (req, res) => {
       site_id, kitchen_id, name,
       days_of_week, arrival_time,
       breakfast, lunch, snack, supper,
+      breakfast_time, lunch_time, snack_time, supper_time,
       start_date, end_date, auto_notify, active,
     } = req.body;
 
     const { rows } = await pool.query(`
       UPDATE delivery_plans
       SET
-        site_id      = COALESCE($1, site_id),
-        kitchen_id   = COALESCE($2, kitchen_id),
-        name         = COALESCE($3, name),
-        days_of_week = COALESCE($4, days_of_week),
-        arrival_time = COALESCE($5, arrival_time),
-        breakfast    = COALESCE($6, breakfast),
-        lunch        = COALESCE($7, lunch),
-        snack        = COALESCE($8, snack),
-        supper       = COALESCE($9, supper),
-        start_date   = COALESCE($10, start_date),
-        end_date     = COALESCE($11, end_date),
-        auto_notify  = COALESCE($12, auto_notify),
-        active       = COALESCE($13, active),
-        updated_at   = NOW()
-      WHERE id = $14 AND sponsor_id = $15
+        site_id        = COALESCE($1, site_id),
+        kitchen_id     = COALESCE($2, kitchen_id),
+        name           = COALESCE($3, name),
+        days_of_week   = COALESCE($4, days_of_week),
+        arrival_time   = COALESCE($5, arrival_time),
+        breakfast      = COALESCE($6, breakfast),
+        lunch          = COALESCE($7, lunch),
+        snack          = COALESCE($8, snack),
+        supper         = COALESCE($9, supper),
+        breakfast_time = COALESCE($10, breakfast_time),
+        lunch_time     = COALESCE($11, lunch_time),
+        snack_time     = COALESCE($12, snack_time),
+        supper_time    = COALESCE($13, supper_time),
+        start_date     = COALESCE($14, start_date),
+        end_date       = COALESCE($15, end_date),
+        auto_notify    = COALESCE($16, auto_notify),
+        active         = COALESCE($17, active),
+        updated_at     = NOW()
+      WHERE id = $18 AND sponsor_id = $19
       RETURNING *
     `, [site_id, kitchen_id, name, days_of_week, arrival_time,
-        breakfast, lunch, snack, supper, start_date, end_date,
-        auto_notify, active, req.params.id, sponsorId]);
+        breakfast, lunch, snack, supper,
+        breakfast_time, lunch_time, snack_time, supper_time,
+        start_date, end_date, auto_notify, active,
+        req.params.id, sponsorId]);
 
     if (!rows.length) return res.status(404).json({ error: 'Plan not found.' });
     res.json({ plan: rows[0] });
@@ -206,6 +217,10 @@ exports.getTodayDeliveries = async (req, res) => {
         dp.snack                                               AS plan_snack,
         dp.supper                                              AS plan_supper,
         dp.arrival_time,
+        COALESCE(dp.breakfast_time, dp.arrival_time)           AS breakfast_time,
+        COALESCE(dp.lunch_time,     dp.arrival_time)           AS lunch_time,
+        COALESCE(dp.snack_time,     dp.arrival_time)           AS snack_time,
+        COALESCE(dp.supper_time,    dp.arrival_time)           AS supper_time,
         dp.kitchen_id,
         s.name                                                 AS site_name,
         k.name                                                 AS kitchen_name
@@ -497,17 +512,17 @@ exports.bulkCreatePlans = async (req, res) => {
       site_ids,
       kitchen_id,
       days_of_week,
-      arrival_time,
       breakfast = 0, lunch = 0, snack = 0, supper = 0,
+      breakfast_time, lunch_time, snack_time, supper_time,
       start_date,
       end_date,
       auto_notify = true,
       name_prefix,
     } = req.body;
 
-    if (!site_ids?.length)          return res.status(400).json({ error: 'site_ids is required.' });
-    if (!days_of_week?.length)      return res.status(400).json({ error: 'days_of_week is required.' });
-    if (!arrival_time || !start_date) return res.status(400).json({ error: 'arrival_time and start_date are required.' });
+    if (!site_ids?.length)     return res.status(400).json({ error: 'site_ids is required.' });
+    if (!days_of_week?.length) return res.status(400).json({ error: 'days_of_week is required.' });
+    if (!start_date)           return res.status(400).json({ error: 'start_date is required.' });
 
     const created = [];
 
@@ -519,13 +534,16 @@ exports.bulkCreatePlans = async (req, res) => {
 
       const { rows } = await pool.query(`
         INSERT INTO delivery_plans
-          (sponsor_id, site_id, kitchen_id, name, days_of_week, arrival_time,
-           breakfast, lunch, snack, supper, start_date, end_date, auto_notify)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+          (sponsor_id, site_id, kitchen_id, name, days_of_week,
+           breakfast, lunch, snack, supper,
+           breakfast_time, lunch_time, snack_time, supper_time,
+           start_date, end_date, auto_notify)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         RETURNING *
       `, [sponsorId, siteId, kitchen_id || null, planName,
-          days_of_week, arrival_time,
+          days_of_week,
           breakfast, lunch, snack, supper,
+          breakfast_time || null, lunch_time || null, snack_time || null, supper_time || null,
           start_date, end_date || null, auto_notify]);
 
       if (rows[0]) {

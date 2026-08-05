@@ -109,7 +109,7 @@ function doPrintSlips(deliveries, dateLabel) {
               <td style="border:1px solid #ddd;padding:8px">${d.site_name}</td>
               <td style="border:1px solid #ddd;padding:8px">${MEAL_META[m.key].label}</td>
               <td style="border:1px solid #ddd;padding:8px">${m.count}</td>
-              <td style="border:1px solid #ddd;padding:8px">${fmt12(d.arrival_time?.slice(0,5))}</td>
+              <td style="border:1px solid #ddd;padding:8px">${fmt12((d[m.key + '_time'] || d.arrival_time)?.slice(0,5))}</td>
               <td style="border:1px solid #ddd;padding:8px">□</td>
             </tr>
           `).join('')).join('')}
@@ -139,12 +139,14 @@ function DeliveryRow({ delivery, onUpdate }) {
   const [saving, setSaving]     = useState(false);
   const [notifying, setNotifying] = useState(false);
 
-  const status    = delivery.status;
-  const delivered = status === 'delivered';
-  const skipped   = status === 'skipped';
-  const meals     = effectiveMeals(delivery);
+  const status       = delivery.status;
+  const delivered    = status === 'delivered';
+  const skipped      = status === 'skipped';
+  const meals        = effectiveMeals(delivery);
   const planMealsArr = planMeals(delivery);
-  const timeStr   = fmt12(delivery.arrival_time?.slice(0, 5));
+
+  // per-meal time: use breakfast_time / lunch_time / etc, fallback to arrival_time
+  const mealTime = (key) => fmt12((delivery[`${key}_time`] || delivery.arrival_time)?.slice(0, 5));
 
   const patch = async (body) => {
     setSaving(true);
@@ -205,7 +207,6 @@ function DeliveryRow({ delivery, onUpdate }) {
           <p className="text-sm line-through truncate">{delivery.site_name}</p>
           <p className="text-xs truncate">{mealSummaryText(delivery)}{delivery.kitchen_name ? `  ·  ${delivery.kitchen_name}` : ''}</p>
         </div>
-        {timeStr && <span className="text-xs flex-shrink-0">{timeStr}</span>}
         <button onClick={handleUndoSkip} className="flex items-center gap-1 text-xs text-brand-600 hover:underline flex-shrink-0">
           <RotateCcw className="w-3 h-3" /> Undo
         </button>
@@ -231,11 +232,14 @@ function DeliveryRow({ delivery, onUpdate }) {
           </p>
           {!editing ? (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {meals.map((m) => (
-                <span key={m.key} className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${MEAL_META[m.key].chip}`}>
-                  {MEAL_META[m.key].label} · {m.count}
-                </span>
-              ))}
+              {meals.map((m) => {
+                const t = mealTime(m.key);
+                return (
+                  <span key={m.key} className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${MEAL_META[m.key].chip}`}>
+                    {MEAL_META[m.key].label} · {m.count}{t ? `  ·  ${t}` : ''}
+                  </span>
+                );
+              })}
               {delivery.kitchen_name && (
                 <span className="text-xs text-gray-400 self-center">from {delivery.kitchen_name}</span>
               )}
@@ -267,11 +271,8 @@ function DeliveryRow({ delivery, onUpdate }) {
           )}
         </div>
 
-        {/* Time + actions */}
+        {/* Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {timeStr && !delivered && (
-            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{timeStr}</span>
-          )}
           {delivered && (
             <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-lg">Delivered</span>
           )}
@@ -424,18 +425,21 @@ function PlanModal({ onClose, onSaved, editPlan }) {
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
   const [form, setForm] = useState({
-    site_id:      editPlan?.site_id      ?? '',
-    kitchen_id:   editPlan?.kitchen_id   ?? '',
-    name:         editPlan?.name         ?? '',
-    days_of_week: editPlan?.days_of_week ?? [],
-    arrival_time: editPlan?.arrival_time?.slice(0,5) ?? '09:00',
-    breakfast:    editPlan?.breakfast    ?? 0,
-    lunch:        editPlan?.lunch        ?? 0,
-    snack:        editPlan?.snack        ?? 0,
-    supper:       editPlan?.supper       ?? 0,
-    start_date:   editPlan?.start_date   ?? new Date().toISOString().split('T')[0],
-    end_date:     editPlan?.end_date     ?? '',
-    auto_notify:  editPlan?.auto_notify  ?? true,
+    site_id:        editPlan?.site_id             ?? '',
+    kitchen_id:     editPlan?.kitchen_id          ?? '',
+    name:           editPlan?.name                ?? '',
+    days_of_week:   editPlan?.days_of_week        ?? [],
+    breakfast:      editPlan?.breakfast           ?? 0,
+    lunch:          editPlan?.lunch               ?? 0,
+    snack:          editPlan?.snack               ?? 0,
+    supper:         editPlan?.supper              ?? 0,
+    breakfast_time: editPlan?.breakfast_time?.slice(0,5) ?? '',
+    lunch_time:     editPlan?.lunch_time?.slice(0,5)     ?? '',
+    snack_time:     editPlan?.snack_time?.slice(0,5)     ?? '',
+    supper_time:    editPlan?.supper_time?.slice(0,5)    ?? '',
+    start_date:     editPlan?.start_date          ?? new Date().toISOString().split('T')[0],
+    end_date:       editPlan?.end_date            ?? '',
+    auto_notify:    editPlan?.auto_notify         ?? true,
   });
 
   useEffect(() => {
@@ -518,22 +522,36 @@ function PlanModal({ onClose, onSaved, editPlan }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Arrival Time</label>
-            <input type="time" value={form.arrival_time}
-              onChange={(e) => setForm((f) => ({ ...f, arrival_time: e.target.value }))}
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-          </div>
-          <div>
             <label className="block text-xs font-semibold text-gray-600 mb-2">Meals Per Delivery</label>
-            <div className="grid grid-cols-2 gap-3">
-              {MEAL_KEYS.map((key) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-500 mb-1">{MEAL_META[key].label}</label>
-                  <input type="number" min="0" value={form[key]}
-                    onChange={(e) => setForm((f) => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-                </div>
-              ))}
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-xs text-gray-500 font-semibold">
+                    <th className="text-left px-3 py-2">Meal</th>
+                    <th className="text-left px-3 py-2">Count</th>
+                    <th className="text-left px-3 py-2">Arrival Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MEAL_KEYS.map((key, i) => (
+                    <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                      <td className="px-3 py-2 font-medium text-gray-700">
+                        {MEAL_META[key].label}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="number" min="0" value={form[key]}
+                          onChange={(e) => setForm((f) => ({ ...f, [key]: parseInt(e.target.value) || 0 }))}
+                          className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="time" value={form[`${key}_time`] || ''}
+                          onChange={(e) => setForm((f) => ({ ...f, [`${key}_time`]: e.target.value }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             {totalMealsForm > 0 && <p className="text-xs text-brand-600 font-semibold mt-2">{totalMealsForm} meals per delivery</p>}
           </div>
@@ -581,7 +599,8 @@ function BulkWizardModal({ onClose, onSaved }) {
   const [error, setError]       = useState('');
   const [form, setForm] = useState({
     kitchen_id: '', selected_sites: [], days_of_week: [],
-    arrival_time: '09:00', breakfast: 0, lunch: 0, snack: 0, supper: 0,
+    breakfast: 0, lunch: 0, snack: 0, supper: 0,
+    breakfast_time: '', lunch_time: '', snack_time: '', supper_time: '',
     start_date: new Date().toISOString().split('T')[0], end_date: '', auto_notify: true,
   });
 
@@ -611,9 +630,13 @@ function BulkWizardModal({ onClose, onSaved }) {
     try {
       await api.post('/delivery-plans/bulk', {
         site_ids: form.selected_sites, kitchen_id: form.kitchen_id || undefined,
-        days_of_week: form.days_of_week, arrival_time: form.arrival_time,
+        days_of_week: form.days_of_week,
         breakfast: Number(form.breakfast), lunch: Number(form.lunch),
         snack: Number(form.snack), supper: Number(form.supper),
+        breakfast_time: form.breakfast_time || undefined,
+        lunch_time:     form.lunch_time     || undefined,
+        snack_time:     form.snack_time     || undefined,
+        supper_time:    form.supper_time    || undefined,
         start_date: form.start_date, end_date: form.end_date || undefined,
         auto_notify: form.auto_notify,
       });
@@ -682,28 +705,42 @@ function BulkWizardModal({ onClose, onSaved }) {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">4 — Arrival Time</label>
-              <input type="time" value={form.arrival_time} onChange={(e) => setForm((f) => ({ ...f, arrival_time: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Start Date</label>
-              <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-            </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">Start Date</label>
+            <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">5 — Meals Per Delivery (per site)</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {MEAL_KEYS.map((key) => (
-                <div key={key}>
-                  <label className="block text-xs text-gray-400 mb-1">{MEAL_META[key].label}</label>
-                  <input type="number" min="0" value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-                </div>
-              ))}
+            <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">4 — Meals Per Delivery (per site)</label>
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-xs text-gray-500 font-semibold">
+                    <th className="text-left px-3 py-2">Meal</th>
+                    <th className="text-left px-3 py-2">Count</th>
+                    <th className="text-left px-3 py-2">Arrival Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MEAL_KEYS.map((key, i) => (
+                    <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                      <td className="px-3 py-2 font-medium text-gray-700">
+                        {MEAL_META[key].label}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="number" min="0" value={form[key]}
+                          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                          className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input type="time" value={form[`${key}_time`] || ''}
+                          onChange={(e) => setForm((f) => ({ ...f, [`${key}_time`]: e.target.value }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
           {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
@@ -736,7 +773,6 @@ function DayBadges({ days }) {
 
 function PlanCard({ plan, onEdit, onToggle, onDelete, deleting }) {
   const totalM = MEAL_KEYS.reduce((s, k) => s + (plan[k] ?? 0), 0);
-  const mealParts = MEAL_KEYS.filter((k) => plan[k] > 0).map((k) => `${MEAL_META[k].label[0]}:${plan[k]}`);
   return (
     <div className={`card px-5 py-4 ${!plan.active ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between gap-4">
@@ -748,9 +784,15 @@ function PlanCard({ plan, onEdit, onToggle, onDelete, deleting }) {
           </div>
           {plan.kitchen_name && <p className="text-xs text-gray-500 mb-2">From {plan.kitchen_name}</p>}
           <DayBadges days={plan.days_of_week} />
-          <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-            <span>{fmt12(plan.arrival_time?.slice(0,5))}</span>
-            <span>{totalM} meals · {mealParts.join(' · ')}</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-2">
+            {MEAL_KEYS.filter((k) => plan[k] > 0).map((k) => {
+              const t = fmt12(plan[`${k}_time`]?.slice(0, 5));
+              return (
+                <span key={k}>
+                  {MEAL_META[k].label[0]}:{plan[k]}{t ? ` · ${t}` : ''}
+                </span>
+              );
+            })}
           </div>
           <p className="text-xs text-gray-400 mt-1">
             {String(plan.start_date).slice(0,10)}{plan.end_date ? ` → ${String(plan.end_date).slice(0,10)}` : ' · ongoing'}
