@@ -1436,6 +1436,24 @@ export default function MenuBuilderPage() {
     } catch { /* silent */ }
   }
 
+  const [clearingWeek, setClearingWeek] = useState(false);
+  async function clearWeek() {
+    if (!menu) return;
+    if (!window.confirm('Clear all items for this week? This cannot be undone.')) return;
+    setClearingWeek(true);
+    try {
+      await api.delete(`/menus/${menu.id}/items/all`);
+      setItems([]);
+      setCopyMsg('Week cleared — ready to import fresh.');
+      setTimeout(() => setCopyMsg(''), 3000);
+    } catch {
+      setCopyMsg('Failed to clear week.');
+      setTimeout(() => setCopyMsg(''), 3000);
+    } finally {
+      setClearingWeek(false);
+    }
+  }
+
   async function updateStatus(status) {
     if (!menu) return;
     try {
@@ -1624,6 +1642,15 @@ export default function MenuBuilderPage() {
             className="flex items-center gap-1.5 text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors">
             <BookOpen className="w-4 h-4" /> Import Menu
           </button>
+
+          {/* Clear week */}
+          {menu && items.length > 0 && (
+            <button onClick={clearWeek} disabled={clearingWeek}
+              className="flex items-center gap-1.5 text-sm border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors">
+              {clearingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Clear Week
+            </button>
+          )}
 
           {/* Infant toggle */}
           <button onClick={toggleInfant}

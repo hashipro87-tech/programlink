@@ -8,7 +8,8 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 const {
-  listMenus, getMenu, createMenu, updateMenu, deleteMenu, upsertItem, deleteItem,
+  listMenus, getMenu, createMenu, updateMenu, deleteMenu,
+  upsertItem, deleteItem, clearMenuItems,
   getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
   generateMenu, listComments, addComment, deleteComment, extractMenuFromFile,
 } = require('../controllers/menusController');
@@ -32,8 +33,9 @@ router.put('/:id',               authenticate, canWrite, updateMenu);
 router.delete('/:id',            authenticate, canWrite, deleteMenu);
 
 // ── Items ─────────────────────────────────────────────────────────────────────
-router.post('/:id/items',        authenticate, canWrite, upsertItem);
-router.delete('/items/:item_id', authenticate, canWrite, deleteItem);
+router.post('/:id/items',         authenticate, canWrite, upsertItem);
+router.delete('/:id/items/all',   authenticate, canWrite, clearMenuItems);
+router.delete('/items/:item_id',  authenticate, canWrite, deleteItem);
 
 // ── AI Generate ───────────────────────────────────────────────────────────────
 router.post('/:id/generate',     authenticate, canWrite, generateMenu);

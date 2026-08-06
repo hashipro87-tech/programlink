@@ -257,6 +257,26 @@ async function upsertItem(req, res) {
   }
 }
 
+// ── DELETE /menus/:id/items/all ───────────────────────────────────────────────
+// Clears all items for a menu (used by "Clear Week" button in Menu Builder).
+async function clearMenuItems(req, res) {
+  try {
+    const { id: menuId } = req.params;
+    const { organizationId } = req.user;
+    // Verify ownership first
+    const check = await pool.query(
+      `SELECT id FROM menus WHERE id=$1 AND org_id=$2`,
+      [menuId, organizationId]
+    );
+    if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
+    const { rowCount } = await pool.query(`DELETE FROM menu_items WHERE menu_id=$1`, [menuId]);
+    res.json({ success: true, deleted: rowCount });
+  } catch (err) {
+    console.error('clearMenuItems error:', err);
+    res.status(500).json({ error: 'Failed to clear menu items' });
+  }
+}
+
 // ── DELETE /menus/items/:item_id ───────────────────────────────────────────────
 async function deleteItem(req, res) {
   try {
@@ -537,7 +557,8 @@ Rules:
 }
 
 module.exports = {
-  listMenus, getMenu, createMenu, updateMenu, deleteMenu, upsertItem, deleteItem,
+  listMenus, getMenu, createMenu, updateMenu, deleteMenu,
+  upsertItem, deleteItem, clearMenuItems,
   getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
   generateMenu, listComments, addComment, deleteComment, extractMenuFromFile,
 };
