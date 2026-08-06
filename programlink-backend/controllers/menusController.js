@@ -464,9 +464,9 @@ Each object:
 }
 
 Rules:
-- Milk, yogurt, cheese → "dairy"
+- Milk, yogurt, cheese → "milk"
 - Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin → "grain"
-- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu → "meat/alt"
+- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu → "protein"
 - Fruits → "fruit"; Vegetables → "vegetable"; else → "other"
 - Whole wheat / whole grain / oatmeal / brown rice → is_whole_grain: true
 - "Snack" without AM/PM → "snack"
@@ -510,18 +510,24 @@ Rules:
     if (!Array.isArray(items)) items = [];
 
     const VALID_MEALS  = ['breakfast','am_snack','lunch','pm_snack','snack','supper'];
-    const VALID_COMPS  = ['grain','meat/alt','fruit','vegetable','dairy','other'];
+    const VALID_COMPS  = ['milk','grain','protein','fruit','vegetable','other'];
+    // Normalize legacy component names the AI might return
+    const COMP_ALIASES = { 'dairy': 'milk', 'meat/alt': 'protein', 'meat': 'protein' };
 
     items = items
       .filter(it => it.food_item && typeof it.food_item === 'string' && it.food_item.trim())
-      .map(it => ({
-        day_of_week:    Math.min(7, Math.max(1, parseInt(it.day_of_week) || 1)),
-        meal_type:      VALID_MEALS.includes(it.meal_type) ? it.meal_type : 'breakfast',
-        food_item:      String(it.food_item).trim().slice(0, 200),
-        component:      VALID_COMPS.includes(it.component) ? it.component : 'other',
-        is_whole_grain: !!it.is_whole_grain,
-        quantity:       it.quantity ? String(it.quantity).slice(0, 50) : null,
-      }));
+      .map(it => {
+        const raw = String(it.component || '').toLowerCase().trim();
+        const comp = COMP_ALIASES[raw] || (VALID_COMPS.includes(raw) ? raw : 'other');
+        return {
+          day_of_week:    Math.min(7, Math.max(1, parseInt(it.day_of_week) || 1)),
+          meal_type:      VALID_MEALS.includes(it.meal_type) ? it.meal_type : 'breakfast',
+          food_item:      String(it.food_item).trim().slice(0, 200),
+          component:      comp,
+          is_whole_grain: !!it.is_whole_grain,
+          quantity:       it.quantity ? String(it.quantity).slice(0, 50) : null,
+        };
+      });
 
     res.json({ items, count: items.length });
   } catch (err) {
