@@ -473,24 +473,29 @@ async function extractMenuFromFile(req, res) {
 
 Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
 
-Each object:
+Each object must use EXACTLY these field values:
 {
-  "day_of_week": 1-7 (1=Monday…7=Sunday),
-  "meal_type": "breakfast"|"am_snack"|"lunch"|"pm_snack"|"snack"|"supper",
+  "day_of_week": 1-7 (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday),
+  "meal_type": "breakfast" | "lunch" | "supper" | "snack" | "am_snack" | "pm_snack",
   "food_item": "food name exactly as written",
-  "component": "grain"|"meat/alt"|"fruit"|"vegetable"|"dairy"|"other",
-  "is_whole_grain": true|false,
+  "component": "milk" | "grain" | "protein" | "fruit" | "vegetable" | "other",
+  "is_whole_grain": true | false,
   "quantity": "serving size if listed, else null"
 }
 
-Rules:
-- Milk, yogurt, cheese → "milk"
-- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin → "grain"
-- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu → "protein"
-- Fruits → "fruit"; Vegetables → "vegetable"; else → "other"
-- Whole wheat / whole grain / oatmeal / brown rice → is_whole_grain: true
-- "Snack" without AM/PM → "snack"
-- If no day listed, assign day 1 (Monday) to all items
+Component classification rules (use these EXACT values):
+- Milk, yogurt, cheese, dairy → component: "milk"
+- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin, crackers, pancake → component: "grain"
+- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu, meat, protein → component: "protein"
+- All fruits (apple, orange, banana, juice, berries, etc.) → component: "fruit"
+- All vegetables (carrots, broccoli, peas, corn, lettuce, etc.) → component: "vegetable"
+- Anything else → component: "other"
+
+Additional rules:
+- Whole wheat / whole grain / oatmeal / brown rice / WGR → is_whole_grain: true; all others → false
+- "Snack" without AM/PM context → "snack"
+- "Afternoon Snack" or "PM Snack" → "snack"
+- If no day is listed, assign day_of_week: 1 (Monday) to all items
 - If no items found, return []`;
 
     // Build the message content — PDF uses native document support, text uses plain prompt
