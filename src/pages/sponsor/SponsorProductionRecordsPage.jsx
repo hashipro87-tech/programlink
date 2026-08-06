@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import {
   CheckCircle, Clock, ChevronDown, FileText,
-  Plus, Trash2, PenLine, Eye, Edit2, Wand2, Copy,
+  Plus, Trash2, PenLine, Eye, Edit2, Wand2, Copy, Users, Printer,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -147,6 +147,320 @@ function PreviousRecordPanel({ prevRecord, loading, meal, onCopyItem, onCopyAll,
           <p className="text-xs text-gray-500 bg-gray-50 rounded-xl p-2.5">{prevRecord.notes}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Smart Production Form (auto-fills from menu, shows compliance warnings) ──
+
+function SmartProductionForm({ kitchen, date, setDate, meal, setMeal, items, setItems, onSaved }) {
+  const today = todayISO();
+
+  // Local form state
+  const [planned, setPlanned] = useState('');
+  const [actual,  setActual]  = useState('');
+  const [notes,   setNotes]   = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const [error,   setError]   = useState('');
+
+  // Prefill state
+  const [prefill,       setPrefill]       = useState(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
+  const [menuImported,  setMenuImported]  = useState(false);
+
+  // Fetch prefill whenever kitchen / date / meal changes
+  useEffect(() => {
+    if (!kitchen?.id || !date) return;
+    setPrefillLoading(true);
+    setMenuImported(false);
+    api.get('/production-records/prefill', {
+      params: { date, org_id: kitchen.id, meal_type: meal },
+    })
+      .then(({ data }) => {
+        setPrefill(data);
+        if (data.menu_found && data.items?.length) {
+          setItems(data.items.map(i => ({
+            food_name:       i.food_item,
+            component:       i.component || 'other',
+            quantity_actual: i.quantity   || '',
+          })));
+          setMenuImported(true);
+        } else if (!data.menu_found) {
+          // No menu — keep whatever's in the form (user might have typed already)
+          if (items.length === 1 && !items[0].food_name.trim()) {
+            setItems([emptyItem()]);
+          }
+        }
+        // Pre-fill planned servings from enrollment count (only if field is empty)
+        if (data.enrollment_count > 0) {
+          setPlanned(p => p || String(data.enrollment_count));
+        }
+      })
+      .catch(() => setPrefill(null))
+      .finally(() => setPrefillLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kitchen?.id, date, meal]);
+
+  const enrollmentCount  = prefill?.enrollment_count || 0;
+  const servingsPlanned  = parseInt(planned) || 0;
+  const showWarning      = servingsPlanned > 0 && enrollmentCount > 0 && servingsPlanned < enrollmentCount;
+
+  const updateItem = (i, field, val) =>
+    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: val } : it));
+
+  const handlePrint = () => {
+    const mealName  = mealLabel(meal);
+    const itemsHtml = items
+      .filter(i => i.food_name.trim())
+      .map(i => `<tr>
+        <td style="padding:6px 10px;border:1px solid #ddd">${i.food_name}</td>
+        <td style="padding:6px 10px;border:1px solid #ddd">${COMPONENT_LABEL[i.component] || i.component}</td>
+        <td style="padding:6px 10px;border:1px solid #ddd">${i.quantity_actual || '—'}</td>
+      </tr>`).join('');
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>Kitchen Sheet</title>
+      <style>body{font-family:sans-serif;padding:24px;color:#111}
+        h2{margin:0 0 4px}p{margin:0 0 16px;color:#555;font-size:14px}
+        table{width:100%;border-collapse:collapse}
+        th{background:#f3f4f6;text-align:left;padding:6px 10px;border:1px solid #ddd;font-size:13px}
+        td{font-size:13px}</style></head><body>
+      <h2>${kitchen.name} — ${mealEmoji(meal)} ${mealName} Production Sheet</h2>
+      <p>Date: ${fmtDate(date)} &nbsp;|&nbsp; Planned: ${planned || '—'} servings</p>
+      <table><thead><tr><th>Food Item</th><th>Component</th><th>Qty Prepared</th></tr></thead>
+      <tbody>${itemsHtml}</tbody></table>
+      <p style="margin-top:24px">Notes: ${notes || '—'}</p>
+      <p>Prepared by: _______________________ &nbsp;&nbsp; Date/Time: _________________</p>
+    </body></html>`);
+    win.document.close();
+    win.print();
+  };
+
+  const handleSave = async (status = 'draft') => {
+    setError(''); setSaving(true); setSaved(false);
+    try {
+      const { data } = await api.post('/production-records', {
+        org_id:            kitchen.id,
+        date,
+        meal_type:         meal,
+        servings_planned:  parseInt(planned)  || 0,
+        servings_prepared: parseInt(actual)   || 0,
+        notes:             notes || null,
+        status,
+      });
+      const recordId = data.id;
+      if (recordId) {
+        for (const it of items.filter(i => i.food_name.trim())) {
+          await api.post(`/production-records/${recordId}/items`, {
+            food_name:       it.food_name.trim(),
+            component:       it.component,
+            quantity_actual: it.quantity_actual || null,
+          });
+        }
+      }
+      // Reset
+      setPlanned(''); setActual(''); setNotes('');
+      setItems([emptyItem()]);
+      setPrefill(null); setMenuImported(false);
+      setSaved(true);
+      onSaved();
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card p-6 mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <PenLine className="w-4 h-4 text-brand-600" />
+          <p className="text-sm font-bold text-gray-700">New Production Record — {kitchen.name}</p>
+        </div>
+        {prefillLoading && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+            <div className="w-3 h-3 border-2 border-gray-200 border-t-brand-500 rounded-full animate-spin" />
+            Loading menu…
+          </div>
+        )}
+      </div>
+
+      {/* Smart banners */}
+      {prefill && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {prefill.menu_found && menuImported && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-xl text-xs font-semibold text-green-700">
+              <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              Menu Imported — {prefill.menu_name || 'This Week'}
+            </div>
+          )}
+          {enrollmentCount > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-semibold text-blue-700">
+              <Users className="w-3.5 h-3.5 flex-shrink-0" />
+              {enrollmentCount} Children Enrolled
+            </div>
+          )}
+          {!prefill.menu_found && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-medium text-amber-700">
+              ⚠ No menu for this week — enter items manually.
+              <span className="ml-1 text-amber-500 underline cursor-pointer"
+                onClick={() => window.open('/dashboard/sponsor/menus', '_blank')}>
+                Build menu →
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Existing record warning */}
+      {prefill?.existing_records?.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl mb-4 text-xs text-amber-700 font-medium">
+          ⚠ A {mealLabel(meal)} record for {fmtDate(date)} already exists. Saving will add a second record.
+        </div>
+      )}
+
+      {/* Date + Meal Type */}
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Date</label>
+          <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Meal Type</label>
+          <select value={meal} onChange={e => setMeal(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            {MEAL_TYPES.map(m => <option key={m.key} value={m.key}>{m.emoji} {m.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Food Items */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+            Food Items
+            {menuImported && (
+              <span className="ml-2 text-green-600 font-normal normal-case text-xs">auto-filled from menu</span>
+            )}
+          </label>
+          <button onClick={() => setItems(p => [...p, emptyItem()])}
+            className="text-xs text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
+            <Plus className="w-3 h-3" /> Add item
+          </button>
+        </div>
+
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_110px_80px_24px] gap-2 mb-1 px-1">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Food</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Component</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Qty / Portion</span>
+          <span />
+        </div>
+
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div key={i} className="grid grid-cols-[1fr_110px_80px_24px] items-center gap-2">
+              <input type="text" value={it.food_name} placeholder="Food name"
+                onChange={e => updateItem(i, 'food_name', e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              <select value={it.component} onChange={e => updateItem(i, 'component', e.target.value)}
+                className="px-2 py-2 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none capitalize">
+                {COMPONENTS.map(c => <option key={c} value={c}>{COMPONENT_LABEL[c]}</option>)}
+              </select>
+              <input type="text" value={it.quantity_actual} placeholder="e.g. 1 cup"
+                onChange={e => updateItem(i, 'quantity_actual', e.target.value)}
+                className="px-2 py-2 border border-gray-200 rounded-xl text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              {items.length > 1
+                ? <button onClick={() => setItems(p => p.filter((_, idx) => idx !== i))}
+                    className="text-gray-300 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                : <span />}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Planned / Actual / Leftovers */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
+            Planned Servings
+            {enrollmentCount > 0 && !planned && (
+              <span className="ml-1 font-normal text-blue-500 normal-case">({enrollmentCount} enrolled)</span>
+            )}
+          </label>
+          <input type="number" min="0" value={planned} onChange={e => setPlanned(e.target.value)}
+            placeholder={enrollmentCount > 0 ? `${enrollmentCount}` : '0'}
+            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Actually Served</label>
+          <input type="number" min="0" value={actual} onChange={e => setActual(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Leftovers</label>
+          <div className="w-full px-3 py-2 border border-gray-100 rounded-xl text-sm text-gray-400 bg-gray-50">
+            {planned && actual ? Math.max(0, parseInt(planned) - parseInt(actual)) : '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* Compliance Warning */}
+      {showWarning && (
+        <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+          <span className="text-lg leading-none mt-0.5">⚠️</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Planned count is below enrollment</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              You have <strong>{enrollmentCount} children enrolled</strong> but only planned{' '}
+              <strong>{servingsPlanned} servings</strong>. Update the count or verify today's attendance before completing.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <div className="mb-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Notes</label>
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
+          placeholder="Substitutions, issues, who prepared…"
+          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+      </div>
+
+      {/* Error + Success */}
+      {error && (
+        <div className="px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium mb-4">{error}</div>
+      )}
+      {saved && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-100 rounded-xl text-xs text-green-700 font-semibold mb-4">
+          <CheckCircle className="w-3.5 h-3.5" /> Record saved.
+        </div>
+      )}
+
+      {/* Footer Actions */}
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+          <Printer className="w-3.5 h-3.5" /> Print Kitchen Sheet
+        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => handleSave('draft')} disabled={saving}
+            className="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors">
+            {saving ? 'Saving…' : 'Save Draft'}
+          </button>
+          <button
+            onClick={() => handleSave('complete')} disabled={saving}
+            className="px-4 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40 transition-colors">
+            {saving ? 'Saving…' : 'Complete Meal Service'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -846,7 +1160,7 @@ export default function SponsorProductionRecordsPage() {
           {/* Left: form + history */}
           <div>
             {isEntryMode && (
-              <RecordForm
+              <SmartProductionForm
                 kitchen={selectedKitchen}
                 date={formDate}  setDate={setFormDate}
                 meal={formMeal}  setMeal={setFormMeal}

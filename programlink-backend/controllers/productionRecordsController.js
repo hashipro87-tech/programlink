@@ -354,7 +354,80 @@ async function deleteRecord(req, res) {
   }
 }
 
+// ── GET /production-records/prefill ───────────────────────────────────────────
+// Returns a PREVIEW of what the production record would look like if auto-filled
+// from the menu. Does NOT save anything. Frontend uses this to pre-populate the form.
+// Also returns enrollment count so the attendance banner can show "32 children".
+async function prefillPreview(req, res) {
+  try {
+    const { organizationId, role } = req.user;
+    const { date, org_id, meal_type } = req.query;
+
+    if (!date) return res.status(400).json({ error: 'date is required' });
+
+    const targetOrg = (role === 'sponsor' || role === 'admin') && org_id ? org_id : organizationId;
+    const monday    = getMondayOf(date);
+    const dayNum    = toDayOfWeek(new Date(date + 'T00:00:00Z'));
+
+    // 1. Find the menu for this week
+    const menuRes = await pool.query(
+      `SELECT id, week_start, name FROM menus WHERE org_id = $1 AND week_start = $2 ORDER BY created_at DESC LIMIT 1`,
+      [targetOrg, monday]
+    );
+    const menuId   = menuRes.rows[0]?.id   ?? null;
+    const menuName = menuRes.rows[0]?.name ?? null;
+
+    // 2. Pull menu items for this day (all meal types, or specific one)
+    let items = [];
+    if (menuId) {
+      const params = [menuId, dayNum];
+      const mealFilter = meal_type ? `AND meal_type = $3` : '';
+      if (meal_type) params.push(meal_type);
+
+      const itemsRes = await pool.query(
+        `SELECT food_item, component, meal_type, is_whole_grain, quantity
+         FROM menu_items
+         WHERE menu_id = $1 AND day_of_week = $2 ${mealFilter}
+         ORDER BY meal_type, component, food_item`,
+        params
+      );
+      items = itemsRes.rows;
+    }
+
+    // 3. Get enrollment count (children with approved/draft status)
+    const enrollRes = await pool.query(
+      `SELECT COUNT(*) AS count FROM children WHERE org_id = $1 AND form_status IN ('approved', 'draft')`,
+      [targetOrg]
+    );
+    const enrollmentCount = parseInt(enrollRes.rows[0]?.count ?? 0);
+
+    // 4. Check if a production record already exists for this date+meal
+    const existingParams = [targetOrg, date];
+    const existingFilter = meal_type ? `AND meal_type = $3` : '';
+    if (meal_type) existingParams.push(meal_type);
+    const existingRes = await pool.query(
+      `SELECT id, meal_type, status, servings_prepared FROM production_records
+       WHERE org_id = $1 AND date = $2 ${existingFilter}`,
+      existingParams
+    );
+
+    res.json({
+      date,
+      org_id:          targetOrg,
+      menu_found:      !!menuId,
+      menu_name:       menuName,
+      week_start:      monday,
+      enrollment_count: enrollmentCount,
+      items,                         // pre-filled food items from menu
+      existing_records: existingRes.rows, // any already-saved records for this date
+    });
+  } catch (err) {
+    console.error('prefillPreview error:', err);
+    res.status(500).json({ error: 'Failed to load prefill data' });
+  }
+}
+
 module.exports = {
   listRecords, getRecord, upsertRecord, updateRecord, deleteRecord,
-  autoFill, upsertItem, deleteItem, getSummary,
+  autoFill, upsertItem, deleteItem, getSummary, prefillPreview,
 };
