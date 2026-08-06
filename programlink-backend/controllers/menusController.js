@@ -411,15 +411,15 @@ async function extractMenuFromFile(req, res) {
     const Anthropic = require('@anthropic-ai/sdk');
     const mammoth   = require('mammoth');
     const xlsx      = require('xlsx');
-    const pdfParse  = require('pdf-parse');
 
     const { mimetype, buffer, originalname = '' } = req.file;
     const name = originalname.toLowerCase();
     let text = '';
+    let pdfBuffer = null; // set for PDFs — sent directly to Claude as a document
 
     if (mimetype === 'application/pdf' || name.endsWith('.pdf')) {
-      const data = await pdfParse(buffer);
-      text = data.text;
+      // Use Claude's native PDF support — no pdf-parse needed, no DOMMatrix issues
+      pdfBuffer = buffer;
     } else if (
       mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       name.endsWith('.docx')
@@ -439,8 +439,8 @@ async function extractMenuFromFile(req, res) {
       text = buffer.toString('utf8');
     }
 
-    if (!text.trim()) {
-      return res.status(400).json({ error: 'Could not read text from this file. Try PDF or CSV.' });
+    if (!pdfBuffer && !text.trim()) {
+      return res.status(400).json({ error: 'Could not read text from this file. Try Excel, Word, or CSV.' });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -449,40 +449,52 @@ async function extractMenuFromFile(req, res) {
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const prompt = `You are a CACFP menu data extractor. Extract every food item from the weekly menu document below.
+    const instructions = `You are a CACFP menu data extractor. Extract every food item from the weekly menu.
 
 Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
 
-Each object in the array:
+Each object:
 {
-  "day_of_week": 1-7   (1=Monday 2=Tuesday 3=Wednesday 4=Thursday 5=Friday 6=Saturday 7=Sunday),
-  "meal_type": "breakfast" | "am_snack" | "lunch" | "pm_snack" | "snack" | "supper",
+  "day_of_week": 1-7 (1=Monday…7=Sunday),
+  "meal_type": "breakfast"|"am_snack"|"lunch"|"pm_snack"|"snack"|"supper",
   "food_item": "food name exactly as written",
-  "component": "grain" | "meat/alt" | "fruit" | "vegetable" | "dairy" | "other",
-  "is_whole_grain": true | false,
+  "component": "grain"|"meat/alt"|"fruit"|"vegetable"|"dairy"|"other",
+  "is_whole_grain": true|false,
   "quantity": "serving size if listed, else null"
 }
 
-Classification rules:
+Rules:
 - Milk, yogurt, cheese → "dairy"
 - Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin → "grain"
 - Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu → "meat/alt"
-- All fruits → "fruit"
-- All vegetables → "vegetable"
-- Anything else → "other"
-- Whole wheat, brown rice, oatmeal, whole grain → is_whole_grain: true; all others → false
-- "Snack" without AM/PM context → use "snack"
-- If no specific day is listed, assign Monday (1) to all items
-- If Saturday or Sunday items appear, use day 6 or 7
-- If you find no menu items at all, return []
+- Fruits → "fruit"; Vegetables → "vegetable"; else → "other"
+- Whole wheat / whole grain / oatmeal / brown rice → is_whole_grain: true
+- "Snack" without AM/PM → "snack"
+- If no day listed, assign day 1 (Monday) to all items
+- If no items found, return []`;
 
-Document:
-${text.slice(0, 14000)}`;
+    // Build the message content — PDF uses native document support, text uses plain prompt
+    let messageContent;
+    if (pdfBuffer) {
+      messageContent = [
+        { type: 'text', text: instructions },
+        {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: pdfBuffer.toString('base64'),
+          },
+        },
+      ];
+    } else {
+      messageContent = `${instructions}\n\nDocument:\n${text.slice(0, 14000)}`;
+    }
 
     const msg = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: messageContent }],
     });
 
     const raw     = msg.content[0]?.text?.trim() ?? '[]';
