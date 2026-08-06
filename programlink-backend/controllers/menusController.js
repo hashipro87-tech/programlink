@@ -3,10 +3,8 @@ const pool = require('../config/database');
 const { logActivity, TYPES } = require('../services/activityService');
 const fs   = require('fs');
 const path = require('path');
-const Anthropic = require('@anthropic-ai/sdk');
-const mammoth   = require('mammoth');
-const xlsx      = require('xlsx');
-const pdfParse  = require('pdf-parse');
+// Anthropic, mammoth, xlsx, pdfParse are required lazily inside extractMenuFromFile
+// to avoid crashing the server at startup if any of these have environment issues.
 
 // ── CACFP Meal Pattern Rules ──────────────────────────────────────────────────
 function validateMeal(items, mealType) {
@@ -407,6 +405,13 @@ async function deleteComment(req, res) {
 async function extractMenuFromFile(req, res) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+    // Lazy requires — keep these out of the module top-level so a missing/broken
+    // package doesn't crash the server at startup.
+    const Anthropic = require('@anthropic-ai/sdk');
+    const mammoth   = require('mammoth');
+    const xlsx      = require('xlsx');
+    const pdfParse  = require('pdf-parse');
 
     const { mimetype, buffer, originalname = '' } = req.file;
     const name = originalname.toLowerCase();
