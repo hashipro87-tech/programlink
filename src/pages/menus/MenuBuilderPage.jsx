@@ -1585,7 +1585,11 @@ export default function MenuBuilderPage() {
     DAYS.forEach(d => {
       const dayItems = items.filter(i => i.day_of_week === d.num);
       if (getDayWGROk(dayItems) === false) count++;
-      activeMeals.forEach(m => count += validateMealClient(dayItems.filter(i => i.meal_type === m), m).length);
+      activeMeals.forEach(m => {
+        const mealItems = dayItems.filter(i => i.meal_type === m);
+        if (mealItems.length === 0) return; // skip empty meal slots — not a problem
+        count += validateMealClient(mealItems, m).length;
+      });
     });
     return count;
   })();

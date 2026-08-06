@@ -162,7 +162,11 @@ async function getMenu(req, res) {
       if (!wgrOk) totalIssues++;
       MEALS.forEach(meal => {
         const mealItems = dayItems.filter(i => i.meal_type === meal);
-        const missing   = validateMeal(mealItems, meal);
+        if (mealItems.length === 0) {
+          report[day].meals[meal] = { missing: [], ok: true };
+          return; // skip empty meal slots
+        }
+        const missing = validateMeal(mealItems, meal);
         report[day].meals[meal] = { missing, ok: missing.length === 0 };
         totalIssues += missing.length;
       });
