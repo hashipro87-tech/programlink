@@ -1621,7 +1621,7 @@ export default function MenuBuilderPage() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Import menu */}
           <button onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+            className="flex items-center gap-1.5 text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors">
             <BookOpen className="w-4 h-4" /> Import Menu
           </button>
 

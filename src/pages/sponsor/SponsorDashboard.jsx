@@ -30,6 +30,7 @@ import TasksPage          from '../tasks/TasksPage';
 import InspectionsPage    from '../inspections/InspectionsPage';
 import ActivityFeedPage  from '../activity/ActivityFeedPage';
 import MenuBuilderPage             from '../menus/MenuBuilderPage';
+import MenuCyclesPage              from '../menus/MenuCyclesPage';
 import SponsorProductionRecordsPage from './SponsorProductionRecordsPage';
 import RenewalWizardPage            from './RenewalWizardPage';
 import TrainingPage                 from './TrainingPage';
@@ -53,6 +54,7 @@ const NAV_ITEMS = [
   { label: 'Production Records',  path: '/dashboard/sponsor/production-records',   icon: ClipboardList },
   { label: 'Delivery Schedule',   path: '/dashboard/sponsor/meal-orders',           icon: Truck },
   { label: 'Menus',               path: '/dashboard/sponsor/menus',                icon: BookOpen },
+  { label: 'Menu Cycles',         path: '/dashboard/sponsor/menu-cycles',          icon: Repeat },
 
   { sectionLabel: 'Finance' },
   { label: 'Claims',         path: '/dashboard/sponsor/claims',       icon: DollarSign },
@@ -592,6 +594,7 @@ export default function SponsorDashboard() {
               <Route path="tasks"          element={<TasksPage />} />
               <Route path="inspections"   element={<InspectionsPage />} />
               <Route path="menus"               element={<MenuBuilderPage />} />
+              <Route path="menu-cycles"        element={<MenuCyclesPage />} />
               <Route path="production-records" element={<SponsorProductionRecordsPage />} />
               <Route path="state-rules"       element={<StateRuleBookPage />} />
               <Route path="renewals"          element={<RenewalWizardPage />} />

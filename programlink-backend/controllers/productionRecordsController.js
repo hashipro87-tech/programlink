@@ -369,13 +369,30 @@ async function prefillPreview(req, res) {
     const monday    = getMondayOf(date);
     const dayNum    = toDayOfWeek(new Date(date + 'T00:00:00Z'));
 
-    // 1. Find the menu for this week
-    const menuRes = await pool.query(
-      `SELECT id, week_start, name FROM menus WHERE org_id = $1 AND week_start = $2 ORDER BY created_at DESC LIMIT 1`,
-      [targetOrg, monday]
-    );
-    const menuId   = menuRes.rows[0]?.id   ?? null;
-    const menuName = menuRes.rows[0]?.name ?? null;
+    // 1. Find the menu — try active cycle schedule first, then fall back to direct week lookup
+    let menuId   = null;
+    let menuName = null;
+    let cycleInfo = null; // { cycle_name, week_number, week_label }
+
+    try {
+      const { _resolveMenu } = require('./menuCyclesController');
+      const resolved = await _resolveMenu(targetOrg, date);
+      if (resolved.found) {
+        menuId    = resolved.menu_id;
+        menuName  = resolved.menu_name;
+        cycleInfo = { cycle_name: resolved.cycle_name, week_number: resolved.week_number, week_label: resolved.week_label };
+      }
+    } catch (_) { /* menuCyclesController may not be deployed yet */ }
+
+    // Fall back to direct menu for this week if no cycle match
+    if (!menuId) {
+      const menuRes = await pool.query(
+        `SELECT id, week_start, name FROM menus WHERE org_id = $1 AND week_start = $2 ORDER BY created_at DESC LIMIT 1`,
+        [targetOrg, monday]
+      );
+      menuId   = menuRes.rows[0]?.id   ?? null;
+      menuName = menuRes.rows[0]?.name ?? null;
+    }
 
     // 2. Pull menu items for this day (all meal types, or specific one)
     let items = [];
@@ -416,6 +433,7 @@ async function prefillPreview(req, res) {
       org_id:          targetOrg,
       menu_found:      !!menuId,
       menu_name:       menuName,
+      cycle_info:      cycleInfo,    // { cycle_name, week_number, week_label } if from a cycle
       week_start:      monday,
       enrollment_count: enrollmentCount,
       items,                         // pre-filled food items from menu

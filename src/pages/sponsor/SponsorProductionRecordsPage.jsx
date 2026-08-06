@@ -294,7 +294,9 @@ function SmartProductionForm({ kitchen, date, setDate, meal, setMeal, items, set
           {prefill.menu_found && menuImported && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-xl text-xs font-semibold text-green-700">
               <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              Menu Imported — {prefill.menu_name || 'This Week'}
+              {prefill.cycle_info
+                ? `${prefill.cycle_info.cycle_name} · Week ${prefill.cycle_info.week_number}`
+                : `Menu Imported — ${prefill.menu_name || 'This Week'}`}
             </div>
           )}
           {enrollmentCount > 0 && (
