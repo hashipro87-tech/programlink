@@ -3,6 +3,10 @@ const pool = require('../config/database');
 const { logActivity, TYPES } = require('../services/activityService');
 const fs   = require('fs');
 const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
+const mammoth   = require('mammoth');
+const xlsx      = require('xlsx');
+const pdfParse  = require('pdf-parse');
 
 // ── CACFP Meal Pattern Rules ──────────────────────────────────────────────────
 function validateMeal(items, mealType) {
@@ -397,8 +401,120 @@ async function deleteComment(req, res) {
   }
 }
 
+// ── POST /menus/import/extract ─────────────────────────────────────────────────
+// Accepts a file upload (PDF, DOCX, XLSX, CSV), extracts text, sends to Claude,
+// returns structured menu items ready for review and import.
+async function extractMenuFromFile(req, res) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+    const { mimetype, buffer, originalname = '' } = req.file;
+    const name = originalname.toLowerCase();
+    let text = '';
+
+    if (mimetype === 'application/pdf' || name.endsWith('.pdf')) {
+      const data = await pdfParse(buffer);
+      text = data.text;
+    } else if (
+      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      name.endsWith('.docx')
+    ) {
+      const result = await mammoth.extractRawText({ buffer });
+      text = result.value;
+    } else if (
+      mimetype.includes('spreadsheet') || mimetype.includes('excel') ||
+      name.match(/\.(xlsx|xls)$/)
+    ) {
+      const wb = xlsx.read(buffer, { type: 'buffer' });
+      text = wb.SheetNames.map(sName => {
+        return `--- Sheet: ${sName} ---\n${xlsx.utils.sheet_to_csv(wb.Sheets[sName])}`;
+      }).join('\n\n');
+    } else {
+      // Plain text / CSV / unknown
+      text = buffer.toString('utf8');
+    }
+
+    if (!text.trim()) {
+      return res.status(400).json({ error: 'Could not read text from this file. Try PDF or CSV.' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'AI extraction is not configured.' });
+    }
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const prompt = `You are a CACFP menu data extractor. Extract every food item from the weekly menu document below.
+
+Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
+
+Each object in the array:
+{
+  "day_of_week": 1-7   (1=Monday 2=Tuesday 3=Wednesday 4=Thursday 5=Friday 6=Saturday 7=Sunday),
+  "meal_type": "breakfast" | "am_snack" | "lunch" | "pm_snack" | "snack" | "supper",
+  "food_item": "food name exactly as written",
+  "component": "grain" | "meat/alt" | "fruit" | "vegetable" | "dairy" | "other",
+  "is_whole_grain": true | false,
+  "quantity": "serving size if listed, else null"
+}
+
+Classification rules:
+- Milk, yogurt, cheese → "dairy"
+- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin → "grain"
+- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu → "meat/alt"
+- All fruits → "fruit"
+- All vegetables → "vegetable"
+- Anything else → "other"
+- Whole wheat, brown rice, oatmeal, whole grain → is_whole_grain: true; all others → false
+- "Snack" without AM/PM context → use "snack"
+- If no specific day is listed, assign Monday (1) to all items
+- If Saturday or Sunday items appear, use day 6 or 7
+- If you find no menu items at all, return []
+
+Document:
+${text.slice(0, 14000)}`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw     = msg.content[0]?.text?.trim() ?? '[]';
+    const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
+
+    let items;
+    try {
+      items = JSON.parse(cleaned);
+    } catch {
+      return res.status(422).json({ error: 'AI could not parse the menu structure. Try a cleaner file or CSV format.' });
+    }
+
+    if (!Array.isArray(items)) items = [];
+
+    const VALID_MEALS  = ['breakfast','am_snack','lunch','pm_snack','snack','supper'];
+    const VALID_COMPS  = ['grain','meat/alt','fruit','vegetable','dairy','other'];
+
+    items = items
+      .filter(it => it.food_item && typeof it.food_item === 'string' && it.food_item.trim())
+      .map(it => ({
+        day_of_week:    Math.min(7, Math.max(1, parseInt(it.day_of_week) || 1)),
+        meal_type:      VALID_MEALS.includes(it.meal_type) ? it.meal_type : 'breakfast',
+        food_item:      String(it.food_item).trim().slice(0, 200),
+        component:      VALID_COMPS.includes(it.component) ? it.component : 'other',
+        is_whole_grain: !!it.is_whole_grain,
+        quantity:       it.quantity ? String(it.quantity).slice(0, 50) : null,
+      }));
+
+    res.json({ items, count: items.length });
+  } catch (err) {
+    console.error('extractMenuFromFile error:', err);
+    res.status(500).json({ error: 'Failed to extract menu from file.' });
+  }
+}
+
 module.exports = {
   listMenus, getMenu, createMenu, updateMenu, deleteMenu, upsertItem, deleteItem,
   getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
-  generateMenu, listComments, addComment, deleteComment,
+  generateMenu, listComments, addComment, deleteComment, extractMenuFromFile,
 };

@@ -974,6 +974,315 @@ function ComplianceAssistantPanel({ open, onClose, contextMeal, items = [], onOp
   );
 }
 
+// ── ImportMenuModal ────────────────────────────────────────────────────────────
+// Accepts PDF, DOCX, XLSX, CSV — uses Claude AI to extract menu items,
+// shows a review step, then posts items to the current week's menu.
+
+const DAY_LABELS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const IMPORT_MEAL_LABELS = {
+  breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch',
+  pm_snack: 'PM Snack', snack: 'Snack', supper: 'Supper',
+};
+const COMP_LABELS_IM = {
+  grain: 'Grain', 'meat/alt': 'Meat/Alt', fruit: 'Fruit',
+  vegetable: 'Vegetable', dairy: 'Dairy', other: 'Other',
+};
+const VALID_COMPS_IM = ['grain','meat/alt','fruit','vegetable','dairy','other'];
+const VALID_MEALS_IM = ['breakfast','am_snack','lunch','pm_snack','snack','supper'];
+
+function groupItems(items) {
+  // Returns Map: "day|meal" → items[]
+  const map = new Map();
+  items.forEach((it, idx) => {
+    const key = `${it.day_of_week}|${it.meal_type}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push({ ...it, _idx: idx });
+  });
+  return map;
+}
+
+function ImportMenuModal({ onClose, ensureMenu, onImported }) {
+  const [step,     setStep]     = useState('upload'); // upload | extracting | review | done
+  const [file,     setFile]     = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [error,    setError]    = useState('');
+  const [extracted, setExtracted] = useState([]); // raw items from API
+  const [selected,  setSelected]  = useState({});  // idx → bool
+  const [editItems, setEditItems] = useState([]);  // editable copy
+  const [importing, setImporting] = useState(false);
+  const [doneCount, setDoneCount] = useState(0);
+  const fileRef = useRef(null);
+
+  const ACCEPTED = '.pdf,.docx,.xlsx,.xls,.csv,.txt';
+
+  const handleFile = (f) => {
+    if (!f) return;
+    setFile(f); setError('');
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  const handleExtract = async () => {
+    if (!file) { setError('Please select a file.'); return; }
+    setStep('extracting'); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await api.post('/menus/import/extract', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (!data.items?.length) {
+        setError('No menu items found in this file. Try a different format or add some items manually.');
+        setStep('upload');
+        return;
+      }
+      setExtracted(data.items);
+      setEditItems(data.items.map(it => ({ ...it })));
+      const sel = {};
+      data.items.forEach((_, i) => { sel[i] = true; });
+      setSelected(sel);
+      setStep('review');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to read the file. Try a PDF or CSV.');
+      setStep('upload');
+    }
+  };
+
+  const toggleAll = (val) => {
+    const sel = {};
+    editItems.forEach((_, i) => { sel[i] = val; });
+    setSelected(sel);
+  };
+
+  const updateEditItem = (idx, field, val) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: val } : it));
+  };
+
+  const handleImport = async () => {
+    const toImport = editItems.filter((_, i) => selected[i] !== false);
+    if (!toImport.length) { setError('Select at least one item.'); return; }
+    setImporting(true); setError('');
+    try {
+      const m = await ensureMenu();
+      let count = 0;
+      for (const it of toImport) {
+        try {
+          await api.post(`/menus/${m.id}/items`, {
+            day_of_week:    it.day_of_week,
+            meal_type:      it.meal_type,
+            food_item:      it.food_item,
+            component:      it.component,
+            is_whole_grain: !!it.is_whole_grain,
+            quantity:        it.quantity || null,
+          });
+          count++;
+        } catch { /* skip duplicates silently */ }
+      }
+      setDoneCount(count);
+      setStep('done');
+      onImported();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to import items.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Group by day + meal for review display
+  const grouped = groupItems(editItems);
+  const groupKeys = [...grouped.keys()].sort((a, b) => {
+    const [da, ma] = a.split('|');
+    const [db, mb] = b.split('|');
+    if (da !== db) return parseInt(da) - parseInt(db);
+    return VALID_MEALS_IM.indexOf(ma) - VALID_MEALS_IM.indexOf(mb);
+  });
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Import Menu</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {step === 'upload'    && 'Upload your existing menu — Excel, Word, PDF, or CSV'}
+              {step === 'extracting' && 'Reading your menu with AI…'}
+              {step === 'review'   && `${editItems.length} items found — review and confirm`}
+              {step === 'done'     && `${doneCount} items imported successfully`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Step: Upload */}
+        {step === 'upload' && (
+          <div className="p-6 space-y-4">
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors ${
+                dragOver ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50'
+              }`}>
+              <input ref={fileRef} type="file" accept={ACCEPTED} className="hidden"
+                onChange={e => handleFile(e.target.files[0])} />
+              <div className="w-10 h-10 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <BookOpen className="w-5 h-5 text-brand-600" />
+              </div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">
+                {file ? file.name : 'Drop your menu file here'}
+              </p>
+              <p className="text-xs text-gray-400">
+                Excel (.xlsx), Word (.docx), PDF, CSV · up to 10 MB
+              </p>
+              {file && (
+                <p className="text-xs text-brand-600 font-semibold mt-2">✓ {file.name} selected</p>
+              )}
+            </div>
+
+            <div className="bg-gray-50 rounded-xl px-4 py-3 text-xs text-gray-500 space-y-1">
+              <p className="font-semibold text-gray-600 mb-1">Works with:</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <span>📊 Excel spreadsheets</span>
+                <span>📄 Word documents</span>
+                <span>📋 PDF menus</span>
+                <span>📑 State-approved templates</span>
+                <span>🔄 KidKare exports</span>
+                <span>📂 Minute Menu exports</span>
+              </div>
+            </div>
+
+            {error && (
+              <div className="px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">{error}</div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={handleExtract} disabled={!file}
+                className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40">
+                Extract Menu →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Extracting */}
+        {step === 'extracting' && (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+            <p className="text-sm font-semibold text-gray-700">Reading your menu with AI…</p>
+            <p className="text-xs text-gray-400">This usually takes 5–15 seconds</p>
+          </div>
+        )}
+
+        {/* Step: Review */}
+        {step === 'review' && (
+          <>
+            <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 flex-shrink-0 bg-gray-50">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer">
+                  <input type="checkbox"
+                    checked={selectedCount === editItems.length}
+                    onChange={e => toggleAll(e.target.checked)}
+                    className="rounded border-gray-300 text-brand-600" />
+                  Select all
+                </label>
+                <span className="text-xs text-gray-400">{selectedCount} of {editItems.length} selected</span>
+              </div>
+              <p className="text-xs text-gray-400">Click a component to change it</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+              {groupKeys.map(key => {
+                const [dayStr, mealType] = key.split('|');
+                const dayNum = parseInt(dayStr);
+                const groupItems = grouped.get(key);
+                return (
+                  <div key={key}>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                      {DAY_LABELS[dayNum]} · {IMPORT_MEAL_LABELS[mealType] || mealType}
+                    </p>
+                    <div className="space-y-1.5">
+                      {groupItems.map(it => (
+                        <div key={it._idx}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-colors ${
+                            selected[it._idx] !== false
+                              ? 'bg-white border-gray-200'
+                              : 'bg-gray-50 border-gray-100 opacity-50'
+                          }`}>
+                          <input type="checkbox"
+                            checked={selected[it._idx] !== false}
+                            onChange={e => setSelected(s => ({ ...s, [it._idx]: e.target.checked }))}
+                            className="rounded border-gray-300 text-brand-600 flex-shrink-0" />
+                          <input type="text"
+                            value={editItems[it._idx]?.food_item || ''}
+                            onChange={e => updateEditItem(it._idx, 'food_item', e.target.value)}
+                            className="flex-1 text-sm text-gray-700 bg-transparent border-b border-transparent focus:border-brand-300 focus:outline-none py-0.5" />
+                          <select
+                            value={editItems[it._idx]?.component || 'other'}
+                            onChange={e => updateEditItem(it._idx, 'component', e.target.value)}
+                            className="text-xs text-gray-500 bg-transparent border border-gray-200 rounded-lg px-1.5 py-1 focus:outline-none focus:border-brand-400 capitalize">
+                            {VALID_COMPS_IM.map(c => <option key={c} value={c}>{COMP_LABELS_IM[c]}</option>)}
+                          </select>
+                          {editItems[it._idx]?.is_whole_grain && (
+                            <Wheat className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title="Whole grain" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {error && (
+              <div className="px-6 py-2 text-xs text-red-700 bg-red-50 border-t border-red-200">{error}</div>
+            )}
+
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 flex-shrink-0">
+              <button onClick={() => setStep('upload')} className="text-sm text-gray-500 hover:text-gray-700">
+                ← Try another file
+              </button>
+              <button onClick={handleImport} disabled={importing || selectedCount === 0}
+                className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40 flex items-center gap-2">
+                {importing
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing…</>
+                  : `Import ${selectedCount} items →`}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step: Done */}
+        {step === 'done' && (
+          <div className="flex-1 flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="text-base font-bold text-gray-800">{doneCount} items imported</p>
+            <p className="text-sm text-gray-500">Your menu is now populated. Review in the grid and adjust as needed.</p>
+            <button onClick={onClose}
+              className="mt-4 px-6 py-2.5 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl">
+              Done
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MenuBuilderPage() {
   const [weekStart, setWeekStart]       = useState(() => mondayOf(new Date()));
@@ -1018,6 +1327,7 @@ export default function MenuBuilderPage() {
   // Compliance assistant
   const [showHelp, setShowHelp]         = useState(false);
   const [helpContext, setHelpContext]   = useState(null); // meal type user last opened
+  const [showImport, setShowImport]     = useState(false);
 
   // Load orgs + rates + templates on mount
   useEffect(() => {
@@ -1309,6 +1619,12 @@ export default function MenuBuilderPage() {
           <p className="text-sm text-gray-500 mt-0.5">Plan weekly menus · Validate CACFP meal patterns</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Import menu */}
+          <button onClick={() => setShowImport(true)}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+            <BookOpen className="w-4 h-4" /> Import Menu
+          </button>
+
           {/* Infant toggle */}
           <button onClick={toggleInfant}
             className={`flex items-center gap-1.5 text-sm border px-3 py-1.5 rounded-lg transition-colors ${
@@ -1756,6 +2072,15 @@ export default function MenuBuilderPage() {
         onOpenCell={openCell}
         userState={userState}
       />
+
+      {/* Import Menu Modal */}
+      {showImport && (
+        <ImportMenuModal
+          onClose={() => setShowImport(false)}
+          ensureMenu={ensureMenu}
+          onImported={() => { setShowImport(false); loadMenu(); }}
+        />
+      )}
     </div>
   );
 }
