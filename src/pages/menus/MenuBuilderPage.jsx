@@ -984,10 +984,12 @@ const IMPORT_MEAL_LABELS = {
   pm_snack: 'PM Snack', snack: 'Snack', supper: 'Supper',
 };
 const COMP_LABELS_IM = {
-  grain: 'Grain', 'meat/alt': 'Meat/Alt', fruit: 'Fruit',
-  vegetable: 'Vegetable', dairy: 'Dairy', other: 'Other',
+  milk: 'Milk', grain: 'Grain', protein: 'Meat/Alt',
+  fruit: 'Fruit', vegetable: 'Vegetable', other: 'Other',
+  // legacy aliases — kept so old imported values still display
+  dairy: 'Milk', 'meat/alt': 'Meat/Alt',
 };
-const VALID_COMPS_IM = ['grain','meat/alt','fruit','vegetable','dairy','other'];
+const VALID_COMPS_IM = ['milk','grain','protein','fruit','vegetable','other'];
 const VALID_MEALS_IM = ['breakfast','am_snack','lunch','pm_snack','snack','supper'];
 
 function groupItems(items) {

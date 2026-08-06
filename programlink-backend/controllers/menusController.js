@@ -42,7 +42,7 @@ async function listMenus(req, res) {
     const { org_id, limit = 12, offset = 0 } = req.query;
     let where, params;
     if (role === 'sponsor' || role === 'admin') {
-      where  = `WHERE m.org_id IN (SELECT id FROM organizations WHERE sponsor_id = (SELECT sponsor_id FROM organizations WHERE id = $1) UNION SELECT $1)`;
+      where  = `WHERE m.org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1)`;
       params = [organizationId];
     } else {
       where  = `WHERE m.org_id = $1`;
@@ -210,7 +210,8 @@ async function updateMenu(req, res) {
          notes      = COALESCE($3, notes),
          has_infant = COALESCE($4, has_infant),
          updated_at = NOW()
-       WHERE id=$5 AND org_id=$6 RETURNING *`,
+       WHERE id=$5 AND (org_id=$6 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$6))
+       RETURNING *`,
       [name, status, notes, has_infant, id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Menu not found' });
@@ -226,7 +227,7 @@ async function deleteMenu(req, res) {
   try {
     const { id } = req.params;
     const { organizationId } = req.user;
-    await pool.query(`DELETE FROM menus WHERE id=$1 AND org_id=$2`, [id, organizationId]);
+    await pool.query(`DELETE FROM menus WHERE id=$1 AND (org_id=$2 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`, [id, organizationId]);
     res.json({ success: true });
   } catch (err) {
     console.error('deleteMenu error:', err);
@@ -242,7 +243,7 @@ async function upsertItem(req, res) {
     const { day_of_week, meal_type, food_item, component, is_whole_grain = false, quantity } = req.body;
     if (!day_of_week || !meal_type || !food_item || !component)
       return res.status(400).json({ error: 'day_of_week, meal_type, food_item, and component are required' });
-    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND org_id=$2`, [menu_id, organizationId]);
+    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND (org_id=$2 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`, [menu_id, organizationId]);
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
     const { rows } = await pool.query(
       `INSERT INTO menu_items (menu_id, day_of_week, meal_type, food_item, component, is_whole_grain, quantity)
@@ -265,7 +266,7 @@ async function clearMenuItems(req, res) {
     const { organizationId } = req.user;
     // Verify ownership first
     const check = await pool.query(
-      `SELECT id FROM menus WHERE id=$1 AND org_id=$2`,
+      `SELECT id FROM menus WHERE id=$1 AND (org_id=$2 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`,
       [menuId, organizationId]
     );
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
@@ -284,7 +285,7 @@ async function deleteItem(req, res) {
     const { organizationId } = req.user;
     await pool.query(
       `DELETE FROM menu_items mi USING menus m
-       WHERE mi.id=$1 AND mi.menu_id=m.id AND m.org_id=$2`,
+       WHERE mi.id=$1 AND mi.menu_id=m.id AND (m.org_id=$2 OR m.org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`,
       [item_id, organizationId]
     );
     res.json({ success: true });
@@ -306,7 +307,7 @@ async function generateMenu(req, res) {
       return res.status(503).json({ error: 'AI generation is not configured. Contact support.' });
     }
 
-    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND org_id=$2`, [menuId, organizationId]);
+    const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND (org_id=$2 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`, [menuId, organizationId]);
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
 
     const Anthropic = require('@anthropic-ai/sdk');
