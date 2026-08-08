@@ -7,21 +7,44 @@ const path = require('path');
 // to avoid crashing the server at startup if any of these have environment issues.
 
 // ── CACFP Meal Pattern Rules ──────────────────────────────────────────────────
+
+// Combo-dish grain keywords: a protein item whose name includes these also satisfies grain
+const COMBO_GRAIN_KEYWORDS = [
+  'sandwich','sub','hoagie','wrap','burrito','taco','pizza','quesadilla',
+  'hot dog','hotdog','corn dog',
+  'on bread','on roll','on bun','on tortilla','on bagel','on biscuit',
+  'with bread','with roll','with bun','with tortilla','with bagel',
+  '(ww bread)','(whole wheat bread)','(whole-wheat bread)','(wgr bread)',
+  '(corn tortilla)','(wg corn tortilla)','(wg tortilla)','(whole-grain tortilla)',
+  '(whole wheat bun)','(whole-wheat bun)','(ww bun)',
+];
+
+function hasComboGrain(items) {
+  return items.some(it => {
+    if (it.component !== 'protein') return false;
+    const name = (it.food_item || '').toLowerCase();
+    return COMBO_GRAIN_KEYWORDS.some(kw => name.includes(kw));
+  });
+}
+
 function validateMeal(items, mealType) {
   const has = (comp) => items.some(i => i.component === comp);
+  const grainOk = has('grain') || hasComboGrain(items);
   const missing = [];
   if (mealType === 'breakfast') {
     if (!has('milk'))                      missing.push('Milk');
-    if (!has('grain'))                     missing.push('Grain/Bread');
+    if (!grainOk)                          missing.push('Grain/Bread');
     if (!has('fruit') && !has('vegetable')) missing.push('Fruit or Vegetable');
   } else if (mealType === 'lunch' || mealType === 'supper') {
     if (!has('milk'))       missing.push('Milk');
-    if (!has('grain'))      missing.push('Grain/Bread');
+    if (!grainOk)           missing.push('Grain/Bread');
     if (!has('protein'))    missing.push('Meat/Meat Alternate');
     if (!has('fruit'))      missing.push('Fruit');
     if (!has('vegetable'))  missing.push('Vegetable');
   } else if (mealType === 'snack') {
-    const present = ['milk','grain','protein','fruit','vegetable'].filter(c => has(c)).length;
+    let present = ['milk','fruit','vegetable'].filter(c => has(c)).length;
+    if (grainOk) present++;
+    if (has('protein')) present++;
     if (present < 2) missing.push(`${2 - present} more component${2 - present !== 1 ? 's' : ''} required`);
   } else if (mealType === 'infant') {
     if (!has('formula')) missing.push('Breast Milk / Formula');
@@ -540,6 +563,7 @@ Additional rules:
 - "WG", "WGR", "whole wheat", "whole grain", "whole-grain", oatmeal, brown rice → is_whole_grain: true
 - "Snack" without AM/PM → meal_type: "snack"; "PM Snack" or "Afternoon Snack" → "snack"
 - Week labels: Week A/1/I/One = week_number 1; Week B/2/II/Two = week_number 2; etc.
+- COMBO DISHES — split into two items: if a food is a sandwich, taco, burrito, pizza, wrap, quesadilla, or similar combination dish, create TWO objects: one for the protein filling (component: "protein") and one for the bread/shell (component: "grain"). Example: "Tuna Salad Sandwich on WW Bread" → {food_item:"Tuna Salad",component:"protein"} + {food_item:"Whole-Wheat Bread",component:"grain",is_whole_grain:true}. Example: "Beef Tacos (WG Corn Tortilla)" → {food_item:"Beef",component:"protein"} + {food_item:"Corn Tortilla",component:"grain",is_whole_grain:true}.
 - Do NOT include the same food more than once per day+meal combination
 - Each separate food item in a cell = a separate object in the array
 - If no items found, return []`;

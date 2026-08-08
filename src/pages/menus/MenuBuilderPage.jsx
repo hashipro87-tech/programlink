@@ -366,23 +366,48 @@ const STATE_RESOURCES = {
 };
 
 // ── Validation ────────────────────────────────────────────────────────────────
+// Combo-dish grain keywords: a protein item whose name contains these also counts as grain
+const COMBO_GRAIN_KEYWORDS = [
+  'sandwich','sandwiches','sub','hoagie','wrap','burrito','taco','tacos',
+  'pizza','quesadilla','hotdog','hot dog','corn dog',
+  'on bread','on roll','on bun','on tortilla','on bagel','on biscuit','on muffin',
+  'with bread','with roll','with bun','with tortilla','with bagel',
+  '(ww bread)','(whole wheat bread)','(whole-wheat bread)','(wgr bread)',
+  '(corn tortilla)','(wg corn tortilla)','(wg tortilla)','(whole-grain tortilla)',
+  '(whole wheat bun)','(whole-wheat bun)','(ww bun)',
+];
+
+function hasComboGrain(items) {
+  // Returns true if any protein item's name implies bread/grain is included
+  return items.some(it => {
+    if (it.component !== 'protein') return false;
+    const name = (it.food_item || '').toLowerCase();
+    return COMBO_GRAIN_KEYWORDS.some(kw => name.includes(kw));
+  });
+}
+
 function validateMealClient(items, mealType) {
   const has = (comp) => Array.isArray(comp)
     ? comp.some(c => items.some(i => i.component === c))
     : items.some(i => i.component === comp);
+  // A combo dish (e.g. "Tuna Sandwich on WW Bread") counts as grain even if not split
+  const grainOk = has('grain') || hasComboGrain(items);
   const missing = [];
   if (mealType === 'breakfast') {
     if (!has('milk'))                 missing.push('Milk');
-    if (!has('grain'))                missing.push('Grain/Bread');
+    if (!grainOk)                     missing.push('Grain/Bread');
     if (!has(['fruit','vegetable']))  missing.push('Fruit or Vegetable');
   } else if (mealType === 'lunch' || mealType === 'supper') {
     if (!has('milk'))      missing.push('Milk');
-    if (!has('grain'))     missing.push('Grain/Bread');
+    if (!grainOk)          missing.push('Grain/Bread');
     if (!has('protein'))   missing.push('Meat/Meat Alt.');
     if (!has('fruit'))     missing.push('Fruit');
     if (!has('vegetable')) missing.push('Vegetable');
   } else if (mealType === 'snack') {
-    const present = ['milk','grain','protein','fruit','vegetable'].filter(c => items.some(i => i.component === c)).length;
+    // For snack, a combo dish counts as BOTH protein and grain
+    let present = ['milk','fruit','vegetable'].filter(c => items.some(i => i.component === c)).length;
+    if (has('grain') || hasComboGrain(items)) present++;
+    if (items.some(i => i.component === 'protein')) present++;
     if (present < 2) missing.push(`Need ${2 - present} more component${2 - present !== 1 ? 's' : ''}`);
   } else if (mealType === 'infant') {
     if (!has('formula')) missing.push('Breast Milk / Formula');
