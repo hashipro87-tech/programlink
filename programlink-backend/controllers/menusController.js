@@ -474,12 +474,15 @@ async function extractMenuFromFile(req, res) {
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const instructions = `You are a CACFP menu data extractor. Extract every food item from the weekly menu.
+    const instructions = `You are a CACFP menu data extractor. Extract every food item from this menu document.
+
+IMPORTANT: This may be a single-week menu OR a multi-week rotating cycle (2–6 weeks). Extract items from ALL weeks you find.
 
 Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
 
 Each object must use EXACTLY these field values:
 {
+  "week_number": 1 (or 2, 3, 4 etc — which rotation week this item belongs to; use 1 if only one week),
   "day_of_week": 1-7 (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday),
   "meal_type": "breakfast" | "lunch" | "supper" | "snack" | "am_snack" | "pm_snack",
   "food_item": "food name exactly as written",
@@ -488,20 +491,23 @@ Each object must use EXACTLY these field values:
   "quantity": "serving size if listed, else null"
 }
 
-Component classification rules (use these EXACT values):
-- Milk, yogurt, cheese, dairy → component: "milk"
-- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin, crackers, pancake → component: "grain"
-- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu, meat, protein → component: "protein"
-- All fruits (apple, orange, banana, juice, berries, etc.) → component: "fruit"
-- All vegetables (carrots, broccoli, peas, corn, lettuce, etc.) → component: "vegetable"
-- Anything else → component: "other"
+Component classification rules (use EXACT component values — NO other values allowed):
+- Milk, yogurt, cheese, cream cheese, dairy → component: "milk"
+- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin, crackers, pancake, bagel, biscuit, waffle, roll → component: "grain"
+- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu, meat, sausage, ham, tuna → component: "protein"
+- All fruits (apple, orange, banana, juice, berries, melon, peaches, grapes, etc.) → component: "fruit"
+- All vegetables (carrots, broccoli, peas, corn, lettuce, potatoes, sweet potato, etc.) → component: "vegetable"
+- Anything else (condiments, dressings, spices) → component: "other"
 
 Additional rules:
-- Whole wheat / whole grain / oatmeal / brown rice / WGR → is_whole_grain: true; all others → false
-- "Snack" without AM/PM context → "snack"
-- "Afternoon Snack" or "PM Snack" → "snack"
-- If no day is listed, assign day_of_week: 1 (Monday) to all items
-- If no items found, return []`;
+- Whole wheat, whole grain, WG, WGR, oatmeal, brown rice → is_whole_grain: true; all others → false
+- "Snack" without AM/PM context → meal_type: "snack"
+- "Afternoon Snack" or "PM Snack" → meal_type: "snack"
+- For multi-week menus: Week A/1/I/One = week_number 1; Week B/2/II/Two = week_number 2; etc.
+- Table layout: if days (Mon–Fri) are columns and weeks are rows, read each cell for that week+day combination
+- Each food on a separate line within a cell is a SEPARATE item in the array
+- If no week structure found, use week_number: 1 for all items
+- If no items found at all, return []`;
 
     // Build the message content — PDF uses native document support, text uses plain prompt
     let messageContent;
@@ -518,14 +524,18 @@ Additional rules:
         },
       ];
     } else {
-      messageContent = `${instructions}\n\nDocument:\n${text.slice(0, 14000)}`;
+      messageContent = `${instructions}\n\nDocument:\n${text.slice(0, 16000)}`;
     }
 
+    // Use sonnet for PDFs (haiku-4-5 does not support native PDF document blocks)
+    const model = pdfBuffer ? 'claude-3-5-sonnet-20241022' : 'claude-haiku-4-5-20251001';
+    const requestOptions = pdfBuffer ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } } : {};
+
     const msg = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
+      model,
+      max_tokens: 8192,
       messages: [{ role: 'user', content: messageContent }],
-    });
+    }, requestOptions);
 
     const raw     = msg.content[0]?.text?.trim() ?? '[]';
     const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
@@ -550,6 +560,7 @@ Additional rules:
         const raw = String(it.component || '').toLowerCase().trim();
         const comp = COMP_ALIASES[raw] || (VALID_COMPS.includes(raw) ? raw : 'other');
         return {
+          week_number:    Math.min(10, Math.max(1, parseInt(it.week_number) || 1)),
           day_of_week:    Math.min(7, Math.max(1, parseInt(it.day_of_week) || 1)),
           meal_type:      VALID_MEALS.includes(it.meal_type) ? it.meal_type : 'breakfast',
           food_item:      String(it.food_item).trim().slice(0, 200),

@@ -416,25 +416,34 @@ function getDayIssues(dayItems) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Parse a YYYY-MM-DD string in LOCAL time (avoids UTC-midnight timezone shift)
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+// Format a local Date as YYYY-MM-DD without UTC conversion
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function mondayOf(date) {
-  const d = new Date(date);
+  const d = new Date(date); // new Date() is fine — local time
   const day = d.getDay();
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  return d.toISOString().split('T')[0];
+  return toDateStr(d);
 }
 function addWeeks(dateStr, n) {
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
   d.setDate(d.getDate() + n * 7);
-  return d.toISOString().split('T')[0];
+  return toDateStr(d);
 }
 function formatWeek(weekStart) {
-  const start = new Date(weekStart);
-  const end   = new Date(weekStart);
+  const start = parseLocalDate(weekStart);
+  const end   = parseLocalDate(weekStart);
   end.setDate(end.getDate() + 6);
   return `${start.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
 }
 function dayDate(weekStart, dayNum) {
-  const d = new Date(weekStart);
+  const d = parseLocalDate(weekStart);
   d.setDate(d.getDate() + (dayNum - 1));
   return d.getDate();
 }
@@ -1004,15 +1013,17 @@ function groupItems(items) {
 }
 
 function ImportMenuModal({ onClose, ensureMenu, onImported }) {
-  const [step,     setStep]     = useState('upload'); // upload | extracting | review | done
-  const [file,     setFile]     = useState(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [error,    setError]    = useState('');
-  const [extracted, setExtracted] = useState([]); // raw items from API
-  const [selected,  setSelected]  = useState({});  // idx → bool
-  const [editItems, setEditItems] = useState([]);  // editable copy
-  const [importing, setImporting] = useState(false);
-  const [doneCount, setDoneCount] = useState(0);
+  const [step,         setStep]        = useState('upload'); // upload | extracting | week-select | review | done
+  const [file,         setFile]        = useState(null);
+  const [dragOver,     setDragOver]    = useState(false);
+  const [error,        setError]       = useState('');
+  const [extracted,    setExtracted]   = useState([]); // raw items from API (all weeks)
+  const [allWeeks,     setAllWeeks]    = useState(1);  // total weeks detected
+  const [selectedWeek, setSelectedWeek] = useState(1); // which week to import
+  const [selected,     setSelected]    = useState({});  // idx → bool
+  const [editItems,    setEditItems]   = useState([]);  // editable copy (filtered to chosen week)
+  const [importing,    setImporting]   = useState(false);
+  const [doneCount,    setDoneCount]   = useState(0);
   const fileRef = useRef(null);
 
   const ACCEPTED = '.pdf,.docx,.xlsx,.xls,.csv,.txt';
@@ -1025,6 +1036,16 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
+  };
+
+  const loadWeekIntoReview = (allItems, weekNum) => {
+    const filtered = allItems.filter(it => (it.week_number || 1) === weekNum);
+    setEditItems(filtered.map(it => ({ ...it })));
+    const sel = {};
+    filtered.forEach((_, i) => { sel[i] = true; });
+    setSelected(sel);
+    setSelectedWeek(weekNum);
+    setStep('review');
   };
 
   const handleExtract = async () => {
@@ -1042,11 +1063,15 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
         return;
       }
       setExtracted(data.items);
-      setEditItems(data.items.map(it => ({ ...it })));
-      const sel = {};
-      data.items.forEach((_, i) => { sel[i] = true; });
-      setSelected(sel);
-      setStep('review');
+      const maxWeek = Math.max(...data.items.map(it => it.week_number || 1));
+      setAllWeeks(maxWeek);
+      if (maxWeek > 1) {
+        // Multi-week menu — let user pick which week to import
+        setStep('week-select');
+      } else {
+        // Single week — go straight to review
+        loadWeekIntoReview(data.items, 1);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to read the file. Try a PDF or CSV.');
       setStep('upload');
@@ -1112,10 +1137,11 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
           <div>
             <h2 className="text-base font-bold text-gray-900">Import Menu</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {step === 'upload'    && 'Upload your existing menu — Excel, Word, PDF, or CSV'}
-              {step === 'extracting' && 'Reading your menu with AI…'}
-              {step === 'review'   && `${editItems.length} items found — review and confirm`}
-              {step === 'done'     && `${doneCount} items imported successfully`}
+              {step === 'upload'       && 'Upload your existing menu — Excel, Word, PDF, or CSV'}
+              {step === 'extracting'   && 'Reading your menu with AI…'}
+              {step === 'week-select'  && `${allWeeks}-week rotating menu detected — choose a week to import`}
+              {step === 'review'       && `${editItems.length} items found — review and confirm`}
+              {step === 'done'         && `${doneCount} items imported successfully`}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -1183,7 +1209,41 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
           <div className="flex-1 flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
             <p className="text-sm font-semibold text-gray-700">Reading your menu with AI…</p>
-            <p className="text-xs text-gray-400">This usually takes 5–15 seconds</p>
+            <p className="text-xs text-gray-400">PDFs may take up to 20 seconds</p>
+          </div>
+        )}
+
+        {/* Step: Week Select (multi-week rotating menus only) */}
+        {step === 'week-select' && (
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-600">
+              This looks like a <strong>{allWeeks}-week rotating menu</strong>. Pick the week you want to load into the Menu Builder. You can import other weeks later.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: allWeeks }, (_, i) => i + 1).map(wk => {
+                const count = extracted.filter(it => (it.week_number || 1) === wk).length;
+                return (
+                  <button
+                    key={wk}
+                    onClick={() => loadWeekIntoReview(extracted, wk)}
+                    className="flex flex-col items-center gap-1.5 px-4 py-5 rounded-2xl border-2 border-gray-200 hover:border-brand-400 hover:bg-brand-50 transition-all group">
+                    <span className="text-2xl font-black text-gray-800 group-hover:text-brand-700">Week {wk}</span>
+                    <span className="text-xs text-gray-400">{count} items extracted</span>
+                    <span className="text-xs font-semibold text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity">Import this week →</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-between pt-2">
+              <button onClick={() => setStep('upload')} className="text-xs text-gray-500 hover:text-gray-700 underline">
+                ← Upload a different file
+              </button>
+              <button
+                onClick={() => loadWeekIntoReview(extracted, 1)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                Skip — import Week 1
+              </button>
+            </div>
           </div>
         )}
 
