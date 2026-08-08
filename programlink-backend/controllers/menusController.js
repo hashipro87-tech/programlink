@@ -474,40 +474,75 @@ async function extractMenuFromFile(req, res) {
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const instructions = `You are a CACFP menu data extractor. Extract every food item from this menu document.
+    const instructions = `You are a CACFP menu data extractor. Extract every food item from this document.
 
-IMPORTANT: This may be a single-week menu OR a multi-week rotating cycle (2–6 weeks). Extract items from ALL weeks you find.
+IMPORTANT: Real CACFP menus come in many formats. Identify which format this is and adapt accordingly.
 
-Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
+--- FORMAT GUIDE ---
 
-Each object must use EXACTLY these field values:
+FORMAT A — Section-row table (most common, e.g. ISBE, NCA templates):
+  Layout: "Breakfast" row header → Mon/Tue/Wed/Thu/Fri columns → food items per cell
+           then "Lunch" row header → Mon/Tue/Wed/Thu/Fri → foods per cell, etc.
+  Text order after extraction: ALL breakfast items across all days, then ALL snack items, then ALL lunch items
+  → meal_type comes from the SECTION HEADER (Breakfast / Lunch / Snack) before each group
+
+FORMAT B — Day-column table (e.g. NY State CACFP, single-week posters):
+  Layout: "Day 1 Day 2 Day 3 Day 4 Day 5" as column headers (or Mon/Tue/Wed/Thu/Fri)
+          Within each day's column: Breakfast foods → Snack → Lunch/Supper listed top-to-bottom
+  Day mapping: Day 1=Mon(1), Day 2=Tue(2), Day 3=Wed(3), Day 4=Thu(4), Day 5=Fri(5)
+  Extended: Day 6=Mon week 2, Day 7=Tue week 2, ..., Day 11=Mon week 3, etc.
+  → Track the current day column and cycle through Breakfast → Snack → Lunch order
+
+FORMAT C — Narrative list (e.g. CT, WI state sample menus):
+  Layout: "Week 1" header, then "Day 1" / "Day 2" bullet-list structure
+  Each food item is a separate bullet: "• Food name, serving size | Component label"
+  Component labels may appear: "Milk component", "MMA component", "Grains component", "Fruits component", "Vegetables component"
+  Day mapping: Day 1=Mon(1), Day 2=Tue(2), Day 3=Wed(3), Day 4=Thu(4), Day 5=Fri(5)
+  Week mapping: Week 1=week_number 1, "Week 2, continued"=week_number 2, etc.
+  → If document title says "Lunch" or "Breakfast" menus, assign that meal_type to all items
+  → Use component labels to classify foods; infer meal_type from context
+
+FORMAT D — Multi-week rotating cycle table (e.g. Tallatoona, school district menus):
+  Layout: Rows = Week 1 / Week 2 / Week 3 / Week 4; Columns = Mon/Tue/Wed/Thu/Fri
+  Each table cell contains MULTIPLE meals stacked (no explicit meal type labels):
+    — Breakfast foods appear first in the cell
+    — AM Snack or snack appears next (usually 1-2 short items)
+    — Lunch items appear last (larger group with protein + veg + grain + fruit)
+  → Infer meal_type from position within cell and food composition:
+    Breakfast clues: milk, cereal, oatmeal, toast, bagel, eggs, fruit + grain combo
+    Snack clues: just 2-3 items, often fruit + grain OR veg + dairy
+    Lunch clues: protein + grain + vegetables + fruit + milk (5 components)
+
+--- EXTRACTION RULES ---
+
+Return ONLY a valid JSON array — no markdown, no code fences, no explanation.
+
+Each object must have EXACTLY these fields:
 {
-  "week_number": 1 (or 2, 3, 4 etc — which rotation week this item belongs to; use 1 if only one week),
+  "week_number": 1 (or 2, 3, 4 — which rotation week; always 1 for single-week documents),
   "day_of_week": 1-7 (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday),
   "meal_type": "breakfast" | "lunch" | "supper" | "snack" | "am_snack" | "pm_snack",
-  "food_item": "food name exactly as written",
+  "food_item": "food name exactly as written in the document",
   "component": "milk" | "grain" | "protein" | "fruit" | "vegetable" | "other",
   "is_whole_grain": true | false,
-  "quantity": "serving size if listed, else null"
+  "quantity": "serving size if shown (e.g. '¾ cup', '1 oz'), else null"
 }
 
-Component classification rules (use EXACT component values — NO other values allowed):
-- Milk, yogurt, cheese, cream cheese, dairy → component: "milk"
-- Bread, rice, pasta, tortilla, cereal, oatmeal, grits, muffin, crackers, pancake, bagel, biscuit, waffle, roll → component: "grain"
-- Chicken, beef, turkey, fish, eggs, beans, peanut butter, tofu, meat, sausage, ham, tuna → component: "protein"
-- All fruits (apple, orange, banana, juice, berries, melon, peaches, grapes, etc.) → component: "fruit"
-- All vegetables (carrots, broccoli, peas, corn, lettuce, potatoes, sweet potato, etc.) → component: "vegetable"
-- Anything else (condiments, dressings, spices) → component: "other"
+Component classification (use EXACT values — no others):
+- Milk, yogurt, cheese, cream cheese, any dairy → "milk"
+- Bread, bagel, tortilla, cereal, oatmeal, rice, pasta, crackers, muffin, waffle, pancake, biscuit, roll, noodles, couscous, grits → "grain"
+- Chicken, beef, turkey, fish, tuna, eggs, beans, peanut butter, tofu, ham, sausage, lentils, legumes → "protein"
+- Apple, orange, banana, berries, melon, peach, pear, grape, juice, raisins, any fruit → "fruit"
+- Carrot, broccoli, peas, corn, lettuce, potato, sweet potato, squash, salad, any vegetable → "vegetable"
+- Condiments, syrups, dressings, spices, water, or anything else → "other"
 
 Additional rules:
-- Whole wheat, whole grain, WG, WGR, oatmeal, brown rice → is_whole_grain: true; all others → false
-- "Snack" without AM/PM context → meal_type: "snack"
-- "Afternoon Snack" or "PM Snack" → meal_type: "snack"
-- For multi-week menus: Week A/1/I/One = week_number 1; Week B/2/II/Two = week_number 2; etc.
-- Table layout: if days (Mon–Fri) are columns and weeks are rows, read each cell for that week+day combination
-- Each food on a separate line within a cell is a SEPARATE item in the array
-- If no week structure found, use week_number: 1 for all items
-- If no items found at all, return []`;
+- "WG", "WGR", "whole wheat", "whole grain", "whole-grain", oatmeal, brown rice → is_whole_grain: true
+- "Snack" without AM/PM → meal_type: "snack"; "PM Snack" or "Afternoon Snack" → "snack"
+- Week labels: Week A/1/I/One = week_number 1; Week B/2/II/Two = week_number 2; etc.
+- Do NOT include the same food more than once per day+meal combination
+- Each separate food item in a cell = a separate object in the array
+- If no items found, return []`;
 
     // Build the message content — PDF uses native document support, text uses plain prompt
     let messageContent;
