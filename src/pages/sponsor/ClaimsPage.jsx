@@ -394,7 +394,7 @@ function BreakdownRow({ breakdown, total }) {
 }
 
 // ─── Site Checklist ───────────────────────────────────────────────────────────
-function CheckRow({ label, done, na }) {
+function CheckRow({ label, done, na, fixPath }) {
   if (na) return null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -407,11 +407,13 @@ function CheckRow({ label, done, na }) {
       }}>
         {done ? '✓' : '✗'}
       </span>
-      <span style={{ fontSize: 13, color: done ? '#374151' : '#374151', fontWeight: done ? 400 : 500 }}>
+      <span style={{ fontSize: 13, color: '#374151', fontWeight: done ? 400 : 500 }}>
         {label}
       </span>
       {!done && (
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#dc2626', fontWeight: 600 }}>Missing</span>
+        fixPath
+          ? <a href={fixPath} style={{ marginLeft: 'auto', fontSize: 11, color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>Fix →</a>
+          : <span style={{ marginLeft: 'auto', fontSize: 11, color: '#dc2626', fontWeight: 600 }}>Missing</span>
       )}
     </div>
   );
@@ -499,7 +501,12 @@ function SiteTableRow({ item, expanded, onToggle, month, stateName }) {
                 <CheckRow label="Attendance"          done={cl.attendance}         na={cl.attendance === null} />
                 <CheckRow label="Enrollment"          done={cl.enrollment}         na={cl.enrollment === null} />
                 <CheckRow label="Income eligibility"  done={cl.incomeEligibility}  na={cl.incomeEligibility === null} />
-                <CheckRow label="Documents"           done={cl.documents}          na={cl.documents === null} />
+                <CheckRow
+                  label="Documents"
+                  done={cl.documents}
+                  na={cl.documents === null}
+                  fixPath={cl.documents === false ? `/dashboard/sponsor/compliance?org=${item.siteId}` : null}
+                />
                 <CheckRow label="Menus"               done={cl.menus}              na={cl.menus === null} />
 
                 {/* Actions */}

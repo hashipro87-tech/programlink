@@ -2,7 +2,7 @@
 // Shows a program-wide summary: all sites, kitchens, pending approvals, and compliance alerts
 
 import { useState, useEffect } from 'react';
-import { Outlet, useLocation, Routes, Route, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
@@ -64,7 +64,6 @@ const NAV_ITEMS = [
   { label: 'State Rule Book', path: '/dashboard/sponsor/state-rules',  icon: ShieldCheck },
   { label: 'Compliance',     path: '/dashboard/sponsor/compliance',   icon: AlertTriangle },
   { label: 'Inspections',    path: '/dashboard/sponsor/inspections',  icon: ShieldCheck },
-  { label: 'Documents',      path: '/dashboard/sponsor/documents',    icon: FileText },
   { label: 'Renewals',       path: '/dashboard/sponsor/renewals',     icon: RotateCcw },
   { label: 'Staff Training', path: '/dashboard/sponsor/training',     icon: GraduationCap },
   { label: 'Form Generator', path: '/dashboard/sponsor/forms',        icon: Printer },
@@ -610,7 +609,7 @@ export default function SponsorDashboard() {
               <Route path="claims"           element={<ClaimsPage />} />
               <Route path="reports"          element={<ReportsPage />} />
               <Route path="meal-counts"    element={<MealCountsPage />} />
-              <Route path="documents"      element={<DocumentsPage />} />
+              <Route path="documents"      element={<Navigate to="/dashboard/sponsor/compliance" replace />} />
               <Route path="messages"       element={<MessagesPage />} />
               <Route path="notifications"  element={<NotificationsPage />} />
               <Route path="settings"       element={<SettingsPage />} />

@@ -12,7 +12,7 @@
 //   • Send Reminder without leaving page (toast feedback)
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck, ShieldAlert, Shield, AlertTriangle, XCircle,
   CheckCircle, Clock, Building2, FileText, RefreshCw, Users,
@@ -279,10 +279,12 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
 
 // ─── Upload Document Modal ────────────────────────────────────────────────────
 
-function UploadDocModal({ orgs, preselectedOrg, onClose, onUploaded }) {
+function UploadDocModal({ orgs, preselectedOrg, prefilledDocType, onClose, onUploaded }) {
   const [orgId,     setOrgId]    = useState(preselectedOrg?.id ?? '');
-  const [docType,   setDocType]  = useState('');
-  const [label,     setLabel]    = useState('');
+  const [docType,   setDocType]  = useState(prefilledDocType ?? '');
+  const [label,     setLabel]    = useState(
+    prefilledDocType ? (ALL_DOC_OPTIONS.find((o) => o.value === prefilledDocType)?.label ?? '') : ''
+  );
   const [expiresAt, setExpiresAt] = useState('');
   const [file,      setFile]     = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -437,42 +439,56 @@ function UploadDocModal({ orgs, preselectedOrg, onClose, onUploaded }) {
   );
 }
 
+// ─── Doc status config ────────────────────────────────────────────────────────
+
+const DOC_STATUS = {
+  valid:          { label: 'Valid',          cls: 'bg-green-100  text-green-700' },
+  expiring_soon:  { label: 'Expiring Soon',  cls: 'bg-orange-100 text-orange-700' },
+  expired:        { label: 'Expired',        cls: 'bg-red-100    text-red-700' },
+  pending_review: { label: 'Pending Review', cls: 'bg-blue-100   text-blue-700' },
+  requested:      { label: 'Requested',      cls: 'bg-purple-100 text-purple-700' },
+  rejected:       { label: 'Rejected',       cls: 'bg-red-100    text-red-700' },
+};
+
 // ─── Compliance Drawer ────────────────────────────────────────────────────────
 
-function ComplianceDrawer({ org, onClose, onAction }) {
-  const required  = REQUIRED_DOCS[org.type] ?? [];
-  const uploaded  = new Set(org.uploaded_doc_types ?? []);
-  const al        = appLabel(org.app_status);
-  const expiry    = org.next_expiry ? fmtExpiry(org.next_expiry) : null;
+function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
+  const required = REQUIRED_DOCS[org.type] ?? [];
+  const al       = appLabel(org.app_status);
 
-  // Build full checklist: application + each required doc
-  const checklist = [
-    {
-      label:   'Application submitted',
-      done:    !!org.app_status && org.app_status !== 'rejected',
-      status:  org.app_status === 'approved'  ? 'approved'  :
-               org.app_status === 'rejected'  ? 'rejected'  :
-               org.app_status                 ? 'pending'   : 'missing',
-    },
-    ...required.map((doc) => ({
-      label:   doc.label,
-      done:    uploaded.has(doc.key),
-      status:  uploaded.has(doc.key) ? 'done' : 'missing',
-      docType: doc.key,
-    })),
-  ];
+  // Build latest-version map per doc_type from actual doc records
+  const docsByType = {};
+  for (const d of orgDocs) {
+    if (d.file_url || d.status === 'requested') {
+      if (!docsByType[d.doc_type] || (d.version ?? 0) > (docsByType[d.doc_type].version ?? 0)) {
+        docsByType[d.doc_type] = d;
+      }
+    }
+  }
 
-  const doneCnt    = checklist.filter((i) => i.done).length;
-  const missingItems = checklist.filter((i) => !i.done);
+  const requiredTypes = new Set(required.map((r) => r.key));
+  const missingCount  = required.filter((r) => {
+    const doc = docsByType[r.key];
+    return !doc || doc.status === 'expired' || doc.status === 'rejected';
+  }).length;
 
-  function ItemIcon({ status }) {
-    if (status === 'done' || status === 'approved')
-      return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
-    if (status === 'pending')
-      return <Clock className="w-4 h-4 text-blue-400 flex-shrink-0" />;
-    if (status === 'rejected')
-      return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
-    return <div className="w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0" />;
+  const doneCnt  = required.length - missingCount;
+  const hasMissing = missingCount > 0;
+
+  // Extra (non-required) docs uploaded for this org
+  const extraDocs = orgDocs.filter(
+    (d) => d.file_url && !requiredTypes.has(d.doc_type) && d.status !== 'superseded'
+  );
+
+  function DocStatusPill({ status }) {
+    const cfg = DOC_STATUS[status] ?? { label: 'Missing', cls: 'bg-gray-100 text-gray-500' };
+    return (
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>
+    );
+  }
+
+  function needsAction(doc) {
+    return !doc || ['expired', 'rejected', undefined].includes(doc?.status);
   }
 
   return (
@@ -510,53 +526,95 @@ function ComplianceDrawer({ org, onClose, onAction }) {
                 style={{ width: `${org.score}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400">{doneCnt}/{checklist.length} requirements complete</p>
+            <p className="text-xs text-gray-400">{doneCnt}/{required.length} required documents</p>
           </div>
 
-          {/* Requirements checklist */}
+          {/* Required documents — actual records */}
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Requirements</p>
-            <div className="space-y-2.5">
-              {checklist.map((item, i) => (
-                <div key={i} className="flex items-center gap-2.5">
-                  <ItemIcon status={item.status} />
-                  <span className={`text-xs flex-1 leading-snug ${item.done ? 'text-gray-500' : 'text-gray-900 font-medium'}`}>
-                    {item.label}
-                  </span>
-                  {!item.done && item.docType && (
-                    <button
-                      onClick={() => onAction('request', org, item.docType)}
-                      className="text-[10px] font-bold text-brand-600 hover:text-brand-700 flex-shrink-0"
-                    >
-                      Request
-                    </button>
-                  )}
-                </div>
-              ))}
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Required Documents</p>
+            <div className="space-y-3">
+              {required.map((req) => {
+                const doc     = docsByType[req.key];
+                const missing = needsAction(doc);
+                const expiry  = doc?.expires_at ? fmtExpiry(doc.expires_at) : null;
+
+                return (
+                  <div key={req.key} className={`rounded-xl p-3 border ${missing ? 'border-red-100 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {missing
+                          ? <div className="w-4 h-4 rounded-full border-2 border-red-300 flex-shrink-0" />
+                          : <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        }
+                        <span className={`text-xs font-semibold truncate ${missing ? 'text-red-800' : 'text-gray-800'}`}>
+                          {req.label}
+                        </span>
+                      </div>
+                      <DocStatusPill status={doc?.status ?? 'missing'} />
+                    </div>
+
+                    {doc && doc.label && (
+                      <p className="text-[11px] text-gray-500 ml-5.5 truncate">{doc.label}</p>
+                    )}
+                    {expiry && (
+                      <p className={`text-[10px] font-medium ml-5.5 mt-0.5 ${expiry.cls}`}>{expiry.label}</p>
+                    )}
+
+                    {/* Actions for missing/expired/rejected docs */}
+                    {missing && (
+                      <div className="flex gap-2 mt-2 ml-5.5">
+                        <button
+                          onClick={() => onAction('request', org, req.key)}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100"
+                        >
+                          <Bell className="w-2.5 h-2.5" /> Request
+                        </button>
+                        <button
+                          onClick={() => onAction('upload', org, req.key)}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100"
+                        >
+                          <Upload className="w-2.5 h-2.5" /> Upload
+                        </button>
+                      </div>
+                    )}
+                    {/* Replace button for expiring docs */}
+                    {!missing && doc?.status === 'expiring_soon' && (
+                      <div className="mt-2 ml-5.5">
+                        <button
+                          onClick={() => onAction('upload', org, req.key)}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100"
+                        >
+                          <Upload className="w-2.5 h-2.5" /> Upload new version
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Documents summary */}
-          <div className="bg-gray-50 rounded-xl p-4">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Documents</p>
-            <div className="text-2xl font-bold text-gray-900 mb-2">
-              {org.docs_uploaded ?? 0}
-              <span className="text-gray-400 font-normal">/{org.docs_required ?? 0}</span>
-              <span className="text-sm font-normal text-gray-400 ml-1">required</span>
+          {/* Extra (non-required) docs */}
+          {extraDocs.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Additional Documents</p>
+              <div className="space-y-2">
+                {extraDocs.map((doc) => {
+                  const expiry = doc.expires_at ? fmtExpiry(doc.expires_at) : null;
+                  return (
+                    <div key={doc.id} className="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
+                      <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-700 truncate">{doc.label || doc.doc_type}</p>
+                        {expiry && <p className={`text-[10px] ${expiry.cls}`}>{expiry.label}</p>}
+                      </div>
+                      <DocStatusPill status={doc.status} />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              {Number(org.docs_valid     ?? 0) > 0 && <span className="text-green-600  font-medium">✓ {org.docs_valid} valid</span>}
-              {Number(org.docs_pending   ?? 0) > 0 && <span className="text-blue-600   font-medium">⏳ {org.docs_pending} pending</span>}
-              {Number(org.docs_expiring  ?? 0) > 0 && <span className="text-orange-600 font-medium">⚠ {org.docs_expiring} expiring</span>}
-              {Number(org.docs_expired   ?? 0) > 0 && <span className="text-red-500    font-medium">✗ {org.docs_expired} expired</span>}
-              {Number(org.docs_rejected  ?? 0) > 0 && <span className="text-red-400    font-medium">✗ {org.docs_rejected} rejected</span>}
-            </div>
-            {expiry && (
-              <p className={`text-xs font-medium mt-2 px-2 py-1 rounded-lg inline-flex items-center gap-1 ${expiry.cls}`}>
-                <Clock className="w-3 h-3" /> {expiry.label}
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Application */}
           <div>
@@ -570,18 +628,9 @@ function ComplianceDrawer({ org, onClose, onAction }) {
 
         {/* Sticky action footer */}
         <div className="sticky bottom-0 bg-white border-t px-5 py-4 space-y-2">
-          {missingItems.length > 0 && (
-            <button
-              onClick={() => onAction('request', org)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl hover:bg-brand-700"
-            >
-              <Zap className="w-4 h-4" />
-              Fix Remaining Issues
-            </button>
-          )}
           <button
-            onClick={() => onAction('upload', org)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-bold rounded-xl hover:bg-brand-100"
+            onClick={() => onAction('upload', org, '')}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl hover:bg-brand-700"
           >
             <Upload className="w-4 h-4" />
             Upload Document
@@ -593,21 +642,15 @@ function ComplianceDrawer({ org, onClose, onAction }) {
             >
               <Bell className="w-3.5 h-3.5" /> Send Reminder
             </button>
-            <button
-              onClick={() => onAction('view', org)}
-              className="flex items-center justify-center gap-1.5 py-2 border border-gray-200 text-xs font-medium text-gray-600 rounded-xl hover:bg-gray-50"
-            >
-              <Eye className="w-3.5 h-3.5" /> View Documents
-            </button>
+            {org.app_status && org.app_status !== 'approved' && (
+              <button
+                onClick={() => onAction('review', org)}
+                className="flex items-center justify-center gap-1.5 py-2 border border-gray-200 text-xs font-medium text-gray-600 rounded-xl hover:bg-gray-50"
+              >
+                <FileText className="w-3.5 h-3.5" /> Review App
+              </button>
+            )}
           </div>
-          {org.app_status && org.app_status !== 'approved' && (
-            <button
-              onClick={() => onAction('review', org)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 border border-gray-200 text-xs font-medium text-gray-600 rounded-xl hover:bg-gray-50"
-            >
-              <FileText className="w-3.5 h-3.5" /> Review Application
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -727,9 +770,11 @@ function FilterBtn({ active, onClick, children }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CompliancePage() {
-  const navigate = useNavigate();
+  const navigate               = useNavigate();
+  const [searchParams]         = useSearchParams();
 
   const [data,    setData]    = useState(null);
+  const [allDocs, setAllDocs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -742,7 +787,7 @@ export default function CompliancePage() {
   // UI state
   const [drawerOrg,    setDrawerOrg]    = useState(null);
   const [requestModal, setRequestModal] = useState(null); // { org, prefillType? }
-  const [uploadModal,  setUploadModal]  = useState(null); // { org? } — null means closed
+  const [uploadModal,  setUploadModal]  = useState(null); // { org, prefillType? } — null means closed
   const [toast,        setToast]        = useState(null);
   const [reminding,    setReminding]    = useState(null); // orgId
 
@@ -753,11 +798,21 @@ export default function CompliancePage() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get('/compliance')
-      .then(({ data: d }) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    Promise.all([
+      api.get('/compliance'),
+      api.get('/documents?limit=500'),
+    ]).then(([compRes, docsRes]) => {
+      const compData = compRes.data;
+      setData(compData);
+      setAllDocs(docsRes.data?.documents ?? []);
+      // Auto-open drawer when ?org=<uuid> is in URL
+      const orgParam = searchParams.get('org');
+      if (orgParam && compData?.organizations) {
+        const match = compData.organizations.find((o) => o.id === orgParam);
+        if (match) setDrawerOrg(match);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [searchParams]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -842,7 +897,7 @@ export default function CompliancePage() {
     if (type === 'review')  { navigate('/dashboard/sponsor/applications');                return; }
     if (type === 'request') { setRequestModal({ org, prefillType: docType ?? '' });       return; }
     if (type === 'remind')  { handleRemind(org);                                          return; }
-    if (type === 'upload')  { setUploadModal({ org });                                    return; }
+    if (type === 'upload')  { setUploadModal({ org, prefillType: docType ?? '' });       return; }
   }
 
   // Summary card click → toggle filter
@@ -880,6 +935,7 @@ export default function CompliancePage() {
         <UploadDocModal
           orgs={data?.organizations ?? []}
           preselectedOrg={uploadModal.org ?? null}
+          prefilledDocType={uploadModal.prefillType ?? ''}
           onClose={() => setUploadModal(null)}
           onUploaded={() => { load(); showToast('Document uploaded successfully'); }}
         />
@@ -888,6 +944,7 @@ export default function CompliancePage() {
       {drawerOrg && (
         <ComplianceDrawer
           org={drawerOrg}
+          orgDocs={allDocs.filter((d) => d.org_id === drawerOrg.id && d.status !== 'superseded')}
           onClose={() => setDrawerOrg(null)}
           onAction={handleAction}
         />
