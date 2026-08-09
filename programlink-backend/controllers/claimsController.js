@@ -128,12 +128,19 @@ async function _loadClaimData(sponsorId, month) {
     incomeCertRes.rows.map(r => [r.org_id, parseInt(r.cert_count || 0)])
   );
 
+  // Required docs per org type — matches the compliance system exactly
+  const REQUIRED_DOCS_BY_TYPE = {
+    kitchen: ['w9', 'food_permit', 'insurance', 'menu_plan', 'health_cert'],
+    site:    ['enrollment', 'license', 'insurance', 'health_cert'],
+  };
+
   // 8. Build site data array for the engine
   const siteDataArray = sites.map(site => {
     const meals      = mealsBySite[site.id] || {};
     const docs       = docsBySite[site.id]  || {};
     const validDocs  = docs.valid_docs || [];
-    const missingDocs = stateConfig.requiredDocuments.filter(d => !validDocs.includes(d));
+    // The sites query already filters type='site', so always use site required docs
+    const missingDocs = REQUIRED_DOCS_BY_TYPE.site.filter(d => !validDocs.includes(d));
 
     const totalCount = parseInt(meals.submitted || 0);
     const perTypeRaw = {
