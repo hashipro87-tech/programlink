@@ -126,12 +126,12 @@ function buildTimeline(items, overallStatus) {
   const na    = (key) => (items || []).every(i => i.checklist?.[key] === null);
 
   const steps = [
-    { key: 'mealCounts',        label: 'Meal counts',          bad: count('mealCounts') },
-    { key: 'attendance',        label: 'Attendance',           bad: count('attendance') },
-    { key: 'enrollment',        label: 'Enrollment',           bad: count('enrollment'),        skip: na('enrollment') },
-    { key: 'incomeEligibility', label: 'Income eligibility',   bad: count('incomeEligibility'), skip: na('incomeEligibility') },
-    { key: 'documents',         label: 'Documents & compliance',bad: count('documents') },
-    { key: 'menus',             label: 'Menus',                bad: count('menus'),             skip: na('menus') },
+    { key: 'mealCounts',        label: 'Meal counts',          bad: count('mealCounts'),        fixPath: '/dashboard/sponsor/meal-counts' },
+    { key: 'attendance',        label: 'Attendance',           bad: count('attendance'),         fixPath: '/dashboard/sponsor/meal-counts' },
+    { key: 'enrollment',        label: 'Enrollment',           bad: count('enrollment'),        skip: na('enrollment'),        fixPath: '/dashboard/sponsor/children' },
+    { key: 'incomeEligibility', label: 'Income eligibility',   bad: count('incomeEligibility'), skip: na('incomeEligibility'), fixPath: '/dashboard/sponsor/children' },
+    { key: 'documents',         label: 'Documents & compliance',bad: count('documents'),         fixPath: '/dashboard/sponsor/compliance' },
+    { key: 'menus',             label: 'Menus',                bad: count('menus'),             skip: na('menus'), fixPath: '/dashboard/sponsor/menus' },
   ].filter(s => !s.skip);
 
   // Final "submit" step
@@ -567,6 +567,7 @@ function ClaimTimeline({ claim }) {
   const steps = buildTimeline(claim.items, claim.overallStatus);
   const score = claim.readinessScore || 0;
   const monthLabel = formatMonth(claim.claimMonth);
+  const navigate = useNavigate();
 
   return (
     <div style={{
@@ -630,10 +631,24 @@ function ClaimTimeline({ claim }) {
                 )}
               </div>
 
-              {/* Label + detail */}
-              <div style={{ paddingBottom: isLast ? 0 : 14, paddingLeft: 12, paddingTop: 4 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: labelColor }}>
-                  {step.label}
+              {/* Label + detail + Fix link */}
+              <div style={{ paddingBottom: isLast ? 0 : 14, paddingLeft: 12, paddingTop: 4, flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: labelColor }}>
+                    {step.label}
+                  </div>
+                  {!done && !isFinal && step.fixPath && (
+                    <button
+                      onClick={() => navigate(step.fixPath)}
+                      style={{
+                        fontSize: 11, fontWeight: 700, color: '#4f46e5',
+                        background: '#eef2ff', border: 'none', borderRadius: 6,
+                        padding: '2px 8px', cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Fix →
+                    </button>
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: detailColor, marginTop: 1 }}>
                   {detail}
