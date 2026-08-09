@@ -75,6 +75,18 @@ async function _loadClaimData(sponsorId, month) {
   );
   const docsBySite = Object.fromEntries(docsRes.rows.map(r => [r.org_id, r]));
 
+  // 5a. Attendance — has at least one record this month per site
+  const attendanceRes = await pool.query(
+    `SELECT org_id, COUNT(*) AS days_logged, SUM(count) AS total_count
+     FROM attendance_records
+     WHERE org_id = ANY($1) AND date >= $2 AND date <= $3
+     GROUP BY org_id`,
+    [siteIds, monthStart, monthEnd]
+  );
+  const attendanceBySite = Object.fromEntries(
+    attendanceRes.rows.map(r => [r.org_id, { days: parseInt(r.days_logged || 0), total: parseInt(r.total_count || 0) }])
+  );
+
   // 5. Menu existence for this claim month (sponsor-level)
   //    Any menu with week_start in the claim month counts.
   const menusExistRes = await pool.query(
@@ -148,14 +160,14 @@ async function _loadClaimData(sponsorId, month) {
       id:                   site.id,
       name:                 site.name,
       hasMealCounts:        totalCount > 0,
-      hasAttendance:        totalCount > 0,
+      hasAttendance:        (attendanceBySite[site.id]?.days || 0) > 0,
       hasEnrollment:        enrolled > 0,
       hasIncomeEligibility: (incomeCertBySite[site.id] || 0) > 0,
       hasDocuments:         missingDocs.length === 0,
       hasMenus:             hasMenusForMonth,
       missingDocs,
       enrollment:           enrolled,
-      attendance:           totalCount,
+      attendance:           attendanceBySite[site.id]?.total || 0,
       mealTotals,
     };
   });

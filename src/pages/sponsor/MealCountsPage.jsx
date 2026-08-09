@@ -8,7 +8,7 @@ import {
   UtensilsCrossed, CheckCircle, Clock, Camera,
   ZoomIn, X, AlertTriangle, Filter, RefreshCw,
   PenLine, Eye, Plus, Minus, Upload, ChevronDown,
-  FileSpreadsheet, Check,
+  FileSpreadsheet, Check, Users,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -243,15 +243,44 @@ const MEAL_ROWS = [
 
 function MealEntryPanel({ site, onSaved, onImportClick }) {
   const today = new Date().toISOString().split('T')[0];
-  const [date,      setDate]      = useState(today);
-  const [counts,    setCounts]    = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
-  const [saving,    setSaving]    = useState(false);
-  const [saved,     setSaved]     = useState(false);
-  const [error,     setError]     = useState('');
-  const [scanning,  setScanning]  = useState(false);
-  const [scanMsg,   setScanMsg]   = useState('');
-  const [fileName,  setFileName]  = useState('');
+  const [date,        setDate]        = useState(today);
+  const [counts,      setCounts]      = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
+  const [attendance,  setAttendance]  = useState('');
+  const [attSaved,    setAttSaved]    = useState(false);
+  const [attSaving,   setAttSaving]   = useState(false);
+  const [attHistory,  setAttHistory]  = useState({}); // { "YYYY-MM-DD": count }
+  const [saving,      setSaving]      = useState(false);
+  const [saved,       setSaved]       = useState(false);
+  const [error,       setError]       = useState('');
+  const [scanning,    setScanning]    = useState(false);
+  const [scanMsg,     setScanMsg]     = useState('');
+  const [fileName,    setFileName]    = useState('');
   const fileRef = useRef();
+
+  // Load attendance for this site's current month
+  useEffect(() => {
+    const month = today.slice(0, 7);
+    api.get(`/attendance?month=${month}&org_id=${site.id}`)
+      .then(({ data }) => {
+        const rows = data.attendance ?? [];
+        const map  = Object.fromEntries(rows.map(r => [r.date?.slice(0,10), r.count]));
+        setAttHistory(map);
+        if (map[today] !== undefined) { setAttendance(String(map[today])); setAttSaved(true); }
+      })
+      .catch(() => {});
+  }, [site.id]);
+
+  const saveAttendance = async (d, cnt) => {
+    const n = parseInt(cnt);
+    if (isNaN(n) || n < 0) return;
+    setAttSaving(true);
+    try {
+      await api.post('/attendance', { org_id: site.id, date: d, count: n });
+      setAttHistory(prev => ({ ...prev, [d]: n }));
+      setAttSaved(true);
+    } catch { /* silent */ }
+    finally { setAttSaving(false); }
+  };
 
   const adjust = (meal, delta) =>
     setCounts(c => ({ ...c, [meal]: Math.max(0, (c[meal] || 0) + delta) }));
@@ -343,7 +372,12 @@ function MealEntryPanel({ site, onSaved, onImportClick }) {
           type="date"
           value={date}
           max={today}
-          onChange={e => { setDate(e.target.value); setSaved(false); }}
+          onChange={e => {
+            const d = e.target.value;
+            setDate(d); setSaved(false);
+            if (attHistory[d] !== undefined) { setAttendance(String(attHistory[d])); setAttSaved(true); }
+            else { setAttendance(''); setAttSaved(false); }
+          }}
           className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
@@ -403,6 +437,56 @@ function MealEntryPanel({ site, onSaved, onImportClick }) {
             Import from spreadsheet
           </button>
         )}
+      </div>
+
+      {/* Attendance */}
+      <div className="mb-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+          Daily Attendance
+        </label>
+        <div className={`flex items-center gap-4 px-4 py-3 rounded-xl border ${attSaved ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'}`}>
+          <Users className={`w-5 h-5 flex-shrink-0 ${attSaved ? 'text-indigo-500' : 'text-gray-400'}`} />
+          <span className="text-sm font-semibold text-gray-700 w-20">Present</span>
+          <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={() => { const n = Math.max(0, (parseInt(attendance)||0)-1); setAttendance(String(n)); setAttSaved(false); }}
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50"
+            ><Minus className="w-3.5 h-3.5 text-gray-600" /></button>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="0"
+              value={attendance}
+              onChange={e => { setAttendance(e.target.value.replace(/\D/g,'')); setAttSaved(false); }}
+              className="w-16 text-center text-lg font-bold text-gray-900 border border-gray-200 rounded-xl py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+            <button
+              onClick={() => { const n = (parseInt(attendance)||0)+1; setAttendance(String(n)); setAttSaved(false); }}
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50"
+            ><Plus className="w-3.5 h-3.5 text-gray-600" /></button>
+          </div>
+          <button
+            onClick={() => saveAttendance(date, attendance)}
+            disabled={attSaving || attendance === ''}
+            className={`ml-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors disabled:opacity-40 ${attSaved ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+          >
+            {attSaving ? '…' : attSaved ? '✓ Saved' : 'Save'}
+          </button>
+        </div>
+        {/* Anomaly warning */}
+        {attSaved && attendance !== '' && (() => {
+          const att = parseInt(attendance) || 0;
+          const bad = MEAL_ROWS.filter(m => (counts[m.key] || 0) > att && (counts[m.key] || 0) > 0);
+          return bad.length > 0 ? (
+            <div className="flex items-start gap-2 mt-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs font-semibold text-red-700">
+                {bad.map(m => `${m.label}: ${counts[m.key]} meals > ${att} attendance`).join(' · ')}
+              </p>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* Meal count grid */}

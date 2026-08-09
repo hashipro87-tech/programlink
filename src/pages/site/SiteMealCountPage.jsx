@@ -2,7 +2,7 @@
 // Goal: log in, enter numbers, hit Submit, done — under 30 seconds.
 
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertTriangle, Copy, ChevronRight } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Copy, ChevronRight, Users } from 'lucide-react';
 import api from '../../services/api';
 
 function todayISO() { return new Date().toISOString().split('T')[0]; }
@@ -23,11 +23,15 @@ const MEALS = [
 export default function SiteMealCountPage() {
   const today = todayISO();
 
-  const [date,    setDate]    = useState(today);
-  const [counts,  setCounts]  = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
-  const [saving,  setSaving]  = useState(false);
-  const [toast,   setToast]   = useState(null);  // { msg, ok }
-  const [history, setHistory] = useState([]);
+  const [date,       setDate]       = useState(today);
+  const [counts,     setCounts]     = useState({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
+  const [attendance, setAttendance] = useState('');      // '' = not yet set
+  const [attSaved,   setAttSaved]   = useState(false);   // did we save it for this date?
+  const [attSaving,  setAttSaving]  = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [toast,      setToast]      = useState(null);    // { msg, ok }
+  const [history,    setHistory]    = useState([]);
+  const [attHistory, setAttHistory] = useState({});      // { "YYYY-MM-DD": count }
   const [todaySubmitted, setTodaySubmitted] = useState(false);
 
   const inputRefs = useRef([]);
@@ -35,23 +39,32 @@ export default function SiteMealCountPage() {
   // ── Load recent history ─────────────────────────────────────────────────────
   useEffect(() => {
     const month = today.slice(0, 7);
-    api.get(`/meal-counts?month=${month}&limit=30`)
-      .then(({ data }) => {
-        const rows = data.meal_counts ?? data ?? [];
-        setHistory(rows);
-        // Pre-fill today if already submitted
-        const todayRow = rows.find((r) => r.date === today);
-        if (todayRow) {
-          setCounts({
-            breakfast: todayRow.breakfast_count ?? todayRow.count_submitted ?? 0,
-            lunch:     todayRow.lunch_count     ?? 0,
-            snack:     todayRow.snack_count     ?? 0,
-            supper:    todayRow.supper_count    ?? 0,
-          });
-          setTodaySubmitted(true);
-        }
-      })
-      .catch(() => {});
+    Promise.all([
+      api.get(`/meal-counts?month=${month}&limit=30`),
+      api.get(`/attendance?month=${month}`),
+    ]).then(([mealRes, attRes]) => {
+      const rows = mealRes.data.meal_counts ?? mealRes.data ?? [];
+      setHistory(rows);
+      // Pre-fill today if already submitted
+      const todayRow = rows.find((r) => r.date === today);
+      if (todayRow) {
+        setCounts({
+          breakfast: todayRow.breakfast_count ?? todayRow.count_submitted ?? 0,
+          lunch:     todayRow.lunch_count     ?? 0,
+          snack:     todayRow.snack_count     ?? 0,
+          supper:    todayRow.supper_count    ?? 0,
+        });
+        setTodaySubmitted(true);
+      }
+      // Build attendance map by date
+      const attRows = attRes.data.attendance ?? [];
+      const attMap  = Object.fromEntries(attRows.map(r => [r.date?.slice(0,10), r.count]));
+      setAttHistory(attMap);
+      if (attMap[today] !== undefined) {
+        setAttendance(String(attMap[today]));
+        setAttSaved(true);
+      }
+    }).catch(() => {});
   }, []);
 
   // Auto-focus first input
@@ -62,6 +75,23 @@ export default function SiteMealCountPage() {
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // ── Save attendance ─────────────────────────────────────────────────────────
+  const saveAttendance = async () => {
+    const cnt = parseInt(attendance);
+    if (isNaN(cnt) || cnt < 0) { showToast('Enter a valid attendance count', false); return; }
+    setAttSaving(true);
+    try {
+      await api.post('/attendance', { date, count: cnt });
+      setAttHistory(prev => ({ ...prev, [date]: cnt }));
+      setAttSaved(true);
+      showToast(`✓ Attendance saved: ${cnt} children`);
+    } catch {
+      showToast('Failed to save attendance', false);
+    } finally {
+      setAttSaving(false);
+    }
   };
 
   // ── Copy yesterday ──────────────────────────────────────────────────────────
@@ -150,9 +180,10 @@ export default function SiteMealCountPage() {
             value={date}
             max={today}
             onChange={(e) => {
-              setDate(e.target.value);
+              const d = e.target.value;
+              setDate(d);
               setTodaySubmitted(false);
-              const row = history.find((r) => r.date === e.target.value);
+              const row = history.find((r) => r.date === d);
               if (row) {
                 setCounts({
                   breakfast: row.breakfast_count ?? 0,
@@ -160,9 +191,17 @@ export default function SiteMealCountPage() {
                   snack:     row.snack_count     ?? 0,
                   supper:    row.supper_count    ?? 0,
                 });
-                setTodaySubmitted(e.target.value === today);
+                setTodaySubmitted(d === today);
               } else {
                 setCounts({ breakfast: 0, lunch: 0, snack: 0, supper: 0 });
+              }
+              // Load attendance for this date
+              if (attHistory[d] !== undefined) {
+                setAttendance(String(attHistory[d]));
+                setAttSaved(true);
+              } else {
+                setAttendance('');
+                setAttSaved(false);
               }
             }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -175,6 +214,61 @@ export default function SiteMealCountPage() {
           <Copy className="w-3.5 h-3.5" />
           Copy yesterday
         </button>
+      </div>
+
+      {/* ── Attendance ── */}
+      <div className={`rounded-2xl border-2 p-4 mb-5 ${attSaved ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <Users className={`w-4 h-4 ${attSaved ? 'text-indigo-500' : 'text-gray-400'}`} />
+          <label className={`text-xs font-bold uppercase tracking-wide ${attSaved ? 'text-indigo-600' : 'text-gray-500'}`}>
+            Children in Attendance
+          </label>
+          {attSaved && (
+            <span className="ml-auto text-xs font-semibold text-indigo-500 bg-indigo-100 rounded-full px-2 py-0.5">Saved</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => { setAttendance(a => String(Math.max(0, (parseInt(a) || 0) - 1))); setAttSaved(false); }}
+            className="w-9 h-9 rounded-xl bg-white/70 hover:bg-white flex items-center justify-center text-lg font-bold text-gray-600 flex-shrink-0"
+          >−</button>
+          <input
+            type="number"
+            min="0"
+            value={attendance}
+            placeholder="0"
+            onChange={(e) => { setAttendance(e.target.value); setAttSaved(false); }}
+            onFocus={(e) => e.target.select()}
+            className="flex-1 text-3xl font-bold text-center bg-transparent border-none outline-none min-w-0"
+          />
+          <button
+            type="button"
+            onClick={() => { setAttendance(a => String((parseInt(a) || 0) + 1)); setAttSaved(false); }}
+            className="w-9 h-9 rounded-xl bg-white/70 hover:bg-white flex items-center justify-center text-lg font-bold text-gray-600 flex-shrink-0"
+          >+</button>
+          <button
+            onClick={saveAttendance}
+            disabled={attSaving || attendance === ''}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 flex-shrink-0"
+          >
+            {attSaving ? '…' : 'Save'}
+          </button>
+        </div>
+        {/* Anomaly warning */}
+        {attSaved && attendance !== '' && (() => {
+          const att = parseInt(attendance) || 0;
+          const bad = MEALS.filter(m => counts[m.key] > att && counts[m.key] > 0);
+          return bad.length > 0 ? (
+            <div className="flex items-start gap-2 mt-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs font-semibold text-red-700">
+                {bad.map(m => `${m.label}: ${counts[m.key]} meals > ${att} attendance`).join(' · ')}
+                {' '}— review before submitting claim.
+              </p>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* ── Meal inputs ── */}

@@ -82,8 +82,8 @@ function collectLossReasons(items) {
     if (cl.documents         === false) reasons.add('Missing required documents');
     if (cl.enrollment        === false) reasons.add('Enrollment not recorded');
     if (cl.incomeEligibility === false) reasons.add('Income eligibility forms missing');
-    if (cl.menus             === false) reasons.add('Menus not submitted');
     if (cl.attendance        === false) reasons.add('Attendance records missing');
+    if (cl.menus             === false) reasons.add('Menus not submitted');
   }
   return [...reasons];
 }
