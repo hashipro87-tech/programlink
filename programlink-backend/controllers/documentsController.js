@@ -137,7 +137,7 @@ exports.uploadDocument = async (req, res) => {
 
     // Notify sponsors AND coordinators when any org uploads a document
     const org = await pool.query(
-      'SELECT name, org_type, sponsor_id FROM organizations WHERE id = $1',
+      'SELECT name, type, sponsor_id FROM organizations WHERE id = $1',
       [targetOrgId]
     );
     const sponsorId = org.rows[0]?.sponsor_id;
