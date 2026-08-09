@@ -280,15 +280,16 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
 // ─── Upload Document Modal ────────────────────────────────────────────────────
 
 function UploadDocModal({ orgs, preselectedOrg, prefilledDocType, onClose, onUploaded }) {
-  const [orgId,     setOrgId]    = useState(preselectedOrg?.id ?? '');
-  const [docType,   setDocType]  = useState(prefilledDocType ?? '');
-  const [label,     setLabel]    = useState(
+  const [orgId,      setOrgId]      = useState(preselectedOrg?.id ?? '');
+  const [docType,    setDocType]    = useState(prefilledDocType ?? '');
+  const [label,      setLabel]      = useState(
     prefilledDocType ? (ALL_DOC_OPTIONS.find((o) => o.value === prefilledDocType)?.label ?? '') : ''
   );
-  const [expiresAt, setExpiresAt] = useState('');
-  const [file,      setFile]     = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [error,     setError]    = useState('');
+  const [expiresAt,  setExpiresAt]  = useState('');
+  const [file,       setFile]       = useState(null);
+  const [uploading,  setUploading]  = useState(false);
+  const [error,      setError]      = useState('');
+  const [intelResult, setIntelResult] = useState(null); // { outcome, user_message, confidence }
 
   const selectedOrg   = orgs.find((o) => o.id === orgId);
   const missingForOrg = new Set(selectedOrg?.missing_docs ?? []);
@@ -315,9 +316,14 @@ function UploadDocModal({ orgs, preselectedOrg, prefilledDocType, onClose, onUpl
       fd.append('label',    label);
       fd.append('org_id',   orgId);
       if (expiresAt) fd.append('expires_at', expiresAt);
-      await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res   = await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const intel = res.data?.intelligence;
       onUploaded?.();
-      onClose();
+      if (intel) {
+        setIntelResult(intel); // show result, let user dismiss
+      } else {
+        onClose();
+      }
     } catch (err) {
       const msg = err?.response?.data?.error || 'Upload failed. Please try again.';
       setError(msg);
@@ -417,6 +423,21 @@ function UploadDocModal({ orgs, preselectedOrg, prefilledDocType, onClose, onUpl
           </div>
         </div>
 
+        {/* Document intelligence result */}
+        {intelResult && (() => {
+          const cfg = INTEL_BADGE[intelResult.outcome] ?? INTEL_BADGE.needs_review;
+          const isWrong = intelResult.outcome === 'wrong_document';
+          return (
+            <div className={`mx-5 mb-3 px-3 py-2.5 rounded-xl text-xs font-medium border
+              ${isWrong ? 'bg-red-50 border-red-200 text-red-700' : intelResult.outcome === 'verified' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>
+              <p className="font-bold mb-0.5">{cfg.emoji} {intelResult.user_message}</p>
+              {intelResult.confidence != null && (
+                <p className="opacity-70">Confidence: {Math.round(intelResult.confidence * 100)}%</p>
+              )}
+            </div>
+          );
+        })()}
+
         {error && (
           <div className="mx-5 mb-1 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
             {error}
@@ -424,15 +445,28 @@ function UploadDocModal({ orgs, preselectedOrg, prefilledDocType, onClose, onUpl
         )}
 
         <div className="px-5 py-3 border-t flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">Cancel</button>
-          <button
-            onClick={upload}
-            disabled={!canSubmit}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-600 text-white rounded-xl font-medium disabled:opacity-50"
-          >
-            <Upload className="w-4 h-4" />
-            {uploading ? 'Uploading…' : 'Upload'}
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">
+            {intelResult ? 'Close' : 'Cancel'}
           </button>
+          {!intelResult && (
+            <button
+              onClick={upload}
+              disabled={!canSubmit}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-600 text-white rounded-xl font-medium disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          )}
+          {intelResult?.outcome === 'wrong_document' && (
+            <button
+              onClick={() => { setIntelResult(null); setFile(null); }}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-red-600 text-white rounded-xl font-medium"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Correct File
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -448,6 +482,13 @@ const DOC_STATUS = {
   pending_review: { label: 'Pending Review', cls: 'bg-blue-100   text-blue-700' },
   requested:      { label: 'Requested',      cls: 'bg-purple-100 text-purple-700' },
   rejected:       { label: 'Rejected',       cls: 'bg-red-100    text-red-700' },
+};
+
+// Document intelligence outcome display
+const INTEL_BADGE = {
+  verified:       { emoji: '🟢', label: 'Verified',      cls: 'text-green-700  bg-green-50  border border-green-200' },
+  needs_review:   { emoji: '🟡', label: 'Needs Review',  cls: 'text-yellow-700 bg-yellow-50 border border-yellow-200' },
+  wrong_document: { emoji: '🔴', label: 'Wrong Document', cls: 'text-red-700   bg-red-50    border border-red-200' },
 };
 
 // ─── Compliance Drawer ────────────────────────────────────────────────────────
@@ -484,6 +525,20 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
     const cfg = DOC_STATUS[status] ?? { label: 'Missing', cls: 'bg-gray-100 text-gray-500' };
     return (
       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>
+    );
+  }
+
+  function IntelBadge({ outcome, reason }) {
+    if (!outcome) return null;
+    const cfg = INTEL_BADGE[outcome];
+    if (!cfg) return null;
+    return (
+      <span
+        title={reason ?? cfg.label}
+        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.cls}`}
+      >
+        {cfg.emoji} {cfg.label}
+      </span>
     );
   }
 
@@ -538,19 +593,23 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
                 const missing = needsAction(doc);
                 const expiry  = doc?.expires_at ? fmtExpiry(doc.expires_at) : null;
 
+                const isWrongDoc = doc?.verification_result === 'wrong_document';
                 return (
-                  <div key={req.key} className={`rounded-xl p-3 border ${missing ? 'border-red-100 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                  <div key={req.key} className={`rounded-xl p-3 border ${missing || isWrongDoc ? 'border-red-100 bg-red-50' : 'border-gray-100 bg-white'}`}>
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        {missing
+                        {missing || isWrongDoc
                           ? <div className="w-4 h-4 rounded-full border-2 border-red-300 flex-shrink-0" />
                           : <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                         }
-                        <span className={`text-xs font-semibold truncate ${missing ? 'text-red-800' : 'text-gray-800'}`}>
+                        <span className={`text-xs font-semibold truncate ${missing || isWrongDoc ? 'text-red-800' : 'text-gray-800'}`}>
                           {req.label}
                         </span>
                       </div>
-                      <DocStatusPill status={doc?.status ?? 'missing'} />
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <IntelBadge outcome={doc?.verification_result} reason={doc?.verification_reason} />
+                        <DocStatusPill status={doc?.status ?? 'missing'} />
+                      </div>
                     </div>
 
                     {doc && doc.label && (
@@ -559,9 +618,14 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
                     {expiry && (
                       <p className={`text-[10px] font-medium ml-5.5 mt-0.5 ${expiry.cls}`}>{expiry.label}</p>
                     )}
+                    {isWrongDoc && doc?.verification_reason && (
+                      <p className="text-[10px] font-medium text-red-700 ml-5.5 mt-1 bg-red-100 px-2 py-1 rounded-lg">
+                        ⚠️ {doc.verification_reason}
+                      </p>
+                    )}
 
-                    {/* Actions for missing/expired/rejected docs */}
-                    {missing && (
+                    {/* Actions for missing/expired/rejected/wrong docs */}
+                    {(missing || isWrongDoc) && (
                       <div className="flex gap-2 mt-2 ml-5.5">
                         <button
                           onClick={() => onAction('request', org, req.key)}

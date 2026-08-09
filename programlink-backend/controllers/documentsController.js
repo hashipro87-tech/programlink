@@ -2,6 +2,7 @@ const pool   = require('../config/database');
 const multer = require('multer');
 const { uploadFile } = require('../services/storageService');
 const { createNotification, notifyCoordinators, notifySponsors } = require('../services/notificationService');
+const { classifyDocument } = require('../services/documentIntelligenceService');
 
 exports.uploadMiddleware = multer({
   storage: multer.memoryStorage(),
@@ -119,14 +120,41 @@ exports.uploadDocument = async (req, res) => {
       [targetOrgId, doc_type || 'general']
     );
 
-    // Sponsors/admins uploading → immediately valid (they are accountable).
-    // Sites/kitchens uploading → pending_review so sponsor can verify first.
+    // Run document intelligence — Claude classifies what was uploaded.
+    // This runs before determining final status so we can adjust based on outcome.
+    let intelligence = null;
+    try {
+      intelligence = await classifyDocument(
+        file.buffer,
+        file.mimetype,
+        file.originalname,
+        doc_type || 'general'
+      );
+    } catch (err) {
+      console.error('[documentIntelligence] classification failed (non-fatal):', err.message);
+    }
+
+    // Status logic:
+    //   verified    + sponsor/admin → valid  (document confirmed + trusted uploader)
+    //   verified    + site/kitchen  → pending_review (confirmed but still needs sponsor sign-off)
+    //   needs_review / wrong_document → pending_review always (human must decide)
+    //   no intelligence result → fall back to role-based logic
     const uploadedByRole = req.user.role;
-    const initialStatus  = ['sponsor', 'admin'].includes(uploadedByRole) ? 'valid' : 'pending_review';
+    const isTrustedRole  = ['sponsor', 'admin'].includes(uploadedByRole);
+    let initialStatus;
+    if (!intelligence) {
+      initialStatus = isTrustedRole ? 'valid' : 'pending_review';
+    } else if (intelligence.outcome === 'verified' && isTrustedRole) {
+      initialStatus = 'valid';
+    } else {
+      initialStatus = 'pending_review';
+    }
 
     const { rows } = await pool.query(
-      `INSERT INTO documents (org_id, doc_type, label, file_url, file_name, uploaded_by, expires_at, version, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO documents
+         (org_id, doc_type, label, file_url, file_name, uploaded_by, expires_at, version, status,
+          verification_result, detected_type, confidence, verification_reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         targetOrgId,
         doc_type || 'general',
@@ -137,6 +165,10 @@ exports.uploadDocument = async (req, res) => {
         expires_at || null,
         nextVersion,
         initialStatus,
+        intelligence?.outcome        ?? null,
+        intelligence?.detected_type  ?? null,
+        intelligence?.confidence     ?? null,
+        intelligence?.reason         ?? null,
       ]
     );
     const doc = rows[0];
@@ -159,7 +191,15 @@ exports.uploadDocument = async (req, res) => {
       notifySponsors(sponsorId,     { ...baseNotif, actionUrl: '/dashboard/sponsor/documents' }).catch(() => {});
     }
 
-    res.status(201).json({ document: doc });
+    // Include the user-facing message so frontend can show the result immediately
+    res.status(201).json({
+      document: doc,
+      intelligence: intelligence ? {
+        outcome:      intelligence.outcome,
+        user_message: intelligence.user_message,
+        confidence:   intelligence.confidence,
+      } : null,
+    });
   } catch (err) {
     console.error('uploadDocument error:', err);
     res.status(500).json({ error: 'Failed to upload document.' });
