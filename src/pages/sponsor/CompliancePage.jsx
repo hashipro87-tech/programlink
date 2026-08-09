@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, ShieldAlert, Shield, AlertTriangle, XCircle,
   CheckCircle, Clock, Building2, FileText, RefreshCw, Users,
-  Bell, Plus, Eye, X, Zap, AlertCircle,
+  Bell, Plus, Eye, X, Zap, AlertCircle, Upload,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -277,6 +277,148 @@ function RequestDocModal({ org, prefillType, onClose, onSent }) {
   );
 }
 
+// ─── Upload Document Modal ────────────────────────────────────────────────────
+
+function UploadDocModal({ orgs, preselectedOrg, onClose, onUploaded }) {
+  const [orgId,     setOrgId]    = useState(preselectedOrg?.id ?? '');
+  const [docType,   setDocType]  = useState('');
+  const [label,     setLabel]    = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [file,      setFile]     = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error,     setError]    = useState('');
+
+  const selectedOrg = orgs.find((o) => o.id === orgId);
+  const docOptions  = selectedOrg
+    ? ALL_DOC_OPTIONS.filter((d) => {
+        const req = REQUIRED_DOCS[selectedOrg.type] ?? [];
+        return req.some((r) => r.key === d.value) || d.value === 'general';
+      })
+    : ALL_DOC_OPTIONS;
+
+  function handleDocTypeChange(val) {
+    setDocType(val);
+    if (!label) setLabel(docOptions.find((o) => o.value === val)?.label ?? '');
+  }
+
+  async function upload() {
+    if (!orgId || !docType || !label || !file) return;
+    setError('');
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file',     file);
+      fd.append('doc_type', docType);
+      fd.append('label',    label);
+      fd.append('org_id',   orgId);
+      if (expiresAt) fd.append('expires_at', expiresAt);
+      await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onUploaded?.();
+      onClose();
+    } catch (err) {
+      const msg = err?.response?.data?.error || 'Upload failed. Please try again.';
+      setError(msg);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const canSubmit = orgId && docType && label && file && !uploading;
+
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <p className="font-bold text-gray-900 text-sm">Upload Document</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Org picker */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Upload for</label>
+            <select
+              value={orgId}
+              onChange={(e) => { setOrgId(e.target.value); setDocType(''); setLabel(''); }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            >
+              <option value="">Select site or kitchen…</option>
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>{o.name} ({o.type})</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Doc type */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Document type</label>
+            <select
+              value={docType}
+              onChange={(e) => handleDocTypeChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            >
+              <option value="">Select…</option>
+              {docOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+
+          {/* Label */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Document label</label>
+            <input
+              type="text"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. 2024 Health Inspection"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            />
+          </div>
+
+          {/* Expiry */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Expiry date (optional)</label>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+            />
+          </div>
+
+          {/* File picker */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">File</label>
+            <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors text-sm
+              ${file ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 hover:border-brand-400 text-gray-500'}`}>
+              <Upload className="w-4 h-4" />
+              {file ? file.name : 'Click to choose a file'}
+              <input type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            </label>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mx-5 mb-1 px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+            {error}
+          </div>
+        )}
+
+        <div className="px-5 py-3 border-t flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl">Cancel</button>
+          <button
+            onClick={upload}
+            disabled={!canSubmit}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-brand-600 text-white rounded-xl font-medium disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            {uploading ? 'Uploading…' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Compliance Drawer ────────────────────────────────────────────────────────
 
 function ComplianceDrawer({ org, onClose, onAction }) {
@@ -419,6 +561,13 @@ function ComplianceDrawer({ org, onClose, onAction }) {
               Fix Remaining Issues
             </button>
           )}
+          <button
+            onClick={() => onAction('upload', org)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 border border-brand-300 text-brand-700 bg-brand-50 text-sm font-bold rounded-xl hover:bg-brand-100"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Document
+          </button>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => onAction('remind', org)}
@@ -575,6 +724,7 @@ export default function CompliancePage() {
   // UI state
   const [drawerOrg,    setDrawerOrg]    = useState(null);
   const [requestModal, setRequestModal] = useState(null); // { org, prefillType? }
+  const [uploadModal,  setUploadModal]  = useState(null); // { org? } — null means closed
   const [toast,        setToast]        = useState(null);
   const [reminding,    setReminding]    = useState(null); // orgId
 
@@ -674,6 +824,7 @@ export default function CompliancePage() {
     if (type === 'review')  { navigate('/dashboard/sponsor/applications');                return; }
     if (type === 'request') { setRequestModal({ org, prefillType: docType ?? '' });       return; }
     if (type === 'remind')  { handleRemind(org);                                          return; }
+    if (type === 'upload')  { setUploadModal({ org });                                    return; }
   }
 
   // Summary card click → toggle filter
@@ -707,6 +858,15 @@ export default function CompliancePage() {
         />
       )}
 
+      {uploadModal !== null && (
+        <UploadDocModal
+          orgs={data?.organizations ?? []}
+          preselectedOrg={uploadModal.org ?? null}
+          onClose={() => setUploadModal(null)}
+          onUploaded={() => { load(); showToast('Document uploaded successfully'); }}
+        />
+      )}
+
       {drawerOrg && (
         <ComplianceDrawer
           org={drawerOrg}
@@ -721,14 +881,23 @@ export default function CompliancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Compliance</h1>
           <p className="text-gray-500 text-sm mt-1">Track, request, and resolve — without leaving this page.</p>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setUploadModal({})}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Document
+          </button>
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* ── Summary cards ── */}
