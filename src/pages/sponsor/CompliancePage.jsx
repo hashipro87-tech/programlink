@@ -828,6 +828,11 @@ export default function CompliancePage() {
 
   const s = data?.summary ?? {};
 
+  // Total aggregate missing doc count across all orgs (for the summary card)
+  const allOrgs = data?.organizations ?? [];
+  const totalMissingDocs  = allOrgs.reduce((sum, o) => sum + (o.missing_docs?.length ?? 0), 0);
+  const orgsWithGapsCount = allOrgs.filter((o) => (o.missing_docs?.length ?? 0) > 0).length;
+
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async function handleRemind(org) {
@@ -997,8 +1002,8 @@ export default function CompliancePage() {
         />
         <SummaryCard
           label="Missing Documents"
-          value={s.missing_docs_orgs}
-          sub="orgs with gaps"
+          value={totalMissingDocs}
+          sub={orgsWithGapsCount > 0 ? `across ${orgsWithGapsCount} org${orgsWithGapsCount !== 1 ? 's' : ''}` : 'all orgs compliant'}
           Icon={FileText}
           iconCls="bg-yellow-50 text-yellow-500"
           active={missingOnly}
