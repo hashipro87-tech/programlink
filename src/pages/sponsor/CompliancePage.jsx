@@ -622,8 +622,8 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction, onDeleted }) {
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-400">{doneCnt}/{required.length} required documents</p>
-              {doneCnt === required.length && org.score < 100 && (
-                <p className="text-xs text-amber-600 font-medium">Application missing</p>
+              {!org.sponsor_created && doneCnt === required.length && org.score < 100 && (
+                <p className="text-xs text-amber-600 font-medium">Application pending</p>
               )}
             </div>
           </div>
@@ -768,19 +768,16 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction, onDeleted }) {
             </div>
           )}
 
-          {/* Application */}
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">CACFP Program Application</p>
-            <p className={`text-sm font-medium ${al.cls}`}>{al.text}</p>
-            {!org.app_status && (
-              <p className="text-xs text-gray-400 mt-1">
-                This site hasn't submitted a CACFP application through CACFPLink yet. Once submitted and approved, the compliance score reaches 100%.
-              </p>
-            )}
-            {org.last_doc_upload && (
-              <p className="text-xs text-gray-400 mt-1">Last activity: {fmtRelative(org.last_doc_upload)}</p>
-            )}
-          </div>
+          {/* Application — only shown for orgs that went through the application flow */}
+          {!org.sponsor_created && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">CACFP Program Application</p>
+              <p className={`text-sm font-medium ${al.cls}`}>{al.text}</p>
+              {org.last_doc_upload && (
+                <p className="text-xs text-gray-400 mt-1">Last activity: {fmtRelative(org.last_doc_upload)}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Sticky action footer */}

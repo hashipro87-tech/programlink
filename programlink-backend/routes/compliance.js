@@ -94,10 +94,16 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'),
       const docsRequired   = requiredTypes.length;
       const docsUploaded   = requiredTypes.filter((t) => uploadedSet.has(t)).length;
 
+      // Sponsor-created orgs (status='active', no application) don't need an application —
+      // they were added directly by the sponsor, not through the application flow.
+      const sponsorCreated = !org.app_status && org.org_status === 'active';
+
       // ── Score (0–100) ───────────────────────────────────────────────────────
       let score = 100;
-      if (!org.app_status)                    score -= 20;
-      else if (org.app_status !== 'approved') score -= 10;
+      if (!sponsorCreated) {
+        if (!org.app_status)                    score -= 20;
+        else if (org.app_status !== 'approved') score -= 10;
+      }
       score -= Number(org.docs_expired  ?? 0) * 20;
       score -= Number(org.docs_rejected ?? 0) * 10;
       score -= missingDocs.length              * 10;
@@ -108,7 +114,7 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'),
       let tier;
       if (Number(org.docs_expired) > 0 || Number(org.docs_rejected) > 0) {
         tier = 'overdue';
-      } else if (missingDocs.length > 0 && !org.app_status) {
+      } else if (missingDocs.length > 0 && !org.app_status && !sponsorCreated) {
         tier = 'overdue';
       } else if (missingDocs.length > 0) {
         tier = 'missing';
@@ -127,6 +133,7 @@ router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'),
         ...org,
         score,
         tier,
+        sponsor_created:     sponsorCreated,
         docs_required:       docsRequired,
         docs_uploaded:       docsUploaded,
         missing_docs:        missingDocs,         // array of doc_type strings
