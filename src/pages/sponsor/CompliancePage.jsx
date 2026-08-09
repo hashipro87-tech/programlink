@@ -491,11 +491,26 @@ const INTEL_BADGE = {
   wrong_document: { emoji: '🔴', label: 'Wrong Document', cls: 'text-red-700   bg-red-50    border border-red-200' },
 };
 
+// ─── Open a document in a new tab (fetches via API so auth token is sent) ────
+async function openDocumentFile(docId) {
+  try {
+    const res  = await api.get(`/documents/${docId}/file`, { responseType: 'blob' });
+    const mime = res.headers['content-type'] ?? 'application/octet-stream';
+    const url  = URL.createObjectURL(new Blob([res.data], { type: mime }));
+    window.open(url, '_blank');
+    // Revoke after a short delay so the tab has time to load
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch {
+    alert('Could not load document. It may have been lost in a server redeploy — please re-upload.');
+  }
+}
+
 // ─── Compliance Drawer ────────────────────────────────────────────────────────
 
-function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
-  const required = REQUIRED_DOCS[org.type] ?? [];
-  const al       = appLabel(org.app_status);
+function ComplianceDrawer({ org, orgDocs, onClose, onAction, onDeleted }) {
+  const required   = REQUIRED_DOCS[org.type] ?? [];
+  const al         = appLabel(org.app_status);
+  const [deleting, setDeleting] = useState(null); // doc id being deleted
 
   // Build latest-version map per doc_type from actual doc records
   const docsByType = {};
@@ -544,6 +559,19 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
 
   function needsAction(doc) {
     return !doc || ['expired', 'rejected', undefined].includes(doc?.status);
+  }
+
+  async function handleDelete(doc) {
+    if (!window.confirm(`Delete "${doc.label || doc.doc_type}"? This cannot be undone.`)) return;
+    setDeleting(doc.id);
+    try {
+      await api.delete(`/documents/${doc.id}`);
+      onDeleted?.(); // triggers reload
+    } catch {
+      alert('Failed to delete document.');
+    } finally {
+      setDeleting(null);
+    }
   }
 
   return (
@@ -624,6 +652,25 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
                       </p>
                     )}
 
+                    {/* View + Delete for existing docs that have a file */}
+                    {doc && doc.file_url && doc.status !== 'requested' && (
+                      <div className="flex gap-2 mt-2 ml-5.5">
+                        <button
+                          onClick={() => openDocumentFile(doc.id)}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100"
+                        >
+                          <Eye className="w-2.5 h-2.5" /> View
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc)}
+                          disabled={deleting === doc.id}
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50"
+                        >
+                          <X className="w-2.5 h-2.5" /> {deleting === doc.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
+                    )}
+
                     {/* Actions for missing/expired/rejected/wrong docs */}
                     {(missing || isWrongDoc) && (
                       <div className="flex gap-2 mt-2 ml-5.5">
@@ -666,11 +713,28 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction }) {
                 {extraDocs.map((doc) => {
                   const expiry = doc.expires_at ? fmtExpiry(doc.expires_at) : null;
                   return (
-                    <div key={doc.id} className="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
-                      <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <div key={doc.id} className="flex items-start gap-2 py-2 border-b border-gray-50 last:border-0">
+                      <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-700 truncate">{doc.label || doc.doc_type}</p>
                         {expiry && <p className={`text-[10px] ${expiry.cls}`}>{expiry.label}</p>}
+                        {doc.file_url && (
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              onClick={() => openDocumentFile(doc.id)}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100"
+                            >
+                              <Eye className="w-2.5 h-2.5" /> View
+                            </button>
+                            <button
+                              onClick={() => handleDelete(doc)}
+                              disabled={deleting === doc.id}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50"
+                            >
+                              <X className="w-2.5 h-2.5" /> {deleting === doc.id ? '…' : 'Delete'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <DocStatusPill status={doc.status} />
                     </div>
@@ -1016,6 +1080,7 @@ export default function CompliancePage() {
           orgDocs={allDocs.filter((d) => d.org_id === drawerOrg.id && d.status !== 'superseded')}
           onClose={() => setDrawerOrg(null)}
           onAction={handleAction}
+          onDeleted={load}
         />
       )}
 

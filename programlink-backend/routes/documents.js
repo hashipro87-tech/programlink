@@ -9,6 +9,8 @@ const {
   requestDocument,
   updateDocumentStatus,
   getExpiringDocuments,
+  serveDocument,
+  deleteDocument,
 } = require('../controllers/documentsController');
 
 router.use(authenticate);
@@ -24,5 +26,11 @@ router.post('/request', authorizeRoles('sponsor', 'coordinator', 'admin'), reque
 
 // Coordinators, sponsors, and admins can approve/reject documents
 router.patch('/:id/status', authorizeRoles('coordinator', 'sponsor', 'admin'), updateDocumentStatus);
+
+// View (serve) a document file — all authenticated roles with access to the org
+router.get('/:id/file', serveDocument);
+
+// Delete a document
+router.delete('/:id', deleteDocument);
 
 module.exports = router;

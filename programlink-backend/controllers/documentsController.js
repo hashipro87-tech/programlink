@@ -1,6 +1,8 @@
+const path   = require('path');
+const fs     = require('fs');
 const pool   = require('../config/database');
 const multer = require('multer');
-const { uploadFile } = require('../services/storageService');
+const { uploadFile, deleteFile } = require('../services/storageService');
 const { createNotification, notifyCoordinators, notifySponsors } = require('../services/notificationService');
 const { classifyDocument } = require('../services/documentIntelligenceService');
 
@@ -346,5 +348,105 @@ exports.getExpiringDocuments = async (req, res) => {
   } catch (err) {
     console.error('getExpiringDocuments error:', err);
     res.status(500).json({ error: 'Failed to fetch expiring documents.' });
+  }
+};
+
+// ─── Serve / view a document file ────────────────────────────────────────────
+exports.serveDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { organizationId, role } = req.user;
+
+    // Fetch document + verify the requester has access to this org
+    const { rows } = await pool.query(
+      `SELECT d.*, o.sponsor_id
+       FROM documents d
+       JOIN organizations o ON o.id = d.org_id
+       WHERE d.id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Document not found.' });
+    const doc = rows[0];
+
+    // Access check: sponsor must own this org; kitchen/site must be their own org
+    const isOwner = ['sponsor', 'coordinator', 'admin'].includes(role)
+      ? (doc.sponsor_id === organizationId || doc.org_id === organizationId)
+      : doc.org_id === organizationId;
+    if (!isOwner) return res.status(403).json({ error: 'Access denied.' });
+
+    if (!doc.file_url || doc.status === 'requested') {
+      return res.status(404).json({ error: 'No file for this document.' });
+    }
+
+    // If it's a real external URL (S3 / R2 / CDN) — redirect directly
+    if (doc.file_url.startsWith('https://') || doc.file_url.startsWith('http://') && !doc.file_url.includes('localhost')) {
+      return res.redirect(302, doc.file_url);
+    }
+
+    // Local storage fallback — extract filename and serve from disk
+    const filename   = doc.file_url.split('/uploads/').pop() || doc.file_url.split('/').pop();
+    const LOCAL_DIR  = path.join(__dirname, '../../uploads');
+    const filePath   = path.join(LOCAL_DIR, filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on server. It may have been lost in a redeploy. Please re-upload.' });
+    }
+
+    const ext     = path.extname(filename).toLowerCase();
+    const TYPES   = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+    const mime    = TYPES[ext] ?? 'application/octet-stream';
+
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `inline; filename="${doc.file_name || filename}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    console.error('serveDocument error:', err);
+    res.status(500).json({ error: 'Failed to serve document.' });
+  }
+};
+
+// ─── Delete a document ────────────────────────────────────────────────────────
+exports.deleteDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { organizationId, role } = req.user;
+
+    // Fetch + access check
+    const { rows } = await pool.query(
+      `SELECT d.*, o.sponsor_id
+       FROM documents d
+       JOIN organizations o ON o.id = d.org_id
+       WHERE d.id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Document not found.' });
+    const doc = rows[0];
+
+    const canDelete = ['sponsor', 'coordinator', 'admin'].includes(role)
+      ? (doc.sponsor_id === organizationId || doc.org_id === organizationId)
+      : doc.org_id === organizationId;
+    if (!canDelete) return res.status(403).json({ error: 'Access denied.' });
+
+    // Try to delete the file from storage (best-effort — don't fail if missing)
+    if (doc.file_url && !doc.file_url.includes('localhost')) {
+      // S3/R2 — extract key (path after bucket domain)
+      try {
+        const urlObj = new URL(doc.file_url);
+        const key    = urlObj.pathname.slice(1); // remove leading /
+        await deleteFile(key).catch(() => {});
+      } catch {}
+    } else if (doc.file_url) {
+      // Local disk
+      const filename  = doc.file_url.split('/uploads/').pop();
+      const LOCAL_DIR = path.join(__dirname, '../../uploads');
+      const filePath  = path.join(LOCAL_DIR, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    await pool.query('DELETE FROM documents WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteDocument error:', err);
+    res.status(500).json({ error: 'Failed to delete document.' });
   }
 };
