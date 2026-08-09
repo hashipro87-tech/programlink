@@ -119,9 +119,14 @@ exports.uploadDocument = async (req, res) => {
       [targetOrgId, doc_type || 'general']
     );
 
+    // Sponsors/admins uploading → immediately valid (they are accountable).
+    // Sites/kitchens uploading → pending_review so sponsor can verify first.
+    const uploadedByRole = req.user.role;
+    const initialStatus  = ['sponsor', 'admin'].includes(uploadedByRole) ? 'valid' : 'pending_review';
+
     const { rows } = await pool.query(
-      `INSERT INTO documents (org_id, doc_type, label, file_url, file_name, uploaded_by, expires_at, version)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO documents (org_id, doc_type, label, file_url, file_name, uploaded_by, expires_at, version, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         targetOrgId,
         doc_type || 'general',
@@ -131,6 +136,7 @@ exports.uploadDocument = async (req, res) => {
         req.user.id,
         expires_at || null,
         nextVersion,
+        initialStatus,
       ]
     );
     const doc = rows[0];
