@@ -288,12 +288,13 @@ function UploadDocModal({ orgs, preselectedOrg, onClose, onUploaded }) {
   const [uploading, setUploading] = useState(false);
   const [error,     setError]    = useState('');
 
-  const selectedOrg = orgs.find((o) => o.id === orgId);
-  const docOptions  = selectedOrg
-    ? ALL_DOC_OPTIONS.filter((d) => {
-        const req = REQUIRED_DOCS[selectedOrg.type] ?? [];
-        return req.some((r) => r.key === d.value) || d.value === 'general';
-      })
+  const selectedOrg   = orgs.find((o) => o.id === orgId);
+  const missingForOrg = new Set(selectedOrg?.missing_docs ?? []);
+  const requiredKeys  = new Set((REQUIRED_DOCS[selectedOrg?.type] ?? []).map((r) => r.key));
+
+  // All doc options for this org's type, plus general
+  const docOptions = selectedOrg
+    ? ALL_DOC_OPTIONS.filter((d) => requiredKeys.has(d.value) || d.value === 'general')
     : ALL_DOC_OPTIONS;
 
   function handleDocTypeChange(val) {
@@ -358,8 +359,25 @@ function UploadDocModal({ orgs, preselectedOrg, onClose, onUploaded }) {
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
             >
               <option value="">Select…</option>
-              {docOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {docOptions.map((o) => {
+                const isMissing  = missingForOrg.has(o.value);
+                const isRequired = requiredKeys.has(o.value);
+                const suffix = isMissing ? ' — Missing (required)' : isRequired ? ' — Required' : '';
+                return (
+                  <option key={o.value} value={o.value}>{o.label}{suffix}</option>
+                );
+              })}
             </select>
+            {docType && missingForOrg.has(docType) && (
+              <p className="mt-1.5 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1.5 rounded-lg">
+                ✓ This will satisfy a missing requirement for {selectedOrg?.name}
+              </p>
+            )}
+            {docType && requiredKeys.has(docType) && !missingForOrg.has(docType) && (
+              <p className="mt-1.5 text-xs text-gray-500 bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                This org already has this document — uploading will replace the current version.
+              </p>
+            )}
           </div>
 
           {/* Label */}

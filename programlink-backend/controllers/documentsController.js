@@ -109,10 +109,13 @@ exports.uploadDocument = async (req, res) => {
     );
     const nextVersion = (prev.rows[0]?.max_v ?? 0) + 1;
 
-    // Supersede any 'requested' placeholder for this doc_type+org
+    // Supersede all previous active documents of this type for this org.
+    // 'requested' placeholders, valid docs, expiring-soon docs, and pending-review docs
+    // are all archived — the new upload becomes the single active record.
     await pool.query(
       `UPDATE documents SET status = 'superseded'
-       WHERE org_id = $1 AND doc_type = $2 AND status = 'requested'`,
+       WHERE org_id = $1 AND doc_type = $2
+         AND status IN ('requested','valid','expiring_soon','pending_review')`,
       [targetOrgId, doc_type || 'general']
     );
 

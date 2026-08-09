@@ -64,10 +64,11 @@ async function _loadClaimData(sponsorId, month) {
   );
   const mealsBySite = Object.fromEntries(mealsRes.rows.map(r => [r.site_id, r]));
 
-  // 4. Documents — which required docs are valid or under review?
+  // 4. Documents — which required docs are valid, under review, or expiring soon?
+  //    'expiring_soon' docs are still legally valid — do NOT treat them as missing.
   const docsRes = await pool.query(
     `SELECT org_id,
-            array_agg(doc_type) FILTER (WHERE status IN ('valid','pending_review')) AS valid_docs
+            array_agg(doc_type) FILTER (WHERE status IN ('valid','pending_review','expiring_soon')) AS valid_docs
      FROM documents
      WHERE org_id = ANY($1)
      GROUP BY org_id`,
