@@ -561,6 +561,15 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction, onDeleted }) {
     return !doc || ['expired', 'rejected', undefined].includes(doc?.status);
   }
 
+  async function handleApprove(doc) {
+    try {
+      await api.patch(`/documents/${doc.id}/status`, { status: 'valid' });
+      onDeleted?.(); // reloads drawer
+    } catch {
+      alert('Failed to approve document.');
+    }
+  }
+
   async function handleDelete(doc) {
     if (!window.confirm(`Delete "${doc.label || doc.doc_type}"? This cannot be undone.`)) return;
     setDeleting(doc.id);
@@ -652,15 +661,23 @@ function ComplianceDrawer({ org, orgDocs, onClose, onAction, onDeleted }) {
                       </p>
                     )}
 
-                    {/* View + Delete for existing docs that have a file */}
+                    {/* View + Approve + Delete for existing docs that have a file */}
                     {doc && doc.file_url && doc.status !== 'requested' && (
-                      <div className="flex gap-2 mt-2 ml-5.5">
+                      <div className="flex gap-2 mt-2 ml-5.5 flex-wrap">
                         <button
                           onClick={() => openDocumentFile(doc.id)}
                           className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100"
                         >
                           <Eye className="w-2.5 h-2.5" /> View
                         </button>
+                        {doc.status === 'pending_review' && (
+                          <button
+                            onClick={() => handleApprove(doc)}
+                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100"
+                          >
+                            <CheckCircle className="w-2.5 h-2.5" /> Approve
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(doc)}
                           disabled={deleting === doc.id}
