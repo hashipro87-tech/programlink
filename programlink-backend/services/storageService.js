@@ -32,18 +32,32 @@ async function deleteLocal(key) {
   if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
 }
 
-// ─── S3 storage ──────────────────────────────────────────────────────────────
+// ─── S3 / Cloudflare R2 storage ──────────────────────────────────────────────
+// Supports both AWS S3 and Cloudflare R2 (S3-compatible).
+// For R2, set these Railway env vars:
+//   AWS_ACCESS_KEY_ID     — R2 Access Key ID
+//   AWS_SECRET_ACCESS_KEY — R2 Secret Access Key
+//   AWS_S3_BUCKET         — bucket name (e.g. cacfplink-docs)
+//   AWS_REGION            — auto  (R2 uses "auto")
+//   AWS_ENDPOINT_URL      — https://<account_id>.r2.cloudflarestorage.com
+//   AWS_PUBLIC_URL        — https://pub-<hash>.r2.dev  (public bucket URL, no trailing slash)
+
 let s3Client;
 function getS3() {
   if (!s3Client) {
     const { S3Client } = require('@aws-sdk/client-s3');
-    s3Client = new S3Client({
+    const config = {
       region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
         accessKeyId:     process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       },
-    });
+    };
+    // R2 requires a custom endpoint
+    if (process.env.AWS_ENDPOINT_URL) {
+      config.endpoint = process.env.AWS_ENDPOINT_URL;
+    }
+    s3Client = new S3Client(config);
   }
   return s3Client;
 }
@@ -53,15 +67,26 @@ async function uploadS3(buffer, originalName, mimeType, folder) {
   const ext = path.extname(originalName).toLowerCase();
   const key = `${folder}/${uuidv4()}${ext}`;
 
-  await getS3().send(new PutObjectCommand({
+  const cmd = {
     Bucket:      process.env.AWS_S3_BUCKET,
     Key:         key,
     Body:        buffer,
     ContentType: mimeType,
-    ACL:         'private',
-  }));
+  };
+  // Only add ACL for real S3 (R2 doesn't support ACLs)
+  if (!process.env.AWS_ENDPOINT_URL) cmd.ACL = 'private';
 
-  const url = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+  await getS3().send(new PutObjectCommand(cmd));
+
+  // Build public URL:
+  //   R2 with public access: use AWS_PUBLIC_URL env var
+  //   Standard S3: build from bucket + region
+  let url;
+  if (process.env.AWS_PUBLIC_URL) {
+    url = `${process.env.AWS_PUBLIC_URL}/${key}`;
+  } else {
+    url = `https://${process.env.AWS_S3_BUCKET}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+  }
   return { url, key };
 }
 
