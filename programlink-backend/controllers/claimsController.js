@@ -373,4 +373,4 @@ function formatMonth(date) {
   return `${y}-${m}`;
 }
 
-module.exports = { getClaim, getIntelligence, getClaimHistory, getStates };
+module.exports = { getClaim, getIntelligence, getClaimHistory, getStates, _loadClaimData };
