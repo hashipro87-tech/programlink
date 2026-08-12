@@ -137,7 +137,7 @@ function MissionCard({ stats, data, navigate }) {
     },
     { label: `Build ${monthName} menu`,     done: !hasCode('menu'),                 path: '/dashboard/sponsor/menus' },
     { label: 'Record meal counts',          done: !hasCode('no_meal_counts'),       path: '/dashboard/sponsor/meal-counts' },
-    { label: 'Submit claim',               done: intel?.claimStatus === 'submitted', path: '/dashboard/sponsor/claims' },
+    { label: intel?.readinessScore === 100 ? 'Claim ready to submit' : 'Submit claim', done: intel?.readinessScore === 100 || intel?.claimStatus === 'submitted', path: '/dashboard/sponsor/claims' },
   ];
 
   const completed  = steps.filter((s) => s.done).length;
