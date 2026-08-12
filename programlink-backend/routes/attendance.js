@@ -7,11 +7,15 @@ const {
   upsertAttendance,
   deleteAttendance,
   compareAttendanceMeals,
+  getRosterForDate,
+  saveRosterAttendance,
 } = require('../controllers/attendanceController');
 
 router.use(authenticate);
 
 router.get('/compare', authorizeRoles('sponsor', 'coordinator', 'site', 'admin'), compareAttendanceMeals);
+router.get('/roster',  authorizeRoles('sponsor', 'coordinator', 'site', 'admin'), getRosterForDate);
+router.post('/roster', authorizeRoles('sponsor', 'site', 'admin'), saveRosterAttendance);
 router.get('/',        authorizeRoles('sponsor', 'coordinator', 'site', 'admin'), listAttendance);
 router.post('/',       authorizeRoles('sponsor', 'site', 'admin'), upsertAttendance);
 router.delete('/:id',  authorizeRoles('sponsor', 'site', 'admin'), deleteAttendance);

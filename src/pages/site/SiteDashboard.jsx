@@ -7,7 +7,7 @@ import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
   Building2, CheckCircle, Settings, AlertTriangle, ArrowRight,
   Truck, Bell, CheckSquare, Square, Phone, Mail, Clock,
-  Package, TrendingUp, ShieldCheck, Calendar, Activity, Users2, DollarSign, RotateCcw,
+  Package, TrendingUp, ShieldCheck, Calendar, Activity, Users2, DollarSign, RotateCcw, CalendarCheck,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +22,7 @@ import NotificationsPage    from '../notifications/NotificationsPage';
 import KitchenDirectoryPage from '../kitchen/KitchenDirectoryPage';
 import SettingsPage         from '../settings/SettingsPage';
 import SiteMealCountPage    from './SiteMealCountPage';
+import AttendancePage       from '../attendance/AttendancePage';
 import SiteEnrollmentPage  from './SiteEnrollmentPage';
 import SiteIncomePage      from './SiteIncomePage';
 import SiteRenewalPage     from './SiteRenewalPage';
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
 
   { sectionLabel: 'Daily Ops' },
   { label: 'Deliveries',     path: '/dashboard/site/deliveries',   icon: Truck          },
+  { label: 'Attendance',     path: '/dashboard/site/attendance',   icon: CalendarCheck  },
   { label: 'Meal Counts',    path: '/dashboard/site/meals',        icon: UtensilsCrossed },
   { label: 'Enrollment',     path: '/dashboard/site/enrollment',   icon: Users2         },
   { label: 'Income Certs',  path: '/dashboard/site/income',       icon: DollarSign     },
@@ -907,6 +909,7 @@ export default function SiteDashboard() {
           ) : (
             <Routes>
               <Route path="deliveries"   element={<SiteDeliveriesPage />} />
+              <Route path="attendance"   element={<AttendancePage />} />
               <Route path="meals"        element={<SiteMealCountPage />} />
               <Route path="enrollment"   element={<SiteEnrollmentPage />} />
               <Route path="income"      element={<SiteIncomePage />} />

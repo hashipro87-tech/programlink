@@ -8,7 +8,7 @@ import ApplicationsPage    from './ApplicationsPage';
 import DocumentsPage       from '../documents/DocumentsPage';
 import MessagesPage        from '../messages/MessagesPage';
 import NotificationsPage   from '../notifications/NotificationsPage';
-import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare, ShieldCheck, Activity, BookOpen, RotateCcw, GraduationCap, Printer } from 'lucide-react';
+import { Users, ClipboardList, AlertTriangle, CheckCircle, Building2, Copy, Check, Settings, UtensilsCrossed, FileText, Truck, MessageSquare, DollarSign, Bell, Repeat, XCircle, Info, Baby, CheckSquare, ShieldCheck, Activity, BookOpen, RotateCcw, GraduationCap, Printer, CalendarCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/layout/Sidebar';
 import StatCard from '../../components/common/StatCard';
@@ -36,6 +36,7 @@ import RenewalWizardPage            from './RenewalWizardPage';
 import TrainingPage                 from './TrainingPage';
 import FormGeneratorPage            from '../forms/FormGeneratorPage';
 import StateRuleBookPage           from './StateRuleBookPage';
+import AttendancePage              from '../attendance/AttendancePage';
 import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../services/api';
 
@@ -50,6 +51,7 @@ const NAV_ITEMS = [
   { label: 'Coordinators',   path: '/dashboard/sponsor/coordinators', icon: Users },
 
   { sectionLabel: 'Operations' },
+  { label: 'Attendance',          path: '/dashboard/sponsor/attendance',            icon: CalendarCheck   },
   { label: 'Meal Counts',         path: '/dashboard/sponsor/meal-counts',          icon: UtensilsCrossed },
   { label: 'Production Records',  path: '/dashboard/sponsor/production-records',   icon: ClipboardList },
   { label: 'Delivery Schedule',   path: '/dashboard/sponsor/meal-orders',           icon: Truck },
@@ -608,6 +610,7 @@ export default function SponsorDashboard() {
               <Route path="coordinators"     element={<CoordinatorsPage />} />
               <Route path="claims"           element={<ClaimsPage />} />
               <Route path="reports"          element={<ReportsPage />} />
+              <Route path="attendance"      element={<AttendancePage />} />
               <Route path="meal-counts"    element={<MealCountsPage />} />
               <Route path="documents"      element={<Navigate to="/dashboard/sponsor/compliance" replace />} />
               <Route path="messages"       element={<MessagesPage />} />
