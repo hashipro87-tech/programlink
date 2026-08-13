@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus, DollarSign, ChevronDown, ChevronUp, RotateCcw, Calendar } from 'lucide-react';
+import { CheckCircle, ClipboardList, FileText, MessageSquare, Settings, Upload, AlertTriangle, Clock, Truck, CheckSquare, Activity, Plus, DollarSign, ChevronDown, ChevronUp, RotateCcw, Calendar, CalendarCheck, Users } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
 
 const NAV = [
   { label: 'Overview',      path: '/demo/site',               icon: CheckCircle   },
-  { label: 'Deliveries',    path: '/demo/site/deliveries',    icon: Truck         },
   { label: 'Meal Counts',   path: '/demo/site/meal-counts',   icon: ClipboardList },
+  { label: 'Attendance',    path: '/demo/site/attendance',    icon: CalendarCheck },
+  { label: 'Deliveries',    path: '/demo/site/deliveries',    icon: Truck         },
   { label: 'Income Certs',  path: '/demo/site/income',        icon: DollarSign    },
   { label: 'Renewals',      path: '/demo/site/renewal',       icon: RotateCcw     },
   { label: 'Tasks',         path: '/demo/site/tasks',         icon: CheckSquare   },
@@ -226,61 +227,102 @@ function OverviewPage() {
 }
 
 // ─── Meal Counts ─────────────────────────────────────────────────────────────
+const MEAL_TYPES_SITE = [
+  { key:'breakfast', label:'Breakfast', emoji:'🌅' },
+  { key:'lunch',     label:'Lunch',     emoji:'☀️' },
+  { key:'snack',     label:'Snack',     emoji:'🍎' },
+  { key:'supper',    label:'Supper',    emoji:'🌙' },
+];
 function MealCountsPage() {
-  const [counts, setCounts] = useState({ breakfast: '', lunch: '', snack: '' });
-  const [submitted, setSubmitted] = useState(false);
+  const [attendance, setAttendance] = useState('');
+  const [counts,     setCounts]     = useState({ breakfast:'', lunch:'', snack:'', supper:'' });
+  const [saved,      setSaved]      = useState(false);
 
-  const handleSubmit = () => {
-    if (!counts.breakfast && !counts.lunch && !counts.snack) return;
-    setSubmitted(true);
-  };
+  const att = parseInt(attendance) || 0;
+  const violations = MEAL_TYPES_SITE.filter(m => parseInt(counts[m.key]) > att && att > 0);
+  const anyFilled  = Object.values(counts).some(v => v !== '');
+  const canSave    = anyFilled && violations.length === 0;
+
+  const handleSave = () => { if (!canSave) return; setSaved(true); };
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Meal Counts</h1>
-        <p className="text-gray-500 mt-1">Happy Hearts Daycare · Submit and track daily headcounts</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Daily Record</h1>
+        <p className="text-gray-500 mt-1 text-sm">Happy Hearts Daycare · Attendance + meal counts in one save</p>
       </div>
 
-      {/* Today's submission */}
+      {/* Today's daily record */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900">Today's Headcount</h2>
-            <p className="text-xs text-gray-400 mt-0.5">July 6, 2026 · Due by 11:59 PM</p>
+            <h2 className="font-semibold text-gray-900">Today's Record</h2>
+            <p className="text-xs text-gray-400 mt-0.5">August 14, 2026 · Due by 11:59 PM</p>
           </div>
-          <span className="text-xs font-semibold text-yellow-700 bg-yellow-50 border border-yellow-100 px-2.5 py-1 rounded-full">Not submitted</span>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${saved?'bg-green-50 text-green-700 border-green-100':'bg-yellow-50 text-yellow-700 border-yellow-100'}`}>
+            {saved ? 'Saved' : 'Not submitted'}
+          </span>
         </div>
         <div className="px-6 py-5">
-          <div className="grid grid-cols-3 gap-5 mb-5">
-            {[
-              { key: 'breakfast', label: 'Breakfast', emoji: '🌅', placeholder: '0' },
-              { key: 'lunch',     label: 'Lunch',     emoji: '☀️', placeholder: '0' },
-              { key: 'snack',     label: 'Snack',     emoji: '🍎', placeholder: '0' },
-            ].map(({ key, label, emoji, placeholder }) => (
-              <div key={key} className="text-center">
-                <div className="text-2xl mb-1">{emoji}</div>
-                <label className="block text-xs font-semibold text-gray-600 mb-2">{label}</label>
-                <input
-                  type="number" min={0} max={200}
-                  value={counts[key]}
-                  placeholder={placeholder}
-                  onChange={(e) => { setSubmitted(false); setCounts(c => ({ ...c, [key]: e.target.value })); }}
-                  className="w-full px-3 py-3 border border-gray-200 rounded-xl text-center text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-              </div>
-            ))}
+          {/* Attendance field */}
+          <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <label className="block text-sm font-semibold text-blue-900 mb-2">
+              👥 Children Present Today
+            </label>
+            <input
+              type="number" min={0} max={200}
+              value={attendance}
+              placeholder="0"
+              onChange={e => { setSaved(false); setAttendance(e.target.value); }}
+              className="w-32 px-3 py-2 border border-blue-200 bg-white rounded-xl text-center text-2xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <p className="text-xs text-blue-600 mt-1.5">Meal counts cannot exceed children present</p>
           </div>
-          {submitted ? (
+
+          {/* Per-meal inputs */}
+          <div className="grid grid-cols-4 gap-4 mb-4">
+            {MEAL_TYPES_SITE.map(({ key, label, emoji }) => {
+              const val = parseInt(counts[key]) || 0;
+              const over = val > att && att > 0;
+              return (
+                <div key={key} className="text-center">
+                  <div className="text-xl mb-1">{emoji}</div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">{label}</label>
+                  <input
+                    type="number" min={0} max={200}
+                    value={counts[key]}
+                    placeholder="0"
+                    onChange={e => { setSaved(false); setCounts(c => ({ ...c, [key]: e.target.value })); }}
+                    className={`w-full px-2 py-3 border rounded-xl text-center text-xl font-bold focus:outline-none focus:ring-2 transition-colors ${
+                      over ? 'border-red-400 bg-red-50 text-red-700 focus:ring-red-300' : 'border-gray-200 text-gray-900 focus:ring-brand-400'
+                    }`}
+                  />
+                  {over && <p className="text-xs text-red-600 mt-1">Exceeds attendance</p>}
+                </div>
+              );
+            })}
+          </div>
+
+          {violations.length > 0 && (
+            <div className="mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+              <p className="text-sm font-semibold text-red-700">⚠ Cannot save — meal count exceeds children present</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                {violations.map(v => v.label).join(', ')} {violations.length === 1 ? 'count exceeds' : 'counts exceed'} {att} present
+              </p>
+            </div>
+          )}
+
+          {saved ? (
             <div className="w-full py-3 bg-green-50 text-green-700 font-semibold text-sm rounded-xl text-center border border-green-100">
-              ✓ Headcount submitted successfully!
+              ✓ Daily record saved — meal counts and attendance recorded
             </div>
           ) : (
             <button
-              onClick={handleSubmit}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors"
+              onClick={handleSave}
+              disabled={!canSave}
+              className={`w-full py-3 text-white text-sm font-semibold rounded-xl transition-colors ${canSave?'bg-brand-600 hover:bg-brand-700':'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
             >
-              Submit Headcount
+              Save Daily Record
             </button>
           )}
           <p className="text-center text-xs text-gray-400 mt-2">
@@ -292,10 +334,10 @@ function MealCountsPage() {
       {/* Monthly summary */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'This Month',  value: '1,284', sub: 'total meals' },
-          { label: 'Days Filed',  value: '20/21', sub: 'of working days' },
-          { label: 'Avg Breakfast', value: '20',  sub: 'per day' },
-          { label: 'Avg Lunch',   value: '26',    sub: 'per day' },
+          { label:'This Month',    value:'1,284', sub:'total meals'      },
+          { label:'Days Filed',    value:'20/21', sub:'of working days'  },
+          { label:'Avg Breakfast', value:'20',    sub:'per day'          },
+          { label:'Avg Lunch',     value:'26',    sub:'per day'          },
         ].map(({ label, value, sub }) => (
           <div key={label} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm text-center">
             <p className="text-xl font-bold text-gray-900">{value}</p>
@@ -309,13 +351,14 @@ function MealCountsPage() {
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Submission History</h2>
-          <span className="text-xs text-gray-400">July 2026</span>
+          <span className="text-xs text-gray-400">August 2026</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-6 py-2.5 text-left text-xs font-semibold text-gray-500">Date</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500">Present</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500">Breakfast</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500">Lunch</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500">Snack</th>
@@ -327,6 +370,7 @@ function MealCountsPage() {
               {HISTORY.map((row) => (
                 <tr key={row.date} className="hover:bg-gray-50">
                   <td className="px-6 py-3 font-medium text-gray-900">{row.date}</td>
+                  <td className="px-4 py-3 text-center text-blue-700 font-semibold">{row.breakfast + 2}</td>
                   <td className="px-4 py-3 text-center text-gray-700">{row.breakfast}</td>
                   <td className="px-4 py-3 text-center text-gray-700">{row.lunch}</td>
                   <td className="px-4 py-3 text-center text-gray-700">{row.snack}</td>
@@ -653,6 +697,122 @@ function SiteTasksPage() {
   );
 }
 
+// ─── Attendance ───────────────────────────────────────────────────────────────
+const SITE_ROSTER = [
+  { id:1, name:'Emma Johnson',   present:true,  breakfast:true,  lunch:true,  snack:false },
+  { id:2, name:'James Smith',    present:true,  breakfast:false, lunch:true,  snack:true  },
+  { id:3, name:'Aisha Williams', present:false, breakfast:false, lunch:false, snack:false },
+  { id:4, name:'Diego Martinez', present:true,  breakfast:true,  lunch:true,  snack:false },
+  { id:5, name:'Mia Chen',       present:true,  breakfast:false, lunch:true,  snack:true  },
+  { id:6, name:'Liam Thompson',  present:true,  breakfast:true,  lunch:true,  snack:true  },
+];
+function SiteAttendancePage() {
+  const [roster, setRoster] = useState(SITE_ROSTER);
+  const [saved,  setSaved]  = useState(false);
+  const toggle = (id, field) => {
+    setSaved(false);
+    setRoster(r => r.map(c => c.id !== id ? c :
+      field === 'present' ? { ...c, present:!c.present, breakfast:false, lunch:false, snack:false }
+                          : { ...c, [field]:!c[field] }
+    ));
+  };
+  const present   = roster.filter(c => c.present).length;
+  const breakfast = roster.filter(c => c.breakfast).length;
+  const lunch     = roster.filter(c => c.lunch).length;
+  const snack     = roster.filter(c => c.snack).length;
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
+        <p className="text-gray-500 mt-1 text-sm">Happy Hearts Daycare · Per-child daily records required by USDA 7 CFR 226.10(d)</p>
+      </div>
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        {[
+          { label:'Present',   value:present,   color:'text-green-600'  },
+          { label:'Breakfast', value:breakfast, color:'text-orange-600' },
+          { label:'Lunch',     value:lunch,     color:'text-green-600'  },
+          { label:'Snack',     value:snack,     color:'text-blue-600'   },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm text-center">
+            <p className={`text-2xl font-bold ${color}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+        <div className="px-6 py-3.5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Thursday, August 14, 2026</p>
+            <p className="text-xs text-gray-400">{roster.length} children enrolled · check each child in/out and mark meals served</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setRoster(r => r.map(c => ({ ...c, present:true })))}
+              className="text-xs font-semibold text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50">
+              All Present
+            </button>
+            <button onClick={() => setRoster(r => r.map(c => ({ ...c, present:false, breakfast:false, lunch:false, snack:false })))}
+              className="text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+              All Absent
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-6 py-2.5 text-left text-xs font-semibold text-gray-500">Child</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Present</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-orange-500">🌅 Bkfst</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-green-500">☀️ Lunch</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-blue-500">🍎 Snack</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {roster.map(c => (
+                <tr key={c.id} className={!c.present ? 'opacity-50 bg-gray-50/60' : ''}>
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-700 flex-shrink-0">
+                        {c.name.split(' ').map(n=>n[0]).join('')}
+                      </div>
+                      <span className="font-medium text-gray-900">{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button onClick={() => toggle(c.id,'present')}
+                      className={`w-6 h-6 rounded-full border-2 mx-auto flex items-center justify-center transition-colors ${c.present?'bg-green-500 border-green-500':'border-gray-300 hover:border-green-400'}`}>
+                      {c.present && <span className="text-white text-xs font-bold">✓</span>}
+                    </button>
+                  </td>
+                  {['breakfast','lunch','snack'].map(meal => (
+                    <td key={meal} className="px-4 py-3 text-center">
+                      <input type="checkbox" checked={c[meal]} disabled={!c.present} onChange={() => toggle(c.id,meal)}
+                        className="w-4 h-4 rounded accent-brand-600 cursor-pointer disabled:cursor-not-allowed" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex items-center justify-between">
+          <p className="text-xs text-gray-400">{saved ? '✓ Saved — meal counts updated automatically' : 'Saving will auto-update today\'s meal counts'}</p>
+          <button onClick={() => setSaved(true)}
+            className="text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 px-4 py-1.5 rounded-lg transition-colors">
+            Save Attendance
+          </button>
+        </div>
+      </div>
+      <div className="bg-brand-600 rounded-2xl p-5 text-center text-white">
+        <p className="font-bold mb-1">Managing a real site?</p>
+        <p className="text-brand-200 text-sm mb-3">Your sponsor will invite you to join CACFPLink.</p>
+        <Link to="/register" className="inline-block bg-white text-brand-700 font-bold px-5 py-2 rounded-xl text-sm hover:bg-gray-50">Get Started →</Link>
+      </div>
+    </>
+  );
+}
+
 // ─── Activity ─────────────────────────────────────────────────────────────────
 function SiteActivityPage() {
   const SITE_ACTIVITY = [
@@ -945,8 +1105,9 @@ export default function SiteDemo() {
   const { pathname } = useLocation();
 
   let Page;
-  if (pathname.startsWith('/demo/site/deliveries'))   Page = DeliveriesPage;
+  if (pathname.startsWith('/demo/site/deliveries'))      Page = DeliveriesPage;
   else if (pathname.startsWith('/demo/site/meal-counts')) Page = MealCountsPage;
+  else if (pathname.startsWith('/demo/site/attendance'))  Page = SiteAttendancePage;
   else if (pathname.startsWith('/demo/site/income'))      Page = IncomeCertsPage;
   else if (pathname.startsWith('/demo/site/renewal'))     Page = SiteRenewalPage;
   else if (pathname.startsWith('/demo/site/tasks'))       Page = SiteTasksPage;

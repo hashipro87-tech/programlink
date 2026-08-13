@@ -6,11 +6,10 @@ import {
   ShieldCheck, ShieldAlert, ShieldX, Shield,
   MessageSquare, Megaphone, Bell, TrendingUp, Upload, DollarSign,
   CheckSquare, Users2, Activity, BookOpen, Circle, RotateCcw, GraduationCap, Printer, Download,
+  CalendarCheck, Repeat, Search, MapPin,
 } from 'lucide-react';
 import DemoBanner from './DemoBanner';
 import DemoSidebar from './DemoSidebar';
-
-import { Repeat } from 'lucide-react';
 
 const NAV = [
   { label: 'Overview',       path: '/demo/sponsor',                   icon: CheckCircle    },
@@ -20,18 +19,19 @@ const NAV = [
   { label: 'Sites',          path: '/demo/sponsor/sites',             icon: Building2      },
   { label: 'Kitchens',       path: '/demo/sponsor/kitchens',          icon: Building2      },
   { label: 'Children',       path: '/demo/sponsor/children',          icon: Users2         },
+  { label: 'Attendance',     path: '/demo/sponsor/attendance',        icon: CalendarCheck  },
   { label: 'Tasks',          path: '/demo/sponsor/tasks',             icon: CheckSquare    },
   { label: 'Inspections',    path: '/demo/sponsor/inspections',       icon: ShieldCheck    },
   { label: 'Menus',          path: '/demo/sponsor/menus',             icon: BookOpen       },
+  { label: 'Menu Cycles',    path: '/demo/sponsor/menu-cycles',       icon: Repeat         },
   { label: 'Deliveries',     path: '/demo/sponsor/deliveries',        icon: Truck          },
-  { label: 'Delivery Plans', path: '/demo/sponsor/delivery-plans',    icon: Repeat         },
   { label: 'Coordinators',   path: '/demo/sponsor/coordinators',      icon: Users          },
   { label: 'Messages',       path: '/demo/sponsor/messages',          icon: MessageSquare  },
   { label: 'Meal Counts',    path: '/demo/sponsor/meal-counts',       icon: UtensilsCrossed },
   { label: 'Renewals',       path: '/demo/sponsor/renewals',          icon: RotateCcw      },
   { label: 'Staff Training', path: '/demo/sponsor/training',          icon: GraduationCap  },
   { label: 'Form Generator', path: '/demo/sponsor/forms',             icon: Printer        },
-  { label: 'Documents',      path: '/demo/sponsor/documents',         icon: FileText       },
+  { label: 'State Rule Book',path: '/demo/sponsor/state-rules',       icon: FileText       },
   { label: 'Activity',       path: '/demo/sponsor/activity',          icon: Activity       },
   { label: 'Settings',       path: '/demo/sponsor/settings',          icon: Settings       },
 ];
@@ -895,63 +895,437 @@ function DeliveryPlansPage() {
 }
 
 // ─── Deliveries ───────────────────────────────────────────────────────────────
+const TODAY_DELIVERIES = [
+  { id:1, kitchen:'Downtown Kitchen', site:'Little Learners',  meal:'Breakfast', count:25, time:'7:30 AM'  },
+  { id:2, kitchen:'Downtown Kitchen', site:'Sunshine Academy', meal:'Breakfast', count:20, time:'7:50 AM'  },
+  { id:3, kitchen:'North Kitchen',    site:'Happy Hearts',     meal:'Lunch',     count:32, time:'11:15 AM' },
+  { id:4, kitchen:'Downtown Kitchen', site:'Little Learners',  meal:'Lunch',     count:25, time:'11:30 AM' },
+  { id:5, kitchen:'North Kitchen',    site:'Sunshine Academy', meal:'Snack',     count:18, time:'3:00 PM'  },
+];
+const DEMO_SCHEDULED_ROUTES = [
+  { id:1, kitchen:'Downtown Kitchen', sites:2, days:'Mon–Fri', timing:'B: 7:30 AM · L: 11:30 AM', active:true  },
+  { id:2, kitchen:'North Kitchen',    sites:1, days:'Mon–Fri', timing:'L: 11:15 AM · S: 3:00 PM',  active:true  },
+  { id:3, kitchen:'Eastside Kitchen', sites:1, days:'Mon–Wed', timing:'B: 8:00 AM',                active:false },
+];
 function DeliveriesPage({ onOpenOrder }) {
+  const [tab,     setTab]     = useState('today');
+  const [checked, setChecked] = useState({});
+  const [skipped, setSkipped] = useState({});
+  const toggle = (id) => setChecked(c => ({ ...c, [id]: !c[id] }));
+  const skip   = (id) => setSkipped(s => ({ ...s, [id]: !s[id] }));
+  const delivered = Object.values(checked).filter(Boolean).length;
+  const skippedN  = Object.values(skipped).filter(Boolean).length;
+
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Deliveries</h1>
-        <p className="text-gray-500 mt-1">Manage meal delivery schedules from kitchens to sites</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Deliveries</h1>
+          <p className="text-gray-500 mt-1 text-sm">Today's checklist + recurring delivery routes</p>
+        </div>
+        <button
+          onClick={onOpenOrder}
+          className="flex items-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+        >
+          <Plus className="w-4 h-4" /> Add Delivery
+        </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {/* Tab bar */}
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
         {[
-          { label: "Today's Deliveries",  value: '3' },
-          { label: 'On Time',             value: '2' },
-          { label: 'In Progress',         value: '1' },
-        ].map(({ label, value }) => (
+          { key:'today',     label:"Today's Deliveries" },
+          { key:'schedules', label:'Scheduled Routes'   },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab===t.key?'bg-white text-gray-900 shadow-sm':'text-gray-500 hover:text-gray-700'}`}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'today' && (
+        <>
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[
+              { label:"Total Today",  value: TODAY_DELIVERIES.length },
+              { label:'Delivered',    value: delivered               },
+              { label:'Remaining',    value: TODAY_DELIVERIES.length - delivered - skippedN },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm text-center">
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Today's Checklist</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Thursday, August 14, 2026 · {delivered}/{TODAY_DELIVERIES.length} delivered</p>
+              </div>
+              <button className="text-xs font-semibold text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors">
+                Notify Kitchens
+              </button>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {TODAY_DELIVERIES.map((d) => (
+                <div key={d.id} className={`px-6 py-4 flex items-center gap-3 ${skipped[d.id] ? 'opacity-50' : ''}`}>
+                  <button onClick={() => toggle(d.id)}
+                    className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${checked[d.id]?'bg-green-500 border-green-500':'border-gray-300 hover:border-brand-400'}`}
+                  >
+                    {checked[d.id] && <CheckCircle className="w-3 h-3 text-white" />}
+                  </button>
+                  <ChefHat className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${checked[d.id]?'line-through text-gray-400':'text-gray-900'}`}>
+                      {d.kitchen} → {d.site}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{d.meal} · {d.count} meals · {d.time}</p>
+                  </div>
+                  {checked[d.id] ? (
+                    <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Delivered</span>
+                  ) : skipped[d.id] ? (
+                    <button onClick={() => skip(d.id)} className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Undo Skip</button>
+                  ) : (
+                    <button onClick={() => skip(d.id)} className="text-xs text-gray-400 hover:text-gray-600">Skip</button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 bg-gray-50 rounded-b-2xl text-center border-t border-gray-100">
+              <p className="text-xs text-gray-400">Demo only — <Link to="/register" className="text-brand-600 hover:underline">sign up</Link> to manage real deliveries.</p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'schedules' && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900">Scheduled Routes</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Recurring templates — set once, auto-generates daily deliveries at 6 AM</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {DEMO_SCHEDULED_ROUTES.map((p) => (
+              <div key={p.id} className="px-6 py-4 flex items-center gap-4">
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${p.active?'bg-green-400':'bg-gray-300'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{p.kitchen}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{p.days} · {p.sites} site{p.sites!==1?'s':''} · {p.timing}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${p.active?'bg-green-50 text-green-700 border-green-100':'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                  {p.active?'Active':'Paused'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="px-6 py-4 bg-brand-50 border-t border-brand-100 rounded-b-2xl">
+            <p className="text-xs text-brand-700 font-medium">
+              Scheduled routes auto-generate today's checklist every morning and notify kitchen + site staff automatically.
+            </p>
+          </div>
+        </div>
+      )}
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+const DEMO_ROSTER = [
+  { id:1, name:'Emma Johnson',   present:true,  breakfast:true,  lunch:true,  snack:false, supper:false },
+  { id:2, name:'James Smith',    present:true,  breakfast:false, lunch:true,  snack:true,  supper:false },
+  { id:3, name:'Aisha Williams', present:false, breakfast:false, lunch:false, snack:false, supper:false },
+  { id:4, name:'Diego Martinez', present:true,  breakfast:true,  lunch:true,  snack:false, supper:false },
+  { id:5, name:'Mia Chen',       present:true,  breakfast:false, lunch:true,  snack:true,  supper:false },
+  { id:6, name:'Liam Thompson',  present:true,  breakfast:true,  lunch:true,  snack:true,  supper:false },
+];
+const SITE_OPTS = ['Little Learners', 'Sunshine Academy', 'Happy Hearts Daycare'];
+function SponsorAttendancePage() {
+  const [site,   setSite]   = useState(SITE_OPTS[0]);
+  const [roster, setRoster] = useState(DEMO_ROSTER);
+  const toggle = (id, field) => setRoster(r => r.map(c => c.id !== id ? c :
+    field === 'present' ? { ...c, present: !c.present, breakfast:false, lunch:false, snack:false, supper:false }
+                        : { ...c, [field]: !c[field] }
+  ));
+  const present   = roster.filter(c => c.present).length;
+  const breakfast = roster.filter(c => c.breakfast).length;
+  const lunch     = roster.filter(c => c.lunch).length;
+  const snack     = roster.filter(c => c.snack).length;
+
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
+        <p className="text-gray-500 mt-1 text-sm">Per-child daily records — USDA 7 CFR 226.10(d) compliant. Saving auto-populates meal counts.</p>
+      </div>
+      <div className="flex items-center gap-3 mb-6">
+        <label className="text-sm font-medium text-gray-700">Site:</label>
+        <select value={site} onChange={e => { setSite(e.target.value); setRoster(DEMO_ROSTER); }}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300">
+          {SITE_OPTS.map(s => <option key={s}>{s}</option>)}
+        </select>
+        <span className="text-sm text-gray-400 ml-2">Thursday, August 14, 2026</span>
+      </div>
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        {[
+          { label:'Present',   value:present,   color:'text-green-600'  },
+          { label:'Breakfast', value:breakfast, color:'text-orange-600' },
+          { label:'Lunch',     value:lunch,     color:'text-green-600'  },
+          { label:'Snack',     value:snack,     color:'text-blue-600'   },
+        ].map(({ label, value, color }) => (
           <div key={label} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm text-center">
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className={`text-2xl font-bold ${color}`}>{value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{label}</p>
           </div>
         ))}
       </div>
-
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-brand-500" />
-            <div>
-              <h2 className="font-semibold text-gray-900">Today's Deliveries</h2>
-              <p className="text-xs text-gray-400 mt-0.5">July 6, 2026</p>
-            </div>
+        <div className="px-6 py-3.5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex gap-2">
+            <button onClick={() => setRoster(r => r.map(c => ({ ...c, present:true })))}
+              className="text-xs font-semibold text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50">
+              Mark All Present
+            </button>
+            <button onClick={() => setRoster(r => r.map(c => ({ ...c, present:false, breakfast:false, lunch:false, snack:false, supper:false })))}
+              className="text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+              Mark All Absent
+            </button>
           </div>
-          <button
-            onClick={onOpenOrder}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> Schedule Delivery
+          <span className="text-xs text-gray-400">{roster.length} children enrolled</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-6 py-2.5 text-left text-xs font-semibold text-gray-500">Child</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-600">Present</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-orange-500">🌅 Bkfst</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-green-500">☀️ Lunch</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-blue-500">🍎 Snack</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-purple-500">🌙 Supper</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {roster.map(c => (
+                <tr key={c.id} className={!c.present ? 'opacity-50 bg-gray-50/60' : ''}>
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-700 flex-shrink-0">
+                        {c.name.split(' ').map(n=>n[0]).join('')}
+                      </div>
+                      <span className="font-medium text-gray-900">{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button onClick={() => toggle(c.id, 'present')}
+                      className={`w-6 h-6 rounded-full border-2 mx-auto flex items-center justify-center transition-colors ${c.present?'bg-green-500 border-green-500':'border-gray-300 hover:border-green-400'}`}>
+                      {c.present && <span className="text-white text-xs font-bold">✓</span>}
+                    </button>
+                  </td>
+                  {['breakfast','lunch','snack','supper'].map(meal => (
+                    <td key={meal} className="px-4 py-3 text-center">
+                      <input type="checkbox" checked={c[meal]} disabled={!c.present} onChange={() => toggle(c.id, meal)}
+                        className="w-4 h-4 rounded accent-brand-600 cursor-pointer disabled:cursor-not-allowed" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex items-center justify-between">
+          <p className="text-xs text-gray-400">Saving attendance auto-populates meal counts for the day</p>
+          <button className="text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 px-4 py-1.5 rounded-lg transition-colors">
+            Save Attendance
           </button>
         </div>
-        <div className="divide-y divide-gray-50">
-          {DEMO_ORDERS.map((o, i) => (
-            <div key={i} className="px-6 py-4 flex items-center gap-3">
-              <ChefHat className="w-4 h-4 text-brand-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">
-                  {o.kitchen} <span className="text-gray-400">→</span> {o.site}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">{o.meal} · {o.count} meals · Pickup {o.time}</p>
-              </div>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${STATUS_PILL[o.status]}`}>
-                {o.status}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="px-6 py-3 bg-gray-50 rounded-b-2xl text-center border-t border-gray-100">
-          <p className="text-xs text-gray-400">Demo only — <Link to="/register" className="text-brand-600 hover:underline">sign up</Link> to schedule real deliveries.</p>
-        </div>
       </div>
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── Menu Cycles ──────────────────────────────────────────────────────────────
+const DEMO_CYCLES = [
+  { id:1, name:'Fall Cycle 2026',    weeks:4, weeksAssigned:4, active:true,  schedule:'Sep 1 – Nov 28, 2026'  },
+  { id:2, name:'Winter Cycle 2026',  weeks:4, weeksAssigned:2, active:false, schedule:'Not scheduled yet'      },
+  { id:3, name:'Summer Rotation',    weeks:6, weeksAssigned:6, active:false, schedule:'Jun 1 – Aug 29, 2026'  },
+];
+const CYCLE_WEEKS = [
+  { week:1, menu:'Standard Week A', items:18 },
+  { week:2, menu:'Standard Week B', items:21 },
+  { week:3, menu:'Variety Week',    items:19 },
+  { week:4, menu:'Standard Week A', items:18 },
+];
+function MenuCyclesPage() {
+  const [selected, setSelected] = useState(1);
+  const cycle = DEMO_CYCLES.find(c => c.id === selected);
+
+  return (
+    <>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Menu Cycles</h1>
+          <p className="text-gray-500 mt-1 text-sm">Build rotating menu libraries. Apply them to any date range — CACFPLink calculates the right week automatically.</p>
+        </div>
+        <button className="flex items-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl flex-shrink-0">
+          <Plus className="w-4 h-4" /> New Cycle
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {DEMO_CYCLES.map(c => (
+          <button key={c.id} onClick={() => setSelected(c.id)}
+            className={`text-left bg-white border rounded-2xl p-4 shadow-sm hover:border-brand-300 transition-colors ${selected===c.id?'border-brand-400 ring-1 ring-brand-200':'border-gray-200'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
+              {c.active && <span className="text-[10px] font-semibold px-2 py-0.5 bg-green-50 text-green-700 border border-green-100 rounded-full">Active</span>}
+            </div>
+            <p className="text-xs text-gray-500 mb-3">{c.weeks}-week rotation</p>
+            <div className="bg-gray-100 rounded-full h-1.5">
+              <div className="bg-brand-500 h-1.5 rounded-full" style={{ width:`${(c.weeksAssigned/c.weeks)*100}%` }} />
+            </div>
+            <p className="text-xs text-gray-400 mt-1">{c.weeksAssigned}/{c.weeks} weeks assigned</p>
+          </button>
+        ))}
+      </div>
+
+      {cycle && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm mb-6">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-gray-900">{cycle.name} — Week Assignments</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Scheduled: {cycle.schedule}</p>
+            </div>
+            <button className="text-xs font-semibold text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-50">
+              Apply to Calendar
+            </button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {CYCLE_WEEKS.map(w => (
+              <div key={w.week} className="px-6 py-3.5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-brand-700">W{w.week}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">{w.menu}</p>
+                  <p className="text-xs text-gray-500">{w.items} food items · Mon–Fri</p>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 bg-green-50 text-green-700 border border-green-100 rounded-full">Assigned</span>
+              </div>
+            ))}
+          </div>
+          <div className="px-6 py-4 bg-brand-50 border-t border-brand-100 rounded-b-2xl">
+            <p className="text-xs text-brand-700 font-medium">
+              Production Records auto-fill from the cycle's correct week — no manual lookup needed.
+            </p>
+          </div>
+        </div>
+      )}
+      <DemoCTA />
+    </>
+  );
+}
+
+// ─── State Rule Book ──────────────────────────────────────────────────────────
+const TX_RATES = [
+  { type:'Breakfast',      tier1:'$1.70', tier2:'$0.31' },
+  { type:'Lunch / Supper', tier1:'$3.22', tier2:'$1.23' },
+  { type:'Snack',          tier1:'$0.96', tier2:'$0.10' },
+];
+const TX_DEADLINES = [
+  { label:'Monthly claim',   value:'60 days after month end', note:'Submitted via SquareMeals portal' },
+  { label:'Annual training', value:'Once per program year' },
+  { label:'Site reviews',    value:'At least once annually' },
+];
+const TX_FORMS = [
+  'Application for Participation','Site Information Sheet',
+  'CACFP Monthly Claim (FNS-10)','Income Eligibility Statement',
+  'Meal Pattern Checklist','Serious Deficiency Notice Template',
+];
+function StateRuleBookDemoPage() {
+  const [tab, setTab] = useState('state');
+  return (
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">State Rule Book</h1>
+        <p className="text-gray-500 mt-1 text-sm">CACFP rules, rates, and deadlines for Texas — in plain English</p>
+      </div>
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
+        {[{ key:'state', label:'Texas (TX)' },{ key:'federal', label:'Federal Meal Pattern' }].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab===t.key?'bg-white text-gray-900 shadow-sm':'text-gray-500 hover:text-gray-700'}`}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'state' && (
+        <>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
+              <h2 className="font-semibold text-gray-900 mb-3">Reimbursement Rates (Tier I)</h2>
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-gray-100"><th className="text-left pb-2 text-xs text-gray-500">Meal</th><th className="text-right pb-2 text-xs text-gray-500">Tier I</th><th className="text-right pb-2 text-xs text-gray-500">Tier II</th></tr></thead>
+                <tbody className="divide-y divide-gray-50">
+                  {TX_RATES.map(r => (
+                    <tr key={r.type}><td className="py-2 text-gray-700">{r.type}</td><td className="py-2 text-right font-bold text-green-600">{r.tier1}</td><td className="py-2 text-right text-gray-500">{r.tier2}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5">
+              <h2 className="font-semibold text-gray-900 mb-3">Key Deadlines</h2>
+              <div className="space-y-3">
+                {TX_DEADLINES.map(d => (
+                  <div key={d.label}>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{d.label}</p>
+                    <p className="text-sm font-semibold text-gray-900 mt-0.5">{d.value}</p>
+                    {d.note && <p className="text-xs text-gray-400">{d.note}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-4">
+            <h2 className="font-semibold text-gray-900 mb-1">State Agency — Texas Department of Agriculture (TDA)</h2>
+            <p className="text-sm text-brand-600 mt-1">squaremeals.org — SquareMeals Claims Reimbursement Portal</p>
+            <p className="text-xs text-gray-500 mt-1">(877) 228-5799 · cacfp@texasagriculture.gov</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
+            <h2 className="font-semibold text-gray-900 mb-3">Required Forms</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {TX_FORMS.map(f => (
+                <div key={f} className="flex items-center gap-2 text-sm text-gray-700">
+                  <span className="w-4 h-4 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 text-[10px] font-bold flex-shrink-0">✓</span>
+                  {f}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'federal' && (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4">Federal Meal Pattern (7 CFR Part 226)</h2>
+          <div className="space-y-4">
+            {[
+              { meal:'🌅 Breakfast',      components:['Fluid milk (age-appropriate)','Grain/bread or meat alternate','Fruit or vegetable'] },
+              { meal:'☀️ Lunch / 🌙 Supper', components:['Fluid milk (age-appropriate)','Grain/bread (WGR ≥ 1 serving)','Meat or meat alternate','Fruit','Vegetable'] },
+              { meal:'🍎 Snack',          components:['Choose 2 of 4: milk, grain/bread, meat/alternate, fruit or vegetable'] },
+            ].map(m => (
+              <div key={m.meal} className="border border-gray-100 rounded-xl p-4">
+                <p className="font-semibold text-gray-900 mb-2">{m.meal}</p>
+                <ul className="space-y-1">
+                  {m.components.map(c => <li key={c} className="text-sm text-gray-600 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-brand-400 flex-shrink-0" />{c}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-4">Federal meal pattern rules are identical in all 50 states</p>
+        </div>
+      )}
       <DemoCTA />
     </>
   );
@@ -2871,18 +3245,21 @@ export default function SponsorDemo() {
   else if (pathname.startsWith('/demo/sponsor/tasks'))        Page = () => <TasksPage />;
   else if (pathname.startsWith('/demo/sponsor/inspections'))  Page = () => <InspectionsPage />;
   else if (pathname.startsWith('/demo/sponsor/menus'))        Page = () => <MenusPage />;
-  else if (pathname.startsWith('/demo/sponsor/activity'))     Page = () => <ActivityPage />;
-  else if (pathname.startsWith('/demo/sponsor/delivery-plans')) Page = () => <DeliveryPlansPage />;
+  else if (pathname.startsWith('/demo/sponsor/activity'))       Page = () => <ActivityPage />;
+  else if (pathname.startsWith('/demo/sponsor/delivery-plans')) Page = () => <DeliveriesPage onOpenOrder={() => setShowOrder(true)} />;
   else if (pathname.startsWith('/demo/sponsor/deliveries'))     Page = () => <DeliveriesPage onOpenOrder={() => setShowOrder(true)} />;
-  else if (pathname.startsWith('/demo/sponsor/coordinators')) Page = () => <CoordinatorsPage />;
-  else if (pathname.startsWith('/demo/sponsor/messages'))     Page = () => <MessagesPage onOpenBroadcast={() => setShowBroadcast(true)} />;
-  else if (pathname.startsWith('/demo/sponsor/meal-counts'))  Page = () => <MealCountsPage />;
-  else if (pathname.startsWith('/demo/sponsor/claims'))       Page = () => <ClaimsPage />;
-  else if (pathname.startsWith('/demo/sponsor/renewals'))     Page = () => <RenewalsPage />;
-  else if (pathname.startsWith('/demo/sponsor/training'))     Page = () => <SponsorTrainingPage />;
-  else if (pathname.startsWith('/demo/sponsor/forms'))        Page = () => <FormGeneratorPage />;
-  else if (pathname.startsWith('/demo/sponsor/documents'))    Page = () => <DocumentsPage />;
-  else if (pathname.startsWith('/demo/sponsor/settings'))     Page = () => <SettingsPage />;
+  else if (pathname.startsWith('/demo/sponsor/coordinators'))   Page = () => <CoordinatorsPage />;
+  else if (pathname.startsWith('/demo/sponsor/messages'))       Page = () => <MessagesPage onOpenBroadcast={() => setShowBroadcast(true)} />;
+  else if (pathname.startsWith('/demo/sponsor/meal-counts'))    Page = () => <MealCountsPage />;
+  else if (pathname.startsWith('/demo/sponsor/claims'))         Page = () => <ClaimsPage />;
+  else if (pathname.startsWith('/demo/sponsor/renewals'))       Page = () => <RenewalsPage />;
+  else if (pathname.startsWith('/demo/sponsor/training'))       Page = () => <SponsorTrainingPage />;
+  else if (pathname.startsWith('/demo/sponsor/forms'))          Page = () => <FormGeneratorPage />;
+  else if (pathname.startsWith('/demo/sponsor/attendance'))     Page = () => <SponsorAttendancePage />;
+  else if (pathname.startsWith('/demo/sponsor/menu-cycles'))    Page = () => <MenuCyclesPage />;
+  else if (pathname.startsWith('/demo/sponsor/state-rules'))    Page = () => <StateRuleBookDemoPage />;
+  else if (pathname.startsWith('/demo/sponsor/documents'))      Page = () => <DocumentsPage />;
+  else if (pathname.startsWith('/demo/sponsor/settings'))       Page = () => <SettingsPage />;
   else                                                         Page = () => <OverviewPage onOpenOrder={() => setShowOrder(true)} onOpenBroadcast={() => setShowBroadcast(true)} />;
 
   return (
