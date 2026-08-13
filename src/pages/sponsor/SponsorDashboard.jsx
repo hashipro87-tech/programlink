@@ -217,6 +217,13 @@ function BlockingIssues({ data, navigate }) {
   const { intel, warnings } = data;
   const issues   = intel?.issues ?? [];
   const atRisk   = intel?.reimbursementAtRisk ?? 0;
+  const claimReady = (intel?.readinessScore ?? 0) >= 100;
+
+  // When the claim is fully ready, meal-count warnings are stale — suppress them.
+  const MEAL_COUNT_WARNING_TYPES = ['missing_counts', 'no_counts_this_month'];
+  const filteredWarnings = claimReady
+    ? warnings.filter((w) => !MEAL_COUNT_WARNING_TYPES.includes(w.type))
+    : warnings;
 
   // Merge intelligence issues + proactive warnings, deduplicated
   const blockingItems = [
@@ -230,7 +237,7 @@ function BlockingIssues({ data, navigate }) {
       cta:    issue.fixLabel || 'Fix',
       severity: issue.severity === 'error' ? 'high' : 'medium',
     })),
-    ...warnings.slice(0, 3).map((w) => ({
+    ...filteredWarnings.slice(0, 3).map((w) => ({
       key: w.type + (w.org_id ?? ''),
       label: w.title,
       amount: null,
