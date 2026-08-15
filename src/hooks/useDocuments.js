@@ -42,5 +42,9 @@ export function useDocuments(orgId) {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   }
 
-  return { documents, loading, uploading, error, reload, uploadDocument, deleteDocument };
+  function getDoc(type) {
+    return documents.find((d) => d.doc_type === type) ?? null;
+  }
+
+  return { documents, loading, uploading, error, reload, uploadDocument, deleteDocument, getDoc };
 }
