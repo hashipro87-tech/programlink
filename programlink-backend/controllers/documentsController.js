@@ -35,6 +35,7 @@ exports.listDocuments = async (req, res) => {
 
     if (['sponsor', 'coordinator', 'admin'].includes(role)) {
       // Sponsors / coordinators see ALL documents from orgs in their program.
+      // Also allow orgs that applied to this sponsor (self-registered sites have no sponsor_id yet).
       const baseQuery = `
         SELECT d.*,
                o.name     AS org_name,
@@ -44,7 +45,11 @@ exports.listDocuments = async (req, res) => {
         FROM documents d
         JOIN organizations o ON o.id = d.org_id
         LEFT JOIN users u ON u.id = d.uploaded_by
-        WHERE (o.sponsor_id = $1 OR o.id = $1)
+        WHERE (
+          o.sponsor_id = $1
+          OR o.id = $1
+          OR EXISTS (SELECT 1 FROM applications a WHERE a.org_id = o.id AND a.sponsor_id = $1)
+        )
       `;
       const params = [organizationId];
 

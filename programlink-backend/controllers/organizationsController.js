@@ -21,10 +21,15 @@ exports.listOrganizations = async (req, res) => {
         where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
       }
     }
-    // Non-sponsors (non-admin) only see orgs within their sponsor's program
+    // Non-sponsors (non-admin) only see orgs within their sponsor's program.
+    // Coordinators have sponsorId=null after login (their org IS the sponsor org),
+    // so fall back to organizationId which equals the sponsor's org id.
     if (req.user.role !== 'sponsor' && req.user.role !== 'admin') {
-      filterParams.push(req.user.sponsorId);
-      where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
+      const sponsorScopeId = req.user.sponsorId ?? req.user.organizationId;
+      if (sponsorScopeId) {
+        filterParams.push(sponsorScopeId);
+        where += ` AND (sponsor_id = $${filterParams.length} OR id = $${filterParams.length})`;
+      }
     }
 
     // Coordinators with assignments only see assigned orgs

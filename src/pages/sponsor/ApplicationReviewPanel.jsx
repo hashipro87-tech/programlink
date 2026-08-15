@@ -68,7 +68,8 @@ export default function ApplicationReviewPanel({
     setDocsLoading(true);
     try {
       const res = await api.get(`/documents?org_id=${application.org_id}`);
-      setDocuments(res.data);
+      // API returns { documents: [...] } not a plain array
+      setDocuments(res.data.documents ?? res.data ?? []);
     } catch {
       setDocuments([]);
     } finally {
