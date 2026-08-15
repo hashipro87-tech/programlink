@@ -289,6 +289,7 @@ export default function ApplicationFlow({ onSubmitted }) {
     const newErrs = validateStep(stepId, formData, user?.role);
     if (Object.keys(newErrs).length) { setErrors(newErrs); return; }
     setErrors({});
+    setSubmitError('');
     if (currentStep === 0 && !application) {
       try { await createApplication(); }
       catch (err) { setSubmitError(err.response?.data?.error || 'Could not start application'); return; }
