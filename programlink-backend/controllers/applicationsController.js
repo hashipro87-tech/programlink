@@ -51,7 +51,19 @@ exports.getApplication = async (req, res) => {
 
 exports.createApplication = async (req, res) => {
   try {
-    const { sponsor_id, form_data } = req.body;
+    const { form_data } = req.body;
+
+    // Auto-look up sponsor_id from the applicant's org (set when sponsor invited them)
+    // Fall back to body param for backwards compat, then null
+    let sponsor_id = req.body.sponsor_id ?? null;
+    if (!sponsor_id && req.user.organizationId) {
+      const { rows: orgRows } = await pool.query(
+        'SELECT sponsor_id FROM organizations WHERE id = $1',
+        [req.user.organizationId]
+      );
+      sponsor_id = orgRows[0]?.sponsor_id ?? null;
+    }
+
     const { rows } = await pool.query(
       `INSERT INTO applications (org_id, sponsor_id, form_data, status)
        VALUES ($1,$2,$3,'draft') RETURNING *`,
