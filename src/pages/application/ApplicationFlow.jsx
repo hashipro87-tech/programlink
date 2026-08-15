@@ -390,16 +390,16 @@ export default function ApplicationFlow({ onSubmitted }) {
           </div>
 
           {/* Navigation buttons */}
-          {currentStep < 3 && (
-            <div className="flex items-center justify-between">
-              <button
-                onClick={goBack}
-                disabled={currentStep === 0}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium
-                           rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Back
-              </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={goBack}
+              disabled={currentStep === 0}
+              className="px-5 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium
+                         rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Back
+            </button>
+            {currentStep < 3 && (
               <button
                 onClick={goNext}
                 disabled={saving}
@@ -409,8 +409,8 @@ export default function ApplicationFlow({ onSubmitted }) {
               >
                 {saving ? 'Saving…' : `Continue to ${STEPS[currentStep + 1]?.label ?? 'Review'} →`}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* ── Checklist sidebar (desktop only) ── */}
