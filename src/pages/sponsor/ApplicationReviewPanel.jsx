@@ -60,6 +60,19 @@ export default function ApplicationReviewPanel({
   const [documents,     setDocuments]     = useState(null);
   const [docsLoading,   setDocsLoading]   = useState(false);
 
+  // Open a document through the backend API (handles auth + R2/local fallback)
+  const handleViewDoc = async (doc) => {
+    try {
+      const res = await api.get(`/documents/${doc.id}/file`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      alert('Could not load document. The file may no longer be stored on the server. Please ask the applicant to re-upload.');
+    }
+  };
+
   const allowedActions = ALLOWED_ACTIONS[reviewerRole]?.[application.status] || [];
 
   // Lazy-load documents for this org when the panel opens
@@ -170,14 +183,12 @@ export default function ApplicationReviewPanel({
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={doc.status} />
                     {doc.file_url && (
-                      <a
-                        href={doc.file_url}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        onClick={() => handleViewDoc(doc)}
                         className="text-xs text-brand-600 hover:underline"
                       >
                         View
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

@@ -373,10 +373,23 @@ exports.serveDocument = async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Document not found.' });
     const doc = rows[0];
 
-    // Access check: sponsor must own this org; kitchen/site must be their own org
-    const isOwner = ['sponsor', 'coordinator', 'admin'].includes(role)
-      ? (doc.sponsor_id === organizationId || doc.org_id === organizationId)
-      : doc.org_id === organizationId;
+    // Access check: sponsor must own this org OR org has an application linked to sponsor
+    let isOwner;
+    if (['sponsor', 'coordinator', 'admin'].includes(role)) {
+      const scopeId = organizationId;
+      if (doc.sponsor_id === scopeId || doc.org_id === scopeId) {
+        isOwner = true;
+      } else {
+        // Self-registered orgs (no sponsor_id yet) — check via application link
+        const { rows: appRows } = await pool.query(
+          'SELECT 1 FROM applications WHERE org_id = $1 AND sponsor_id = $2 LIMIT 1',
+          [doc.org_id, scopeId]
+        );
+        isOwner = appRows.length > 0;
+      }
+    } else {
+      isOwner = doc.org_id === organizationId;
+    }
     if (!isOwner) return res.status(403).json({ error: 'Access denied.' });
 
     if (!doc.file_url || doc.status === 'requested') {
