@@ -307,7 +307,7 @@ export default function ApplicationFlow({ onSubmitted }) {
     setSubmitError('');
     setSubmitting(true);
     try {
-      await submitApplication();
+      await submitApplication(formData);
       localStorage.removeItem(STORAGE_KEY);
       onSubmitted?.();
     } catch (err) {
