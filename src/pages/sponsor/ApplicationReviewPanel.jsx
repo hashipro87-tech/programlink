@@ -8,14 +8,17 @@ import StatusBadge from '../../components/common/StatusBadge';
 import api from '../../services/api';
 
 // Which actions each role can take on each current status
+// NORMAL FLOW: flag bad docs with ✕ → "Send Back for Revisions" → site re-uploads → Approve
+// PERMANENT REJECT: only use when the applicant is fully disqualified (rare)
 const ALLOWED_ACTIONS = {
   coordinator: {
     submitted:    ['under_review', 'draft'],
     under_review: ['draft'],
   },
   sponsor: {
-    submitted:    ['under_review', 'approved', 'rejected'],
-    under_review: ['approved', 'rejected', 'draft'],
+    submitted:    ['draft', 'approved', 'rejected'],   // Send Back first — it's the normal path
+    under_review: ['draft', 'approved', 'rejected'],
+    rejected:     ['submitted'],                        // Allow reopening an accidental rejection
   },
 };
 
@@ -25,24 +28,35 @@ const ACTION_CONFIG = {
     icon:  Eye,
     style: 'bg-brand-600 hover:bg-brand-700 text-white',
     requiresNote: false,
+    warning: null,
   },
   approved: {
-    label: 'Approve',
+    label: 'Approve Application',
     icon:  CheckCircle,
     style: 'bg-green-600 hover:bg-green-700 text-white',
     requiresNote: false,
+    warning: null,
   },
   rejected: {
-    label: 'Reject',
+    label: 'Permanently Reject',
     icon:  XCircle,
     style: 'bg-red-600 hover:bg-red-700 text-white',
     requiresNote: true,
+    warning: '⚠️ This permanently denies the whole application. Only use this if the applicant is not qualified. To ask them to fix a document, use "Send Back for Revisions" instead.',
   },
   draft: {
     label: 'Send Back for Revisions',
     icon:  RotateCcw,
-    style: 'border border-yellow-400 text-yellow-700 hover:bg-yellow-50',
+    style: 'bg-yellow-500 hover:bg-yellow-600 text-white',
     requiresNote: true,
+    warning: null,
+  },
+  submitted: {
+    label: 'Reopen Application',
+    icon:  RotateCcw,
+    style: 'border border-gray-400 text-gray-700 hover:bg-gray-50',
+    requiresNote: false,
+    warning: null,
   },
 };
 
@@ -314,6 +328,12 @@ export default function ApplicationReviewPanel({
         {/* Note form — shown when an action is selected */}
         {actionTarget && (
           <div className="space-y-3 border-t border-gray-100 pt-4">
+            {/* Warning for destructive actions */}
+            {ACTION_CONFIG[actionTarget].warning && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-red-700">{ACTION_CONFIG[actionTarget].warning}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Note to applicant
@@ -378,8 +398,8 @@ export default function ApplicationReviewPanel({
         {/* No actions available */}
         {allowedActions.length === 0 && (
           <p className="text-sm text-gray-400 italic">
-            {['approved', 'rejected'].includes(application.status)
-              ? 'This application has been finalized.'
+            {application.status === 'approved'
+              ? 'This application has been approved.'
               : 'No actions available for your role at this stage.'}
           </p>
         )}
