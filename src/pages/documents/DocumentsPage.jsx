@@ -591,7 +591,7 @@ function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, ve
 // ─── Org compliance section (sponsor view) ────────────────────────────────────
 function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploadDoc }) {
   const [collapsed, setCollapsed] = useState(false);
-  const required   = REQUIRED_DOCS[org.org_type] ?? [];
+  const required   = REQUIRED_DOCS[org.type ?? org.org_type] ?? [];
 
   // Latest uploaded doc per doc_type (filter out 'requested' and 'superseded' placeholders)
   const uploaded   = docs.filter((d) => d.org_id === org.id && d.file_url && d.file_url !== '');
@@ -621,7 +621,7 @@ function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploa
   const requiredTypes = new Set(required.map((r) => r.doc_type));
   const extras = Object.values(latestMap).filter((d) => !requiredTypes.has(d.doc_type));
 
-  const orgIcon = org.org_type === 'kitchen' ? ChefHat : Building2;
+  const orgIcon = (org.type ?? org.org_type) === 'kitchen' ? ChefHat : Building2;
   const OrgIcon = orgIcon;
 
   const pillColor = pct === 100 ? 'text-green-700 bg-green-100' :
@@ -790,7 +790,7 @@ function ProgramDocumentsView() {
     expiring:  programDocs.filter((d) => d.status === 'expiring_soon').length,
     requested: docs.filter((d) => d.status === 'requested').length,
     missing: orgs.reduce((sum, o) => {
-      const req = REQUIRED_DOCS[o.org_type] ?? [];
+      const req = REQUIRED_DOCS[o.type ?? o.org_type] ?? [];
       const uploaded = new Set(docs.filter((d) => d.org_id === o.id && d.file_url && d.file_url !== '').map((d) => d.doc_type));
       return sum + req.filter((r) => !uploaded.has(r.doc_type)).length;
     }, 0),

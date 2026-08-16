@@ -10,8 +10,8 @@ import StatusBadge from '../../components/common/StatusBadge';
 // ─── Pipeline step definitions ─────────────────────────────────────────────────
 const PIPELINE_STEPS = [
   { id: 'draft',        label: 'Draft',        description: 'Application started' },
-  { id: 'submitted',    label: 'Submitted',     description: 'Waiting for coordinator review' },
-  { id: 'under_review', label: 'Under Review',  description: 'Being reviewed by your coordinator' },
+  { id: 'submitted',    label: 'Submitted',     description: 'Waiting for sponsor or coordinator review' },
+  { id: 'under_review', label: 'Under Review',  description: 'Being reviewed by your sponsor' },
   { id: 'approved',     label: 'Decision',      description: 'Final decision made' },
 ];
 

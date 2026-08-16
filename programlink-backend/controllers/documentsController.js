@@ -387,6 +387,40 @@ exports.serveDocument = async (req, res) => {
         );
         isOwner = appRows.length > 0;
       }
+
+      // Coordinator fallback: check via coordinator_assignments or sponsor lookup from DB
+      // (handles cases where JWT org_id doesn't match due to account setup timing)
+      if (!isOwner && role === 'coordinator') {
+        // Check if coordinator is directly assigned to this org
+        const { rows: caRows } = await pool.query(
+          'SELECT 1 FROM coordinator_assignments WHERE coordinator_id = $1 AND org_id = $2 LIMIT 1',
+          [req.user.id, doc.org_id]
+        );
+        if (caRows.length > 0) {
+          isOwner = true;
+        } else {
+          // Check if the doc's org belongs to the same sponsor as the coordinator's user record
+          const { rows: sponsorRows } = await pool.query(
+            `SELECT 1 FROM organizations o
+             JOIN users u ON u.org_id = o.sponsor_id
+             WHERE o.id = $1 AND u.id = $2 LIMIT 1`,
+            [doc.org_id, req.user.id]
+          );
+          isOwner = sponsorRows.length > 0;
+          // Also check application link using coordinator's DB org_id
+          if (!isOwner) {
+            const { rows: uRows } = await pool.query('SELECT org_id FROM users WHERE id = $1', [req.user.id]);
+            const coordOrgId = uRows[0]?.org_id;
+            if (coordOrgId) {
+              const { rows: app2Rows } = await pool.query(
+                'SELECT 1 FROM applications WHERE org_id = $1 AND sponsor_id = $2 LIMIT 1',
+                [doc.org_id, coordOrgId]
+              );
+              isOwner = app2Rows.length > 0;
+            }
+          }
+        }
+      }
     } else {
       isOwner = doc.org_id === organizationId;
     }
