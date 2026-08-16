@@ -832,10 +832,15 @@ function ProgramDocumentsView() {
     pending:   programDocs.filter((d) => d.status === 'pending_review').length,
     expiring:  programDocs.filter((d) => d.status === 'expiring_soon').length,
     requested: docs.filter((d) => d.status === 'requested').length,
-    missing: orgs.reduce((sum, o) => {
+    rejected:  programDocs.filter((d) => d.status === 'rejected').length,
+    // "needs attention" = rejected docs + missing required docs
+    missing: programDocs.filter((d) => d.status === 'rejected').length + orgs.reduce((sum, o) => {
       const req = REQUIRED_DOCS[o.type ?? o.org_type] ?? [];
-      const uploaded = new Set(docs.filter((d) => d.org_id === o.id && d.file_url && d.file_url !== '').map((d) => d.doc_type));
-      return sum + req.filter((r) => !uploaded.has(r.doc_type)).length;
+      // a doc is truly missing if it has no approved/pending/rejected upload at all
+      const uploadedTypes = new Set(
+        docs.filter((d) => d.org_id === o.id && d.file_url && d.file_url !== '' && d.status !== 'superseded').map((d) => d.doc_type)
+      );
+      return sum + req.filter((r) => !uploadedTypes.has(r.doc_type)).length;
     }, 0),
   };
 
@@ -851,9 +856,13 @@ function ProgramDocumentsView() {
   if (filter) {
     if (filter === 'missing') {
       filteredOrgs = filteredOrgs.filter((o) => {
-        const req = REQUIRED_DOCS[o.org_type] ?? [];
-        const uploaded = new Set(docs.filter((d) => d.org_id === o.id && d.file_url && d.file_url !== '').map((d) => d.doc_type));
-        return req.some((r) => !uploaded.has(r.doc_type));
+        const hasRejected = docs.some((d) => d.org_id === o.id && d.status === 'rejected');
+        const req = REQUIRED_DOCS[o.type ?? o.org_type] ?? [];
+        const uploadedTypes = new Set(
+          docs.filter((d) => d.org_id === o.id && d.file_url && d.file_url !== '' && d.status !== 'superseded').map((d) => d.doc_type)
+        );
+        const hasMissing = req.some((r) => !uploadedTypes.has(r.doc_type));
+        return hasRejected || hasMissing;
       });
     } else {
       filteredOrgs = filteredOrgs.filter((o) =>
@@ -887,7 +896,7 @@ function ProgramDocumentsView() {
         <SummaryCard icon={Clock}       label="Pending"       value={counts.pending}   color="blue"   onClick={() => setFilter(filter === 'pending_review'  ? '' : 'pending_review')} active={filter === 'pending_review'} />
         <SummaryCard icon={Bell}        label="Requested"     value={counts.requested} color="gray"   onClick={() => setFilter(filter === 'requested'        ? '' : 'requested')}       active={filter === 'requested'} />
         <SummaryCard icon={AlertTriangle} label="Expiring"   value={counts.expiring}  color="yellow" onClick={() => setFilter(filter === 'expiring_soon'    ? '' : 'expiring_soon')}  active={filter === 'expiring_soon'} />
-        <SummaryCard icon={XCircle}     label="Missing"      value={counts.missing}   color="red"    onClick={() => setFilter(filter === 'missing'           ? '' : 'missing')}        active={filter === 'missing'} />
+        <SummaryCard icon={XCircle}     label="Needs Attention" value={counts.missing} color="red"  onClick={() => setFilter(filter === 'missing'           ? '' : 'missing')}        active={filter === 'missing'} />
       </div>
 
       {/* Search + filter */}
