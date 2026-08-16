@@ -22,30 +22,39 @@ const ALLOWED_ACTIONS = {
   },
 };
 
+// sponsorLabel = final authority action (sponsor only)
+// coordinatorLabel = review-stage action (coordinator)
+// label = fallback
 const ACTION_CONFIG = {
   under_review: {
-    label: 'Move to Review',
+    label:            'Move to Review',
+    coordinatorLabel: 'Accept — Forward to Sponsor',
     icon:  Eye,
     style: 'bg-brand-600 hover:bg-brand-700 text-white',
     requiresNote: false,
     warning: null,
+    coordinatorNote: 'This marks the application as reviewed and forwards it to the sponsor for final approval.',
   },
   approved: {
-    label: 'Approve Application',
+    label:       'Approve Application',
+    sponsorNote: 'You have final authority. Approving will notify the site and unlock their account.',
     icon:  CheckCircle,
     style: 'bg-green-600 hover:bg-green-700 text-white',
     requiresNote: false,
     warning: null,
   },
   rejected: {
-    label: 'Permanently Reject',
+    label:            'Permanently Reject',
+    coordinatorLabel: 'Reject — Send Back',
     icon:  XCircle,
     style: 'bg-red-600 hover:bg-red-700 text-white',
     requiresNote: true,
-    warning: '⚠️ This permanently denies the whole application. Only use this if the applicant is not qualified. To ask them to fix a document, use "Send Back for Revisions" instead.',
+    warning: '⚠️ This permanently denies the whole application. Only use this if the applicant is not qualified. To ask them to fix a document, use "Request Changes" instead.',
+    coordinatorWarning: '⚠️ This sends the application back to the site as rejected. Use "Request Changes" if you just need them to re-upload a document.',
   },
   draft: {
-    label: 'Send Back for Revisions',
+    label:            'Send Back for Revisions',
+    coordinatorLabel: 'Request Changes',
     icon:  RotateCcw,
     style: 'bg-yellow-500 hover:bg-yellow-600 text-white',
     requiresNote: true,
@@ -308,6 +317,9 @@ export default function ApplicationReviewPanel({
               {allowedActions.map((target) => {
                 const cfg = ACTION_CONFIG[target];
                 const Icon = cfg.icon;
+                const btnLabel = reviewerRole === 'coordinator'
+                  ? (cfg.coordinatorLabel ?? cfg.label)
+                  : (cfg.sponsorLabel ?? cfg.label);
                 return (
                   <button
                     key={target}
@@ -317,7 +329,7 @@ export default function ApplicationReviewPanel({
                                 ${actionTarget === target ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
                   >
                     <Icon className="w-4 h-4" />
-                    {cfg.label}
+                    {btnLabel}
                   </button>
                 );
               })}
@@ -328,12 +340,20 @@ export default function ApplicationReviewPanel({
         {/* Note form — shown when an action is selected */}
         {actionTarget && (
           <div className="space-y-3 border-t border-gray-100 pt-4">
-            {/* Warning for destructive actions */}
-            {ACTION_CONFIG[actionTarget].warning && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                <p className="text-xs text-red-700">{ACTION_CONFIG[actionTarget].warning}</p>
-              </div>
-            )}
+            {/* Role-aware warning / note */}
+            {(() => {
+              const cfg = ACTION_CONFIG[actionTarget];
+              const msg = reviewerRole === 'coordinator'
+                ? (cfg.coordinatorWarning ?? cfg.warning ?? cfg.coordinatorNote)
+                : (cfg.sponsorNote ?? cfg.warning);
+              if (!msg) return null;
+              const isWarning = msg.startsWith('⚠️') || cfg.warning;
+              return (
+                <div className={`border rounded-lg px-3 py-2 ${isWarning ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                  <p className={`text-xs ${isWarning ? 'text-red-700' : 'text-blue-700'}`}>{msg}</p>
+                </div>
+              );
+            })()}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Note to applicant
@@ -383,7 +403,7 @@ export default function ApplicationReviewPanel({
                 className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors
                             disabled:opacity-60 ${ACTION_CONFIG[actionTarget].style}`}
               >
-                {submitting ? 'Saving…' : `Confirm: ${ACTION_CONFIG[actionTarget].label}`}
+                {submitting ? 'Saving…' : `Confirm: ${reviewerRole === 'coordinator' ? (ACTION_CONFIG[actionTarget].coordinatorLabel ?? ACTION_CONFIG[actionTarget].label) : (ACTION_CONFIG[actionTarget].label)}`}
               </button>
               <button
                 onClick={() => { setActionTarget(null); setNote(''); setError(''); }}

@@ -213,8 +213,8 @@ export default function ApplicationStatus({ onStartNew }) {
             <h2 className="text-sm font-semibold text-green-800">You're approved!</h2>
           </div>
           <p className="text-sm text-green-700">
-            Your coordinator will be in touch about next steps. You can now access all features
-            of the platform from your dashboard.
+            Your sponsor has approved your application. You now have full access to the platform —
+            start logging meal counts, uploading documents, and tracking attendance from your dashboard.
           </p>
         </div>
       )}
