@@ -9,7 +9,9 @@ function todayISO() { return new Date().toISOString().split('T')[0]; }
 
 function fmtDate(iso) {
   if (!iso) return '';
-  const d = new Date(iso + 'T00:00:00');
+  // Slice to YYYY-MM-DD in case Postgres returns a full ISO timestamp
+  const clean = String(iso).slice(0, 10);
+  const d = new Date(clean + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 

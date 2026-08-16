@@ -13,6 +13,14 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const clean = String(iso).slice(0, 10);
+  const d = new Date(clean + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // ─── Month picker ─────────────────────────────────────────────────────────────
 function monthStr(offset = 0) {
   const d = new Date();
@@ -40,7 +48,7 @@ function CountRow({ count, onVerify, verifying }) {
       <div className="px-6 py-4 flex items-center gap-4">
         {/* Date */}
         <div className="flex-shrink-0 w-24">
-          <p className="text-sm font-semibold text-gray-900">{count.date}</p>
+          <p className="text-sm font-semibold text-gray-900">{fmtDate(count.date)}</p>
           <p className="text-xs text-gray-400 truncate">{count.organization_name ?? count.org_name ?? '—'}</p>
         </div>
 

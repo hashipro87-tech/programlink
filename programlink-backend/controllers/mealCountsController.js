@@ -4,17 +4,20 @@ const { logActivity, TYPES } = require('../services/activityService');
 exports.listMealCounts = async (req, res) => {
   try {
     const { site_id, kitchen_id, start_date, end_date } = req.query;
-    let query = 'SELECT * FROM meal_counts WHERE 1=1';
+    let query = `SELECT mc.*, o.name AS site_name
+                 FROM meal_counts mc
+                 LEFT JOIN organizations o ON o.id = mc.site_id
+                 WHERE 1=1`;
     const params = [];
-    if (site_id)    { params.push(site_id);    query += ` AND site_id = $${params.length}`; }
-    if (kitchen_id) { params.push(kitchen_id); query += ` AND kitchen_id = $${params.length}`; }
-    if (start_date) { params.push(start_date); query += ` AND date >= $${params.length}`; }
-    if (end_date)   { params.push(end_date);   query += ` AND date <= $${params.length}`; }
+    if (site_id)    { params.push(site_id);    query += ` AND mc.site_id = $${params.length}`; }
+    if (kitchen_id) { params.push(kitchen_id); query += ` AND mc.kitchen_id = $${params.length}`; }
+    if (start_date) { params.push(start_date); query += ` AND mc.date >= $${params.length}`; }
+    if (end_date)   { params.push(end_date);   query += ` AND mc.date <= $${params.length}`; }
     if (req.user.role === 'site' || req.user.role === 'kitchen') {
       params.push(req.user.organizationId);
-      query += ` AND (site_id = $${params.length} OR kitchen_id = $${params.length})`;
+      query += ` AND (mc.site_id = $${params.length} OR mc.kitchen_id = $${params.length})`;
     }
-    query += ' ORDER BY date DESC';
+    query += ' ORDER BY mc.date DESC';
     const { rows } = await pool.query(query, params);
     res.json({ meal_counts: rows });
   } catch (err) {
