@@ -164,7 +164,7 @@ export default function FormGeneratorPage() {
           setOrgs(all.filter(o => o.type === 'site' || o.type === 'kitchen'));
         } else {
           // Kitchen/site — only their own org
-          setSelectedOrg(user.organizationId);
+          setSelectedOrg(user.organizationId ?? user.org_id);
         }
       } catch (err) {
         console.error(err);

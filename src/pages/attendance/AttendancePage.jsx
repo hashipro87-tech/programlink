@@ -180,7 +180,7 @@ export default function AttendancePage() {
 
   // Load roster whenever site/date changes
   const loadRoster = useCallback(() => {
-    const orgId = isSponsor ? siteId : user?.organizationId;
+    const orgId = isSponsor ? siteId : (user?.organizationId ?? user?.org_id);
     if (!orgId) return;
 
     setLoading(true);
@@ -259,7 +259,7 @@ export default function AttendancePage() {
   }
 
   async function handleSave() {
-    const orgId = isSponsor ? siteId : user?.organizationId;
+    const orgId = isSponsor ? siteId : (user?.organizationId ?? user?.org_id);
     if (!orgId) return;
 
     setSaving(true);
