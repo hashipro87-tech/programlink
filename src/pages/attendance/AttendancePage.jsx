@@ -5,6 +5,7 @@
 // On save: CACFPLink auto-writes meal_counts from the per-child totals.
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
@@ -145,6 +146,7 @@ function ChildRow({ child, onChange }) {
 
 export default function AttendancePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isSponsor = user?.role === 'sponsor' || user?.role === 'admin';
 
   const [sites,    setSites]    = useState([]);
@@ -418,9 +420,15 @@ export default function AttendancePage() {
         <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
           <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No enrolled children found</p>
-          <p className="text-sm text-gray-400 mt-1">
-            Add children with approved enrollment forms to start tracking attendance
+          <p className="text-sm text-gray-400 mt-1 mb-4">
+            Children must be added and have approved enrollment forms before they appear here.
           </p>
+          <button
+            onClick={() => navigate(isSponsor ? '/dashboard/sponsor/children' : '/dashboard/site/enrollment')}
+            className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg"
+          >
+            {isSponsor ? 'Go to Child Roster' : 'Go to Enrollment'}
+          </button>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
