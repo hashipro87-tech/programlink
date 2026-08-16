@@ -12,7 +12,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Upload, FileText, CheckCircle, Clock, XCircle, AlertTriangle,
   Plus, Search, Eye, ChevronDown, ChevronUp, Building2, ChefHat,
-  Send, Calendar, X, Bell, RefreshCw, Shield, Inbox, Download,
+  Send, Calendar, X, Bell, RefreshCw, Shield, Inbox, Download, Trash2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -424,10 +424,41 @@ function RejectModal({ doc, onClose, onRejected }) {
 }
 
 // ─── Document Row ─────────────────────────────────────────────────────────────
-function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, versions }) {
-  const [expanded, setExpanded] = useState(false);
-  const isFileDoc = doc.file_url && doc.file_url !== '';
+function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, onDelete, versions }) {
+  const [expanded,  setExpanded]  = useState(false);
+  const [viewing,   setViewing]   = useState(false);
+  const [deleting,  setDeleting]  = useState(false);
+  const isFileDoc  = doc.file_url && doc.file_url !== '';
   const hasVersions = versions && versions.length > 1;
+
+  // Always proxy through API — handles auth, R2 redirect, and localhost fallback
+  const handleView = async () => {
+    setViewing(true);
+    try {
+      const res = await api.get(`/documents/${doc.id}/file`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/pdf' });
+      const url  = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
+    } catch {
+      alert('Could not load document. The file may have been lost in a server redeploy. Please re-upload the document.');
+    } finally {
+      setViewing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete "${doc.label || doc.doc_type}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/documents/${doc.id}`);
+      onDelete?.(doc.id);
+    } catch {
+      alert('Failed to delete document.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className={`rounded-xl border transition-colors ${
@@ -502,12 +533,12 @@ function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, ve
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* View */}
+          {/* View — always via API proxy (handles R2, localhost fallback, auth) */}
           {isFileDoc && (
-            <a href={doc.file_url} target="_blank" rel="noreferrer"
-              className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="View">
+            <button onClick={handleView} disabled={viewing}
+              className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors disabled:opacity-50" title="View">
               <Eye className="w-4 h-4" />
-            </a>
+            </button>
           )}
 
           {/* Reviewer actions */}
@@ -522,6 +553,14 @@ function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, ve
                 <XCircle className="w-3.5 h-3.5" /> Reject
               </button>
             </>
+          )}
+
+          {/* Delete — reviewer only */}
+          {isReviewer && isFileDoc && (
+            <button onClick={handleDelete} disabled={deleting}
+              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Delete">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           )}
 
           {/* Uploader — re-upload on rejected */}
@@ -589,7 +628,7 @@ function DocRow({ doc, isReviewer, onApprove, onRejectClick, onUploadAgainst, ve
 }
 
 // ─── Org compliance section (sponsor view) ────────────────────────────────────
-function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploadDoc }) {
+function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploadDoc, onDelete }) {
   const [collapsed, setCollapsed] = useState(false);
   const required   = REQUIRED_DOCS[org.type ?? org.org_type] ?? [];
 
@@ -689,7 +728,7 @@ function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploa
               return (
                 <DocRow key={req.doc_type} doc={{ ...latest, org_name: org.name }}
                   isReviewer onApprove={onApprove} onRejectClick={onRejectClick}
-                  onUploadAgainst={() => {}} versions={versions} />
+                  onUploadAgainst={() => {}} onDelete={onDelete} versions={versions} />
               );
             }
             // Check for active request
@@ -698,7 +737,7 @@ function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploa
               return (
                 <DocRow key={req.doc_type} doc={{ ...pendingReq, org_name: org.name }}
                   isReviewer onApprove={onApprove} onRejectClick={onRejectClick}
-                  onUploadAgainst={() => {}} versions={[]} />
+                  onUploadAgainst={() => {}} onDelete={onDelete} versions={[]} />
               );
             }
             // Missing
@@ -727,7 +766,7 @@ function OrgSection({ org, docs, onApprove, onRejectClick, onRequestDoc, onUploa
           {extras.map((doc) => (
             <DocRow key={doc.id} doc={{ ...doc, org_name: org.name }}
               isReviewer onApprove={onApprove} onRejectClick={onRejectClick}
-              onUploadAgainst={() => {}} versions={versionsMap[doc.doc_type] ?? []} />
+              onUploadAgainst={() => {}} onDelete={onDelete} versions={versionsMap[doc.doc_type] ?? []} />
           ))}
 
           {required.length === 0 && extras.length === 0 && requests.length === 0 && (
@@ -780,6 +819,10 @@ function ProgramDocumentsView() {
 
   const handleRequested = (doc) => {
     setDocs((prev) => [doc, ...prev]);
+  };
+
+  const handleDelete = (docId) => {
+    setDocs((prev) => prev.filter((d) => d.id !== docId));
   };
 
   // Summary counts
@@ -886,6 +929,7 @@ function ProgramDocumentsView() {
               setShowReq(true);
             }}
             onUploadDoc={() => {}}
+            onDelete={handleDelete}
           />
         ))
       )}
