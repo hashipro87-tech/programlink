@@ -24,7 +24,7 @@ export default function ApplicationsPage({ reviewerRole = 'coordinator' }) {
   const [search,       setSearch]       = useState('');
   const [selectedId,   setSelectedId]   = useState(null);
 
-  const { applications, loading, error, changeStatus } =
+  const { applications, loading, error, updateStatus } =
     useApplications({ status: activeTab, type: typeFilter });
 
   // Client-side name search on top of server-side status/type filters
@@ -154,7 +154,7 @@ export default function ApplicationsPage({ reviewerRole = 'coordinator' }) {
             application={selected}
             reviewerRole={reviewerRole}
             onClose={() => setSelectedId(null)}
-            onStatusChange={changeStatus}
+            onStatusChange={updateStatus}
           />
         </div>
       )}
