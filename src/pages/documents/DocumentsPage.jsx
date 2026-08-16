@@ -35,14 +35,16 @@ const REQUIRED_DOCS = {
 };
 
 const ALL_DOC_TYPES = [
-  { value: 'w9',          label: 'W-9 Form' },
-  { value: 'food_permit', label: 'Food Service Permit' },
-  { value: 'insurance',   label: 'Liability Insurance' },
-  { value: 'menu_plan',   label: 'Menu Plan' },
-  { value: 'health_cert', label: 'Health Certificate' },
-  { value: 'enrollment',  label: 'Enrollment Records' },
-  { value: 'license',     label: 'Child Care License' },
-  { value: 'other',       label: 'Other' },
+  { value: 'w9',               label: 'W-9 Form' },
+  { value: 'food_permit',      label: 'Food Service Permit' },
+  { value: 'insurance',        label: 'Liability Insurance' },
+  { value: 'menu_plan',        label: 'Menu Plan' },
+  { value: 'health_cert',      label: 'Health Certificate' },
+  { value: 'enrollment',       label: 'Enrollment Records' },
+  { value: 'license',          label: 'Child Care License' },
+  { value: 'fire_inspection',  label: 'Fire Inspection Certificate' },
+  { value: 'state_license',    label: 'State License / Registration' },
+  { value: 'other',            label: 'Other' },
 ];
 
 const STATUS_CFG = {

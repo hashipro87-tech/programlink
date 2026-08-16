@@ -59,6 +59,7 @@ export default function ApplicationReviewPanel({
   const [error,         setError]         = useState('');
   const [documents,     setDocuments]     = useState(null);
   const [docsLoading,   setDocsLoading]   = useState(false);
+  const [docActioning,  setDocActioning]  = useState(null); // doc id being approved/rejected
 
   // Open a document through the backend API (handles auth + R2/local fallback)
   const handleViewDoc = async (doc) => {
@@ -87,6 +88,21 @@ export default function ApplicationReviewPanel({
       setDocuments([]);
     } finally {
       setDocsLoading(false);
+    }
+  };
+
+  // Approve or reject an individual document
+  const handleDocStatus = async (docId, newStatus) => {
+    setDocActioning(docId);
+    try {
+      await api.patch(`/documents/${docId}/status`, { status: newStatus });
+      setDocuments((prev) =>
+        prev.map((d) => d.id === docId ? { ...d, status: newStatus } : d)
+      );
+    } catch {
+      alert('Failed to update document status. Please try again.');
+    } finally {
+      setDocActioning(null);
     }
   };
 
@@ -180,14 +196,32 @@ export default function ApplicationReviewPanel({
                     <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <span className="text-gray-700 truncate">{doc.label || doc.doc_type}</span>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <StatusBadge status={doc.status} />
                     {doc.file_url && (
                       <button
                         onClick={() => handleViewDoc(doc)}
-                        className="text-xs text-brand-600 hover:underline"
+                        className="text-xs text-brand-600 hover:underline px-1"
                       >
                         View
+                      </button>
+                    )}
+                    {reviewerRole === 'sponsor' && doc.status !== 'valid' && (
+                      <button
+                        onClick={() => handleDocStatus(doc.id, 'valid')}
+                        disabled={docActioning === doc.id}
+                        className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
+                      >
+                        ✓
+                      </button>
+                    )}
+                    {reviewerRole === 'sponsor' && doc.status !== 'rejected' && (
+                      <button
+                        onClick={() => handleDocStatus(doc.id, 'rejected')}
+                        disabled={docActioning === doc.id}
+                        className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                      >
+                        ✕
                       </button>
                     )}
                   </div>
