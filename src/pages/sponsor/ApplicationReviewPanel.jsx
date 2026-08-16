@@ -60,6 +60,8 @@ export default function ApplicationReviewPanel({
   const [documents,     setDocuments]     = useState(null);
   const [docsLoading,   setDocsLoading]   = useState(false);
   const [docActioning,  setDocActioning]  = useState(null); // doc id being approved/rejected
+  const [rejectingDocId, setRejectingDocId] = useState(null); // doc awaiting rejection note
+  const [rejectingNote,  setRejectingNote]  = useState('');
 
   // Open a document through the backend API (handles auth + R2/local fallback)
   const handleViewDoc = async (doc) => {
@@ -92,13 +94,15 @@ export default function ApplicationReviewPanel({
   };
 
   // Approve or reject an individual document
-  const handleDocStatus = async (docId, newStatus) => {
+  const handleDocStatus = async (docId, newStatus, rejectionNote = '') => {
     setDocActioning(docId);
     try {
-      await api.patch(`/documents/${docId}/status`, { status: newStatus });
+      await api.patch(`/documents/${docId}/status`, { status: newStatus, rejection_note: rejectionNote || null });
       setDocuments((prev) =>
-        prev.map((d) => d.id === docId ? { ...d, status: newStatus } : d)
+        prev.map((d) => d.id === docId ? { ...d, status: newStatus, rejection_note: rejectionNote || null } : d)
       );
+      setRejectingDocId(null);
+      setRejectingNote('');
     } catch {
       alert('Failed to update document status. Please try again.');
     } finally {
@@ -191,40 +195,89 @@ export default function ApplicationReviewPanel({
           ) : (
             <div className="space-y-2">
               {documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-700 truncate">{doc.label || doc.doc_type}</span>
+                <div key={doc.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 truncate">{doc.label || doc.doc_type}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <StatusBadge status={doc.status} />
+                      {doc.file_url && (
+                        <button
+                          onClick={() => handleViewDoc(doc)}
+                          className="text-xs text-brand-600 hover:underline px-1"
+                        >
+                          View
+                        </button>
+                      )}
+                      {/* ✓ approve — sponsor + coordinator */}
+                      {doc.status !== 'valid' && (
+                        <button
+                          onClick={() => handleDocStatus(doc.id, 'valid')}
+                          disabled={docActioning === doc.id}
+                          title="Approve this document"
+                          className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
+                        >
+                          ✓
+                        </button>
+                      )}
+                      {/* ✕ reject — opens inline note */}
+                      {doc.status !== 'rejected' && (
+                        <button
+                          onClick={() => {
+                            setRejectingDocId(rejectingDocId === doc.id ? null : doc.id);
+                            setRejectingNote('');
+                          }}
+                          disabled={docActioning === doc.id}
+                          title="Reject this document"
+                          className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <StatusBadge status={doc.status} />
-                    {doc.file_url && (
-                      <button
-                        onClick={() => handleViewDoc(doc)}
-                        className="text-xs text-brand-600 hover:underline px-1"
-                      >
-                        View
-                      </button>
-                    )}
-                    {reviewerRole === 'sponsor' && doc.status !== 'valid' && (
-                      <button
-                        onClick={() => handleDocStatus(doc.id, 'valid')}
-                        disabled={docActioning === doc.id}
-                        className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50"
-                      >
-                        ✓
-                      </button>
-                    )}
-                    {reviewerRole === 'sponsor' && doc.status !== 'rejected' && (
-                      <button
-                        onClick={() => handleDocStatus(doc.id, 'rejected')}
-                        disabled={docActioning === doc.id}
-                        className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+
+                  {/* Existing rejection note */}
+                  {doc.status === 'rejected' && doc.rejection_note && (
+                    <p className="text-xs text-red-600 pl-6 italic">
+                      Reason: {doc.rejection_note}
+                    </p>
+                  )}
+
+                  {/* Inline rejection note form */}
+                  {rejectingDocId === doc.id && (
+                    <div className="pl-6 space-y-1.5">
+                      <textarea
+                        autoFocus
+                        value={rejectingNote}
+                        onChange={(e) => setRejectingNote(e.target.value)}
+                        rows={2}
+                        placeholder="Reason for rejection (required)…"
+                        className="w-full px-2 py-1.5 border border-red-300 rounded text-xs
+                                   focus:outline-none focus:ring-1 focus:ring-red-400 resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (!rejectingNote.trim()) { alert('Please enter a reason for rejection.'); return; }
+                            handleDocStatus(doc.id, 'rejected', rejectingNote.trim());
+                          }}
+                          disabled={docActioning === doc.id}
+                          className="px-2.5 py-1 text-xs font-medium bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                        >
+                          Confirm Reject
+                        </button>
+                        <button
+                          onClick={() => { setRejectingDocId(null); setRejectingNote(''); }}
+                          className="px-2.5 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

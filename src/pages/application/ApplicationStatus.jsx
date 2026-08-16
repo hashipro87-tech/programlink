@@ -18,8 +18,10 @@ const PIPELINE_STEPS = [
 const FINAL_STATUSES = ['approved', 'rejected'];
 
 // Returns which pipeline step index is "active" for a given status
+// 'submitted' and 'under_review' both map to step 2 (Under Review) from the site's perspective
 function getActiveStep(status) {
   if (status === 'rejected') return 3;
+  if (status === 'submitted') return 2; // show as "Under Review" once submitted
   return PIPELINE_STEPS.findIndex((s) => s.id === status);
 }
 

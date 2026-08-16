@@ -17,8 +17,8 @@ export function useApplications(params = {}) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  async function updateStatus(id, status, notes) {
-    const { data } = await api.patch(`/applications/${id}`, { status, notes });
+  async function updateStatus(id, status, notes, internalNote) {
+    const { data } = await api.patch(`/applications/${id}/status`, { status, notes, internal_notes: internalNote });
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, ...data.application } : a)));
     return data;
   }
