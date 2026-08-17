@@ -49,7 +49,7 @@ function CountRow({ count, onVerify, verifying }) {
         {/* Date */}
         <div className="flex-shrink-0 w-24">
           <p className="text-sm font-semibold text-gray-900">{fmtDate(count.date)}</p>
-          <p className="text-xs text-gray-400 truncate">{count.organization_name ?? count.org_name ?? '—'}</p>
+          <p className="text-xs text-gray-400 truncate">{count.site_name ?? count.organization_name ?? count.org_name ?? '—'}</p>
         </div>
 
         {/* Meal breakdown */}
