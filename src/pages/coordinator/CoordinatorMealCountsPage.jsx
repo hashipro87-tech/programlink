@@ -40,7 +40,7 @@ function CountRow({ count, onVerify, verifying }) {
   ];
 
   const total = meals.reduce((sum, m) => sum + m.value, 0);
-  const isVerified = !!count.verified_at;
+  const isVerified = count.count_verified != null;
 
   return (
     <div className={`border-b border-gray-100 last:border-0 ${isVerified ? 'bg-green-50/30' : ''}`}>
@@ -140,7 +140,7 @@ export default function CoordinatorMealCountsPage() {
     try {
       await api.patch(`/meal-counts/${id}/verify`);
       setCounts((prev) =>
-        prev.map((c) => c.id === id ? { ...c, verified_at: new Date().toISOString() } : c)
+        prev.map((c) => c.id === id ? { ...c, count_verified: c.count_submitted } : c)
       );
     } catch {
       // silently fail — coordinator can retry
@@ -150,13 +150,13 @@ export default function CoordinatorMealCountsPage() {
   };
 
   const filtered = counts.filter((c) => {
-    if (filter === 'unverified') return !c.verified_at;
-    if (filter === 'verified')   return !!c.verified_at;
+    if (filter === 'unverified') return c.count_verified == null;
+    if (filter === 'verified')   return c.count_verified != null;
     return true;
   });
 
-  const unverifiedCount = counts.filter((c) => !c.verified_at).length;
-  const verifiedCount   = counts.filter((c) => !!c.verified_at).length;
+  const unverifiedCount = counts.filter((c) => c.count_verified == null).length;
+  const verifiedCount   = counts.filter((c) => c.count_verified != null).length;
 
   return (
     <div>

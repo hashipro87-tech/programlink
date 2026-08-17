@@ -128,9 +128,14 @@ exports.deleteMealCount = async (req, res) => {
 exports.verifyMealCount = async (req, res) => {
   try {
     const { count_verified } = req.body;
+    // If no count_verified provided (e.g. coordinator just clicks Verify), default to count_submitted
     const { rows } = await pool.query(
-      `UPDATE meal_counts SET count_verified = $1, verified_by = $2 WHERE id = $3 RETURNING *`,
-      [count_verified, req.user.id, req.params.id]
+      `UPDATE meal_counts
+       SET count_verified = COALESCE($1::int, count_submitted),
+           verified_by    = $2
+       WHERE id = $3
+       RETURNING *`,
+      [count_verified ?? null, req.user.id, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Meal count not found.' });
     res.json({ meal_count: rows[0] });

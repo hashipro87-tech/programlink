@@ -404,28 +404,38 @@ export default function SiteMealCountPage() {
               .sort((a, b) => b.date.localeCompare(a.date))
               .slice(0, 20)
               .map((r) => {
-                const tot     = (r.breakfast_count ?? 0) + (r.lunch_count ?? 0) + (r.snack_count ?? 0) + (r.supper_count ?? 0) || r.count_submitted || 0;
-                const isToday = r.date === today;
+                // DB columns are breakfast/lunch/snack/supper (not _count suffix)
+                const b   = r.breakfast ?? r.breakfast_count ?? 0;
+                const l   = r.lunch     ?? r.lunch_count     ?? 0;
+                const s   = r.snack     ?? r.snack_count     ?? 0;
+                const su  = r.supper    ?? r.supper_count    ?? 0;
+                const tot = (b + l + s + su) || r.count_submitted || 0;
+                const isToday      = r.date === today;
+                const isVerified   = r.count_verified != null;
                 return (
                   <div
                     key={r.date}
                     onClick={() => loadHistoryRow(r)}
                     className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer"
                   >
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isToday ? 'bg-green-400' : 'bg-gray-200'}`} />
+                    {/* dot: green=verified, blue=today, amber=pending */}
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      isVerified ? 'bg-green-400' : isToday ? 'bg-blue-400' : 'bg-amber-300'
+                    }`} />
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${isToday ? 'text-brand-700' : 'text-gray-800'}`}>
-                        {fmtDate(r.date)} {isToday && <span className="text-xs font-normal text-green-600 ml-1">Today</span>}
+                        {fmtDate(r.date)} {isToday && <span className="text-xs font-normal text-blue-600 ml-1">Today</span>}
+                        {isVerified && <span className="text-xs font-normal text-green-600 ml-1">✓ Verified</span>}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {r.children_present != null && (
                           <span className="text-indigo-500 font-medium">{r.children_present} present · </span>
                         )}
                         {[
-                          r.breakfast_count > 0 && `B:${r.breakfast_count}`,
-                          r.lunch_count     > 0 && `L:${r.lunch_count}`,
-                          r.snack_count     > 0 && `S:${r.snack_count}`,
-                          r.supper_count    > 0 && `D:${r.supper_count}`,
+                          b  > 0 && `B:${b}`,
+                          l  > 0 && `L:${l}`,
+                          s  > 0 && `S:${s}`,
+                          su > 0 && `D:${su}`,
                         ].filter(Boolean).join(' · ') || `${tot} meals`}
                       </p>
                     </div>
