@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ClipboardList, CheckCircle, AlertTriangle, Camera,
-  Calendar, ChevronDown, ChevronUp, RefreshCw,
+  Calendar, ChevronDown, ChevronUp, RefreshCw, Building2,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -119,19 +119,29 @@ function CountRow({ count, onVerify, verifying }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CoordinatorMealCountsPage() {
+  const [sites,   setSites]     = useState([]);
+  const [siteId,  setSiteId]    = useState('');
   const [counts, setCounts]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [verifying, setVerifying] = useState(null);
   const [month, setMonth]       = useState(monthStr(0));
   const [filter, setFilter]     = useState('unverified'); // 'all' | 'unverified' | 'verified'
 
+  // Load assigned sites once
+  useEffect(() => {
+    api.get('/organizations?type=site&limit=200')
+      .then(({ data }) => setSites(data.organizations ?? []))
+      .catch(() => {});
+  }, []);
+
   const fetchCounts = useCallback(() => {
     setLoading(true);
-    api.get(`/meal-counts?month=${month}&limit=200`)
+    const siteParam = siteId ? `&site_id=${siteId}` : '';
+    api.get(`/meal-counts?month=${month}&limit=200${siteParam}`)
       .then(({ data }) => setCounts(data.meal_counts ?? data.counts ?? []))
       .catch(() => setCounts([]))
       .finally(() => setLoading(false));
-  }, [month]);
+  }, [month, siteId]);
 
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
@@ -180,6 +190,47 @@ export default function CoordinatorMealCountsPage() {
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Verified</p>
           <p className="text-2xl font-bold text-green-600 mt-1">{verifiedCount}</p>
         </div>
+      </div>
+
+      {/* Site selector */}
+      <div className="bg-white border border-gray-100 rounded-2xl px-5 py-4 mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Building2 className="w-4 h-4 text-gray-400" />
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Select a Site</label>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSiteId('')}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              siteId === ''
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            All Sites
+          </button>
+          {sites.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setSiteId(s.id)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                siteId === s.id
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+          {sites.length === 0 && (
+            <p className="text-sm text-gray-400 italic">Loading sites…</p>
+          )}
+        </div>
+        {siteId && (
+          <p className="text-xs text-brand-600 font-medium mt-2">
+            Showing: {sites.find(s => s.id === siteId)?.name}
+          </p>
+        )}
       </div>
 
       {/* Controls */}

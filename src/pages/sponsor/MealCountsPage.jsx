@@ -8,7 +8,7 @@ import {
   UtensilsCrossed, CheckCircle, Clock, Camera,
   ZoomIn, X, AlertTriangle, Filter, RefreshCw,
   PenLine, Eye, Plus, Minus, Upload, ChevronDown,
-  FileSpreadsheet, Check, Users,
+  FileSpreadsheet, Check, Users, Building2,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -1085,18 +1085,52 @@ export default function MealCountsPage() {
               <div className="w-24 flex-shrink-0 text-right">Status</div>
             </div>
 
-            {visible.map((entry) => (
-              <CountRow
-                key={entry.id}
-                entry={entry}
-                onExpand={setLightbox}
-                onVerify={handleVerify}
-                verifying={verifying[entry.id]}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                deleting={deleting[entry.id]}
-              />
-            ))}
+            {/* When showing all sites, group by site; otherwise flat list */}
+            {siteId ? (
+              visible.map((entry) => (
+                <CountRow
+                  key={entry.id}
+                  entry={entry}
+                  onExpand={setLightbox}
+                  onVerify={handleVerify}
+                  verifying={verifying[entry.id]}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  deleting={deleting[entry.id]}
+                />
+              ))
+            ) : (
+              (() => {
+                // Group by site_name
+                const groups = visible.reduce((acc, entry) => {
+                  const key = entry.site_name ?? 'Unknown Site';
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(entry);
+                  return acc;
+                }, {});
+                return Object.entries(groups).map(([siteName, siteEntries]) => (
+                  <div key={siteName}>
+                    <div className="px-5 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">{siteName}</span>
+                      <span className="text-xs text-gray-400 ml-1">({siteEntries.length} day{siteEntries.length !== 1 ? 's' : ''})</span>
+                    </div>
+                    {siteEntries.map((entry) => (
+                      <CountRow
+                        key={entry.id}
+                        entry={entry}
+                        onExpand={setLightbox}
+                        onVerify={handleVerify}
+                        verifying={verifying[entry.id]}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        deleting={deleting[entry.id]}
+                      />
+                    ))}
+                  </div>
+                ));
+              })()
+            )}
           </div>
         )}
       </div>
