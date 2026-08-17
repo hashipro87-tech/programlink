@@ -327,6 +327,154 @@ async function reviewEnrollmentForm(req, res) {
   }
 }
 
+// ── PATCH /children/:id/coordinator-verify ───────────────────────────────────
+// Coordinator marks enrollment as verified. Moves to coordinator_verified.
+// Sponsor then does the final confirmation.
+async function coordinatorVerify(req, res) {
+  try {
+    const { id } = req.params;
+    const { role, id: userId } = req.user;
+    if (!['coordinator', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'Only coordinators can verify enrollment' });
+    }
+    const { comment } = req.body;
+
+    const existing = await pool.query('SELECT * FROM children WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Child not found' });
+    const child = existing.rows[0];
+
+    const { rows } = await pool.query(
+      `UPDATE children SET
+         form_status              = 'coordinator_verified',
+         coordinator_verified_by  = $1,
+         coordinator_verified_at  = NOW(),
+         coordinator_comment      = COALESCE($2, coordinator_comment),
+         updated_at               = NOW()
+       WHERE id = $3 RETURNING *`,
+      [userId, comment || null, id]
+    );
+
+    // Notify sponsor
+    try {
+      const { createNotification } = require('../services/notificationService');
+      const orgRes = await pool.query(`SELECT sponsor_id FROM organizations WHERE id = $1`, [child.org_id]);
+      const sponsorId = orgRes.rows[0]?.sponsor_id;
+      if (sponsorId) {
+        const sponsorUsers = await pool.query(
+          `SELECT id FROM users WHERE org_id = $1 AND role = 'sponsor' AND is_active = TRUE`, [sponsorId]
+        );
+        if (sponsorUsers.rows.length) {
+          await createNotification(sponsorUsers.rows.map(u => ({
+            userId: u.id, type: 'pending_approval',
+            title: `✅ Enrollment verified — needs your confirmation`,
+            body: `${child.first_name} ${child.last_name}'s enrollment was verified by a coordinator. Please confirm to complete enrollment.`,
+            actionUrl: '/dashboard/sponsor/children',
+          })));
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('coordinatorVerify error:', err);
+    res.status(500).json({ error: 'Failed to verify enrollment' });
+  }
+}
+
+// ── PATCH /children/:id/coordinator-reject ────────────────────────────────────
+// Coordinator sends the form back to the site (resets to draft + leaves comment).
+async function coordinatorReject(req, res) {
+  try {
+    const { id } = req.params;
+    const { role } = req.user;
+    if (!['coordinator', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'Only coordinators can send back enrollment forms' });
+    }
+    const { reason } = req.body;
+
+    const existing = await pool.query('SELECT * FROM children WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Child not found' });
+    const child = existing.rows[0];
+
+    const { rows } = await pool.query(
+      `UPDATE children SET
+         form_status         = 'draft',
+         coordinator_comment = $1,
+         updated_at          = NOW()
+       WHERE id = $2 RETURNING *`,
+      [reason || null, id]
+    );
+
+    // Notify site
+    try {
+      const { createNotification } = require('../services/notificationService');
+      const siteUsers = await pool.query(
+        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`, [child.org_id]
+      );
+      if (siteUsers.rows.length) {
+        await createNotification(siteUsers.rows.map(u => ({
+          userId: u.id, type: 'general',
+          title: `❌ Enrollment needs corrections`,
+          body: `${child.first_name} ${child.last_name}'s enrollment was sent back. ${reason || 'Please review and resubmit.'}`,
+          actionUrl: '/dashboard/site/enrollment',
+        })));
+      }
+    } catch (e) { /* non-fatal */ }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('coordinatorReject error:', err);
+    res.status(500).json({ error: 'Failed to send back enrollment form' });
+  }
+}
+
+// ── PATCH /children/:id/confirm ───────────────────────────────────────────────
+// Sponsor gives final confirmation after coordinator verification.
+async function confirmEnrollment(req, res) {
+  try {
+    const { id } = req.params;
+    const { role, id: userId } = req.user;
+    if (!['sponsor', 'admin'].includes(role)) {
+      return res.status(403).json({ error: 'Only sponsors can confirm enrollment' });
+    }
+
+    const existing = await pool.query('SELECT * FROM children WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Child not found' });
+    const child = existing.rows[0];
+
+    const { rows } = await pool.query(
+      `UPDATE children SET
+         form_status          = 'approved',
+         sponsor_confirmed_by = $1,
+         sponsor_confirmed_at = NOW(),
+         updated_at           = NOW()
+       WHERE id = $2 RETURNING *`,
+      [userId, id]
+    );
+
+    // Notify site
+    try {
+      const { createNotification } = require('../services/notificationService');
+      const siteUsers = await pool.query(
+        `SELECT id FROM users WHERE org_id = $1 AND is_active = TRUE`, [child.org_id]
+      );
+      if (siteUsers.rows.length) {
+        await createNotification(siteUsers.rows.map(u => ({
+          userId: u.id, type: 'general',
+          title: `✅ Enrollment confirmed`,
+          body: `${child.first_name} ${child.last_name}'s enrollment has been officially confirmed.`,
+          actionUrl: '/dashboard/site/enrollment',
+        })));
+      }
+    } catch (e) { /* non-fatal */ }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('confirmEnrollment error:', err);
+    res.status(500).json({ error: 'Failed to confirm enrollment' });
+  }
+}
+
 // ── DELETE /children/:id ──────────────────────────────────────────────────────
 async function deleteChild(req, res) {
   try {
@@ -584,5 +732,6 @@ module.exports = {
   listChildren, createChild, updateChild, deleteChild,
   getChildrenSummary, getEnrollmentCompliance,
   submitEnrollmentForm, reviewEnrollmentForm,
+  coordinatorVerify, coordinatorReject, confirmEnrollment,
   extractEnrollment, confirmImport,
 };

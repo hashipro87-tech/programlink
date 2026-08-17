@@ -7,6 +7,7 @@ const {
   listChildren, createChild, updateChild, deleteChild,
   getChildrenSummary, getEnrollmentCompliance,
   submitEnrollmentForm, reviewEnrollmentForm,
+  coordinatorVerify, coordinatorReject, confirmEnrollment,
   extractEnrollment, confirmImport,
 } = require('../controllers/childrenController');
 
@@ -30,7 +31,10 @@ router.get('/',                   authenticate,              listChildren);
 router.post('/',                  authenticate,              createChild);
 router.put('/:id',                authenticate,              updateChild);
 router.delete('/:id',             authenticate,              deleteChild);
-router.post('/:id/submit',        authenticate,              submitEnrollmentForm);
-router.post('/:id/review',        authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), reviewEnrollmentForm);
+router.post('/:id/submit',               authenticate,              submitEnrollmentForm);
+router.post('/:id/review',               authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), reviewEnrollmentForm);
+router.patch('/:id/coordinator-verify',  authenticate, authorizeRoles('coordinator', 'admin'), coordinatorVerify);
+router.patch('/:id/coordinator-reject',  authenticate, authorizeRoles('coordinator', 'admin'), coordinatorReject);
+router.patch('/:id/confirm',             authenticate, authorizeRoles('sponsor', 'admin'),      confirmEnrollment);
 
 module.exports = router;

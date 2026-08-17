@@ -47,9 +47,11 @@ export default function ChildRosterPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing]     = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [compliance, setCompliance]     = useState(null);
-  const [showImport, setShowImport]     = useState(false);
-  const [importOrg, setImportOrg]       = useState('');
+  const [compliance, setCompliance]         = useState(null);
+  const [coordVerified, setCoordVerified]   = useState([]); // children awaiting sponsor confirmation
+  const [confirming, setConfirming]         = useState({});
+  const [showImport, setShowImport]         = useState(false);
+  const [importOrg, setImportOrg]           = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -61,16 +63,18 @@ export default function ChildRosterPage() {
       if (filterOrg)    params.set('org_id', filterOrg);
       if (filterAge)    params.set('age_group', filterAge);
 
-      const [childRes, orgRes, compRes] = await Promise.all([
+      const [childRes, orgRes, compRes, cvRes] = await Promise.all([
         api.get(`/children?${params}`),
         api.get('/organizations?limit=200'),
         api.get('/children/compliance').catch(() => ({ data: null })),
+        api.get('/children?form_status=coordinator_verified&limit=200').catch(() => ({ data: { children: [] } })),
       ]);
 
       setChildren(childRes.data.children || []);
       setTotal(childRes.data.total || 0);
       setOrgs(orgRes.data.organizations || []);
       if (compRes.data) setCompliance(compRes.data);
+      setCoordVerified(cvRes.data?.children ?? []);
     } catch {
       setError('Failed to load roster');
     } finally {
@@ -98,6 +102,19 @@ export default function ChildRosterPage() {
       .forEach(f => { if (norm[f]) norm[f] = norm[f].slice(0, 10); });
     setEditing(norm);
     setShowModal(true);
+  }
+
+  async function handleConfirm(childId) {
+    setConfirming(v => ({ ...v, [childId]: true }));
+    try {
+      await api.patch(`/children/${childId}/confirm`);
+      setCoordVerified(prev => prev.filter(c => c.id !== childId));
+      load(); // refresh roster
+    } catch {
+      alert('Failed to confirm enrollment — please try again.');
+    } finally {
+      setConfirming(v => ({ ...v, [childId]: false }));
+    }
   }
 
   async function confirmDelete() {
@@ -253,6 +270,70 @@ export default function ChildRosterPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Coordinator Verified — Needs Your Confirmation ── */}
+      {coordVerified.length > 0 && (
+        <div className="card mb-5 border border-green-200 bg-green-50/40">
+          <div className="px-5 py-3.5 border-b border-green-100 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-green-600" />
+            <h2 className="font-semibold text-green-900">Ready for Your Confirmation</h2>
+            <span className="ml-auto text-xs font-bold text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+              {coordVerified.length}
+            </span>
+          </div>
+          <div className="divide-y divide-green-100">
+            {coordVerified.map(c => {
+              const tier = TIER_META[c.income_tier] ?? TIER_META.tier1;
+              const age  = AGE_META[c.age_group];
+              return (
+                <div key={c.id} className="px-5 py-3.5 flex items-center gap-4 flex-wrap sm:flex-nowrap">
+                  {/* Child info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900">
+                      {c.first_name} {c.last_name}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {c.org_name ?? '—'}
+                      {age && <span className="ml-2 text-gray-400">{age.label}</span>}
+                    </p>
+                  </div>
+
+                  {/* Income tier */}
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${tier.bg} ${tier.text}`}>
+                    {tier.label}
+                  </span>
+
+                  {/* Coordinator audit */}
+                  <div className="text-xs text-gray-500 flex-shrink-0 hidden md:block">
+                    <span className="font-semibold text-green-700">✓ Verified by coordinator</span>
+                    {c.coordinator_verified_at && (
+                      <span className="ml-1 text-gray-400">
+                        · {new Date(c.coordinator_verified_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    )}
+                    {c.coordinator_comment && (
+                      <p className="text-gray-400 mt-0.5 italic">"{c.coordinator_comment}"</p>
+                    )}
+                  </div>
+
+                  {/* Confirm button */}
+                  <button
+                    onClick={() => handleConfirm(c.id)}
+                    disabled={confirming[c.id]}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {confirming[c.id]
+                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <CheckCircle2 className="w-4 h-4" />
+                    }
+                    Confirm Enrollment
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
