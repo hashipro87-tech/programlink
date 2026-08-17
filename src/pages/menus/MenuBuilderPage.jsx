@@ -1719,6 +1719,12 @@ export default function MenuBuilderPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
   const allMealsToRender = [...MEALS, ...(hasInfant ? [{ key: 'infant', label: 'Infant', color: 'pink' }] : [])];
 
+  // Hide Sat/Sun columns when no weekend items exist — typical for 5-day programs (Task #167)
+  const weekendDayNums = [6, 7];
+  const visibleDays = DAYS.filter(d =>
+    !weekendDayNums.includes(d.num) || items.some(i => i.day_of_week === d.num)
+  );
+
   return (
     <div className={`p-6 max-w-full transition-all ${showHelp ? 'pr-84' : ''}`}>
       {/* Header */}
@@ -1850,11 +1856,11 @@ export default function MenuBuilderPage() {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 1160 }}>
+            <table className="w-full border-collapse" style={{ minWidth: visibleDays.length <= 5 ? 900 : 1160 }}>
               <thead>
                 <tr>
                   <th className="w-24 p-2" />
-                  {DAYS.map(d => {
+                  {visibleDays.map(d => {
                     const dayHasItems = items.some(i => i.day_of_week === d.num);
                     const est = dayEstimate(d.num);
                     return (
@@ -1884,7 +1890,7 @@ export default function MenuBuilderPage() {
                         {meal.key === 'infant' && <Baby className="inline w-3 h-3 ml-1" />}
                       </div>
                     </td>
-                    {DAYS.map(day => {
+                    {visibleDays.map(day => {
                       const ci       = cellItems(day.num, meal.key);
                       const missing  = validateMealClient(ci, meal.key);
                       const status   = getMealStatus(ci, meal.key);

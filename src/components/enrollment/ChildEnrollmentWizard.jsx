@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { X, Check, AlertTriangle, ChevronRight, ChevronLeft } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ function CheckOption({ selected, onClick, children }) {
 // ─── Wizard ───────────────────────────────────────────────────────────────────
 
 export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, sites }) {
+  const { user } = useAuth();
   // Editing opens at audit summary so sponsor sees what's missing.
   // Adding always starts at step 1.
   const [step,    setStep]    = useState(initialChild ? 8 : 1);
@@ -113,9 +115,16 @@ export default function ChildEnrollmentWizard({ onClose, onSaved, initialChild, 
     if (step === 8) {
       if (auditReady && childId) {
         try {
-          await api.post(`/children/${childId}/review`, { approved: true });
+          // Sponsor/admin: use the confirm endpoint.
+          // Site users: submit the form for coordinator → sponsor review.
+          const isSponsorRole = user?.role === 'sponsor' || user?.role === 'admin';
+          if (isSponsorRole) {
+            await api.patch(`/children/${childId}/confirm`);
+          } else {
+            await api.post(`/children/${childId}/submit`);
+          }
         } catch {
-          // Non-fatal — still close even if review call fails
+          // Non-fatal — still close even if call fails (sponsor children are already 'approved' on create)
         }
       }
       onSaved(child);
