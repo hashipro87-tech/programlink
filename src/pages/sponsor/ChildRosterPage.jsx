@@ -1,7 +1,8 @@
-// ChildRosterPage — Sponsor view of all children across sites/kitchens
+// ChildRosterPage — Sponsor/Coordinator view of all children across sites/kitchens
 import { useState, useEffect, useCallback } from 'react';
 import { Users, Search, Plus, X, ChevronDown, Baby, Edit2, Trash2, AlertCircle, Clock, CheckCircle2, ShieldCheck, Upload } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import ImportEnrollmentModal from '../../components/enrollment/ImportEnrollmentModal';
 import ChildEnrollmentWizard from '../../components/enrollment/ChildEnrollmentWizard';
 
@@ -36,6 +37,8 @@ function getMissingCount(child) {
 }
 
 export default function ChildRosterPage() {
+  const { user } = useAuth();
+  const isSponsor = !user || user.role === 'sponsor' || user.role === 'admin';
   const [children, setChildren]   = useState([]);
   const [orgs, setOrgs]           = useState([]);
   const [total, setTotal]         = useState(0);
@@ -318,18 +321,20 @@ export default function ChildRosterPage() {
                     )}
                   </div>
 
-                  {/* Confirm button */}
-                  <button
-                    onClick={() => handleConfirm(c.id)}
-                    disabled={confirming[c.id]}
-                    className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {confirming[c.id]
-                      ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      : <CheckCircle2 className="w-4 h-4" />
-                    }
-                    Confirm Enrollment
-                  </button>
+                  {/* Confirm button — sponsors only; coordinators verify via their own flow */}
+                  {isSponsor && (
+                    <button
+                      onClick={() => handleConfirm(c.id)}
+                      disabled={confirming[c.id]}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      {confirming[c.id]
+                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        : <CheckCircle2 className="w-4 h-4" />
+                      }
+                      Confirm Enrollment
+                    </button>
+                  )}
                 </div>
               );
             })}

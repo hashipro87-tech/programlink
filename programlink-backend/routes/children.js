@@ -11,7 +11,7 @@ const {
   extractEnrollment, confirmImport,
 } = require('../controllers/childrenController');
 
-const sponsorOnly = authorizeRoles('sponsor', 'admin');
+const sponsorOrCoordinator = authorizeRoles('sponsor', 'coordinator', 'admin');
 
 // Multer: keep file in memory (no disk write), max 10 MB
 const upload = multer({
@@ -23,8 +23,8 @@ const upload = multer({
   },
 });
 
-router.get('/summary',            authenticate, sponsorOnly, getChildrenSummary);
-router.get('/compliance',         authenticate, sponsorOnly, getEnrollmentCompliance);
+router.get('/summary',            authenticate, sponsorOrCoordinator, getChildrenSummary);
+router.get('/compliance',         authenticate, sponsorOrCoordinator, getEnrollmentCompliance);
 router.post('/import/extract',    authenticate, upload.single('file'), extractEnrollment);
 router.post('/import/confirm',    authenticate,              confirmImport);
 router.get('/',                   authenticate,              listChildren);

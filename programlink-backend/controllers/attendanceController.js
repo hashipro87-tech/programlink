@@ -153,12 +153,12 @@ async function compareAttendanceMeals(req, res) {
         [targetOrg, start, end]
       ),
       pool.query(
-        `SELECT date_served::date AS date,
+        `SELECT date::date AS date,
                 breakfast, lunch, snack, supper,
                 (breakfast + lunch + snack + supper) AS total
          FROM meal_counts
-         WHERE org_id = $1 AND date_served >= $2 AND date_served <= $3
-         ORDER BY date_served`,
+         WHERE site_id = $1 AND date >= $2 AND date <= $3
+         ORDER BY date`,
         [targetOrg, start, end]
       ),
     ]);

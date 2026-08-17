@@ -30,8 +30,10 @@ async function listChildren(req, res) {
     let query, params;
 
     if (role === 'sponsor' || role === 'coordinator' || role === 'admin') {
+      // Coordinators use sponsorId (the sponsor they work under), not their own org
+      const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
       let where = `WHERE o.sponsor_id = $1`;
-      params = [organizationId];
+      params = [scopeId];
       let idx = 2;
 
       if (org_id)      { where += ` AND c.org_id = $${idx++}`;            params.push(org_id); }
@@ -497,7 +499,8 @@ async function deleteChild(req, res) {
 // ── GET /children/summary ─────────────────────────────────────────────────────
 async function getChildrenSummary(req, res) {
   try {
-    const { organizationId } = req.user;
+    const { organizationId, role } = req.user;
+    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
     const { rows } = await pool.query(
       `SELECT
          o.id AS org_id, o.name AS org_name, o.type AS org_type,
@@ -513,7 +516,7 @@ async function getChildrenSummary(req, res) {
        WHERE o.sponsor_id = $1
        GROUP BY o.id, o.name, o.type
        ORDER BY o.name`,
-      [organizationId]
+      [scopeId]
     );
     res.json({ orgs: rows });
   } catch (err) {
@@ -536,7 +539,8 @@ const FIELD_LABELS = {
 
 async function getEnrollmentCompliance(req, res) {
   try {
-    const { organizationId } = req.user;
+    const { organizationId, role } = req.user;
+    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
     const [totalsRes, pendingRes, gapsRes] = await Promise.all([
       pool.query(
         `SELECT
@@ -550,7 +554,7 @@ async function getEnrollmentCompliance(req, res) {
          FROM children c
          JOIN organizations o ON o.id = c.org_id
          WHERE o.sponsor_id = $1`,
-        [organizationId]
+        [scopeId]
       ),
       pool.query(
         `SELECT c.id, c.first_name, c.last_name, c.form_status, o.name AS org_name
@@ -559,7 +563,7 @@ async function getEnrollmentCompliance(req, res) {
          WHERE o.sponsor_id = $1 AND c.form_status = 'submitted'
          ORDER BY c.last_name, c.first_name
          LIMIT 20`,
-        [organizationId]
+        [scopeId]
       ),
       pool.query(
         `SELECT
@@ -574,7 +578,7 @@ async function getEnrollmentCompliance(req, res) {
          FROM children c
          JOIN organizations o ON o.id = c.org_id
          WHERE o.sponsor_id = $1`,
-        [organizationId]
+        [scopeId]
       ),
     ]);
     const t   = totalsRes.rows[0];

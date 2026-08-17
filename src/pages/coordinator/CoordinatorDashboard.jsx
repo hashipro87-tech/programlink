@@ -28,6 +28,7 @@ import CoordinatorSitesPage      from './CoordinatorSitesPage';
 import CoordinatorMealCountsPage from './CoordinatorMealCountsPage';
 import CoordinatorKitchensPage   from './CoordinatorKitchensPage';
 import CoordinatorEnrollmentPage from './CoordinatorEnrollmentPage';
+import ChildRosterPage           from '../sponsor/ChildRosterPage';
 import ApplicationsPage          from '../sponsor/ApplicationsPage';
 import TasksPage                 from '../tasks/TasksPage';
 import InspectionsPage           from '../inspections/InspectionsPage';
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
 
   { sectionLabel: 'Program Data' },
   { label: 'Enrollment Review', path: '/dashboard/coordinator/enrollment',    icon: Users           },
+  { label: 'Children',          path: '/dashboard/coordinator/children',       icon: Users           },
   { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
   { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
 
@@ -88,8 +90,8 @@ function useCoordinatorData() {
     Promise.allSettled([
       api.get('/compliance'),
       api.get(`/meal-counts?month=${month}&limit=200`),
-      api.get('/applications?status=pending&limit=20'),
-      api.get('/message-threads?limit=10'),
+      api.get('/applications?status=submitted&limit=20'),
+      api.get('/messages/threads?limit=10'),
       api.get('/notifications?limit=20'),
       api.get('/documents?limit=200'),
       api.get('/children?form_status=submitted&limit=100'),
@@ -829,6 +831,7 @@ export default function CoordinatorDashboard() {
             <Routes>
               <Route path="applications"  element={<ApplicationsPage />} />
               <Route path="enrollment"    element={<CoordinatorEnrollmentPage />} />
+              <Route path="children"     element={<ChildRosterPage />} />
               <Route path="sites"         element={<CoordinatorSitesPage />} />
               <Route path="kitchens"      element={<CoordinatorKitchensPage />} />
               <Route path="meal-counts"   element={<CoordinatorMealCountsPage />} />

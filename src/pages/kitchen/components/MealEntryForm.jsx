@@ -199,14 +199,15 @@ export default function MealEntryForm() {
     setShowPresets(false);
 
     if (preset === 'average' && recentMeals.length > 0) {
-      const avg = (key) => Math.round(
-        recentMeals.reduce((s, m) => s + (m[key] || 0), 0) / recentMeals.length
+      // DB returns 'breakfast'/'lunch'/'snack'/'supper' — _count is old POST field name
+      const avgF = (key, alt) => Math.round(
+        recentMeals.reduce((s, m) => s + (m[key] ?? m[alt] ?? 0), 0) / recentMeals.length
       );
       setCounts({
-        breakfast: avg('breakfast_count'),
-        lunch:     avg('lunch_count'),
-        supper:    avg('supper_count'),
-        snack:     avg('snack_count'),
+        breakfast: avgF('breakfast', 'breakfast_count'),
+        lunch:     avgF('lunch',     'lunch_count'),
+        supper:    avgF('supper',    'supper_count'),
+        snack:     avgF('snack',     'snack_count'),
       });
       showToast('Filled with your 7-day averages');
       return;
@@ -221,10 +222,10 @@ export default function MealEntryForm() {
       const entry = recentMeals.find((m) => m.date === mondayStr);
       if (entry) {
         setCounts({
-          breakfast: entry.breakfast_count ?? 0,
-          lunch:     entry.lunch_count     ?? 0,
-          supper:    entry.supper_count    ?? 0,
-          snack:     entry.snack_count     ?? 0,
+          breakfast: entry.breakfast ?? entry.breakfast_count ?? 0,
+          lunch:     entry.lunch     ?? entry.lunch_count     ?? 0,
+          supper:    entry.supper    ?? entry.supper_count    ?? 0,
+          snack:     entry.snack     ?? entry.snack_count     ?? 0,
         });
         showToast('Filled with last Monday\'s counts');
       } else {
@@ -254,10 +255,10 @@ export default function MealEntryForm() {
     const cached = recentMeals.find((m) => m.date === yStr);
     if (cached) {
       setCounts({
-        breakfast: cached.breakfast_count ?? 0,
-        lunch:     cached.lunch_count     ?? 0,
-        supper:    cached.supper_count    ?? 0,
-        snack:     cached.snack_count     ?? 0,
+        breakfast: cached.breakfast ?? cached.breakfast_count ?? 0,
+        lunch:     cached.lunch     ?? cached.lunch_count     ?? 0,
+        supper:    cached.supper    ?? cached.supper_count    ?? 0,
+        snack:     cached.snack     ?? cached.snack_count     ?? 0,
       });
       showToast("Copied yesterday's counts");
     } else {
