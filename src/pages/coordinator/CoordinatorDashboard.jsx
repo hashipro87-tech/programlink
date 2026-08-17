@@ -100,7 +100,7 @@ function useCoordinatorData() {
       const allCounts = mcRes.status === 'fulfilled'
         ? (mcRes.value.data?.meal_counts ?? mcRes.value.data?.counts ?? [])
         : [];
-      const pendingCounts  = allCounts.filter((c) => !c.verified_at);
+      const pendingCounts  = allCounts.filter((c) => c.count_verified == null);
       const pendingApps    = appRes.status === 'fulfilled'
         ? (appRes.value.data?.applications ?? appRes.value.data ?? [])
         : [];

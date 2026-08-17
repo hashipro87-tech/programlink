@@ -29,11 +29,16 @@ function detectPattern(history, days = 7) {
     .slice(0, days);
   if (recent.length < days) return false;
   const first = recent[0];
+  // Normalize: DB returns breakfast/lunch/snack/supper; local newRow uses _count variants
+  const bOf  = r => r.breakfast ?? r.breakfast_count ?? 0;
+  const lOf  = r => r.lunch     ?? r.lunch_count     ?? 0;
+  const sOf  = r => r.snack     ?? r.snack_count     ?? 0;
+  const suOf = r => r.supper    ?? r.supper_count    ?? 0;
   return recent.every(r =>
-    r.breakfast_count === first.breakfast_count &&
-    r.lunch_count     === first.lunch_count     &&
-    r.snack_count     === first.snack_count     &&
-    r.supper_count    === first.supper_count
+    bOf(r)  === bOf(first)  &&
+    lOf(r)  === lOf(first)  &&
+    sOf(r)  === sOf(first)  &&
+    suOf(r) === suOf(first)
   );
 }
 
@@ -74,10 +79,10 @@ export default function SiteMealCountPage() {
       const todayRow = merged.find(r => r.date === today);
       if (todayRow) {
         setCounts({
-          breakfast: todayRow.breakfast_count ?? 0,
-          lunch:     todayRow.lunch_count     ?? 0,
-          snack:     todayRow.snack_count     ?? 0,
-          supper:    todayRow.supper_count    ?? 0,
+          breakfast: todayRow.breakfast ?? todayRow.breakfast_count ?? 0,
+          lunch:     todayRow.lunch     ?? todayRow.lunch_count     ?? 0,
+          snack:     todayRow.snack     ?? todayRow.snack_count     ?? 0,
+          supper:    todayRow.supper    ?? todayRow.supper_count    ?? 0,
         });
         if (todayRow.children_present !== null) {
           setChildrenPresent(String(todayRow.children_present));
@@ -123,10 +128,10 @@ export default function SiteMealCountPage() {
     const row  = history.find(r => r.date === yStr);
     if (row) {
       setCounts({
-        breakfast: row.breakfast_count ?? 0,
-        lunch:     row.lunch_count     ?? 0,
-        snack:     row.snack_count     ?? 0,
-        supper:    row.supper_count    ?? 0,
+        breakfast: row.breakfast ?? row.breakfast_count ?? 0,
+        lunch:     row.lunch     ?? row.lunch_count     ?? 0,
+        snack:     row.snack     ?? row.snack_count     ?? 0,
+        supper:    row.supper    ?? row.supper_count    ?? 0,
       });
       if (row.children_present !== null) setChildrenPresent(String(row.children_present));
       showToast("Copied yesterday's record");
@@ -197,10 +202,10 @@ export default function SiteMealCountPage() {
   const loadHistoryRow = (r) => {
     setDate(r.date);
     setCounts({
-      breakfast: r.breakfast_count ?? 0,
-      lunch:     r.lunch_count     ?? 0,
-      snack:     r.snack_count     ?? 0,
-      supper:    r.supper_count    ?? 0,
+      breakfast: r.breakfast ?? r.breakfast_count ?? 0,
+      lunch:     r.lunch     ?? r.lunch_count     ?? 0,
+      snack:     r.snack     ?? r.snack_count     ?? 0,
+      supper:    r.supper    ?? r.supper_count    ?? 0,
     });
     setChildrenPresent(r.children_present !== null ? String(r.children_present) : '');
     setAlreadySaved(r.date === today);
