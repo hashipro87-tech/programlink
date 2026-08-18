@@ -10,6 +10,7 @@ import {
   ChevronDown, ChevronUp, ShieldCheck, AlertOctagon,
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 // ── CACFP Constants ───────────────────────────────────────────────────────────
 const DAYS = [
@@ -1372,6 +1373,8 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MenuBuilderPage() {
+  const { user } = useAuth();
+  const isCoordinator = user?.role === 'coordinator';
   const [weekStart, setWeekStart]       = useState(() => mondayOf(new Date()));
   const [menu, setMenu]                 = useState(null);
   const [items, setItems]               = useState([]);
@@ -1774,7 +1777,15 @@ export default function MenuBuilderPage() {
             <ShieldCheck className="w-4 h-4" /> Compliance Assistant
           </button>
 
-          {menu && menu.status === 'draft' && totalIssues === 0 && (
+          {/* Coordinator: submit for sponsor review */}
+          {menu && menu.status === 'draft' && totalIssues === 0 && isCoordinator && (
+            <button onClick={() => updateStatus('pending_review')}
+              className="flex items-center gap-1.5 text-sm bg-brand-600 text-white px-3 py-1.5 rounded-lg hover:bg-brand-700">
+              <FileCheck className="w-4 h-4" /> Submit for Approval
+            </button>
+          )}
+          {/* Sponsor/admin: approve draft or coordinator-submitted menu */}
+          {menu && (menu.status === 'draft' || menu.status === 'pending_review') && totalIssues === 0 && !isCoordinator && (
             <button onClick={() => updateStatus('approved')}
               className="flex items-center gap-1.5 text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
               <FileCheck className="w-4 h-4" /> Approve
@@ -1782,9 +1793,14 @@ export default function MenuBuilderPage() {
           )}
           {menu && (
             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              menu.status === 'approved' ? 'bg-green-100 text-green-700' :
-              menu.status === 'submitted' ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600'
-            }`}>{menu.status?.charAt(0).toUpperCase() + menu.status?.slice(1)}</span>
+              menu.status === 'approved'       ? 'bg-green-100 text-green-700' :
+              menu.status === 'pending_review' ? 'bg-amber-100 text-amber-700' :
+              menu.status === 'submitted'      ? 'bg-brand-100 text-brand-700' :
+                                                 'bg-gray-100 text-gray-600'
+            }`}>
+              {menu.status === 'pending_review' ? 'Pending Approval'
+                : menu.status?.charAt(0).toUpperCase() + menu.status?.slice(1)}
+            </span>
           )}
         </div>
       </div>

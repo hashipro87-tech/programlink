@@ -229,8 +229,15 @@ async function createMenu(req, res) {
 async function updateMenu(req, res) {
   try {
     const { id } = req.params;
-    const { organizationId } = req.user;
+    const { organizationId, role } = req.user;
     const { name, status, notes, has_infant } = req.body;
+
+    // Coordinators can submit for review but cannot self-approve
+    let effectiveStatus = status;
+    if (status === 'approved' && role === 'coordinator') {
+      effectiveStatus = 'pending_review';
+    }
+
     const { rows } = await pool.query(
       `UPDATE menus SET
          name       = COALESCE($1, name),
@@ -240,9 +247,37 @@ async function updateMenu(req, res) {
          updated_at = NOW()
        WHERE id=$5 AND (org_id=$6 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$6))
        RETURNING *`,
-      [name, status, notes, has_infant, id, organizationId]
+      [name, effectiveStatus, notes, has_infant, id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Menu not found' });
+
+    // Notify sponsor when coordinator submits a menu for review
+    if (effectiveStatus === 'pending_review' && role === 'coordinator') {
+      try {
+        const { createNotification } = require('../services/notificationService');
+        // Find the sponsor org for this menu's org
+        const { rows: [menuOrg] } = await pool.query(
+          `SELECT o.id, o.name, o.sponsor_id FROM organizations o
+           JOIN menus m ON m.org_id = o.id WHERE m.id = $1`, [id]
+        );
+        if (menuOrg?.sponsor_id) {
+          const { rows: sponsors } = await pool.query(
+            `SELECT id FROM users WHERE organization_id = $1 AND role = 'sponsor' AND is_active = TRUE`,
+            [menuOrg.sponsor_id]
+          );
+          await createNotification(sponsors.map(s => ({
+            user_id:   s.id,
+            type:      'pending_approval',
+            title:     'Menu Submitted for Approval',
+            message:   `A coordinator submitted a menu for ${rows[0].name} — review and approve it.`,
+            action_url: `/dashboard/sponsor/menus`,
+          })));
+        }
+      } catch (notifErr) {
+        console.error('Menu approval notification error:', notifErr);
+      }
+    }
+
     res.json(rows[0]);
   } catch (err) {
     console.error('updateMenu error:', err);
