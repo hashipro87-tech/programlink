@@ -110,7 +110,7 @@ exports.updatePlan = async (req, res) => {
       RETURNING *
     `, [site_id, kitchen_id, name, days_of_week, arrival_time,
         breakfast, lunch, snack, supper,
-        breakfast_time, lunch_time, snack_time, supper_time,
+        breakfast_time || null, lunch_time || null, snack_time || null, supper_time || null,
         start_date, end_date, auto_notify, active,
         req.params.id, sponsorId]);
 
