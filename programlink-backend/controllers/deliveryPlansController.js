@@ -166,7 +166,7 @@ exports.getSiteSchedule = async (req, res) => {
       SELECT
         di.id,
         di.plan_id,
-        di.date,
+        di.date::text AS date,
         di.status,
         di.notes,
         dp.arrival_time,
@@ -231,7 +231,7 @@ exports.getTodayDeliveries = async (req, res) => {
       SELECT
         di.id                                                  AS instance_id,
         di.plan_id,
-        di.date,
+        di.date::text                                          AS date,
         di.status,
         di.notes,
         COALESCE(di.breakfast_override, dp.breakfast)          AS breakfast,

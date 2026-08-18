@@ -74,11 +74,14 @@ function fmt12(t) {
 
 function dateLabel(iso) {
   if (!iso) return '';
+  const d = iso.slice(0, 10); // normalize: "2026-08-18T00:00:00.000Z" → "2026-08-18"
   const t  = todayISO();
   const tm = tomorrowISO();
-  if (iso === t)  return 'Today';
-  if (iso === tm) return 'Tomorrow';
-  return new Date(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if (d === t)  return 'Today';
+  if (d === tm) return 'Tomorrow';
+  // Parse as LOCAL date (not UTC) to avoid timezone shift
+  const [y, mo, dy] = d.split('-').map(Number);
+  return new Date(y, mo - 1, dy).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 function greetingTime() {
