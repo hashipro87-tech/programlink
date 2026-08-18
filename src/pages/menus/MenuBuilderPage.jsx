@@ -1777,15 +1777,15 @@ export default function MenuBuilderPage() {
             <ShieldCheck className="w-4 h-4" /> Compliance Assistant
           </button>
 
-          {/* Coordinator: submit for sponsor review */}
-          {menu && menu.status === 'draft' && totalIssues === 0 && isCoordinator && (
+          {/* Coordinator: submit for sponsor review — needs items + no issues */}
+          {menu && menu.status === 'draft' && items.length > 0 && totalIssues === 0 && isCoordinator && (
             <button onClick={() => updateStatus('pending_review')}
               className="flex items-center gap-1.5 text-sm bg-brand-600 text-white px-3 py-1.5 rounded-lg hover:bg-brand-700">
               <FileCheck className="w-4 h-4" /> Submit for Approval
             </button>
           )}
-          {/* Sponsor/admin: approve draft or coordinator-submitted menu */}
-          {menu && (menu.status === 'draft' || menu.status === 'pending_review') && totalIssues === 0 && !isCoordinator && (
+          {/* Sponsor/admin: approve draft or coordinator-submitted menu — needs items + no issues */}
+          {menu && (menu.status === 'draft' || menu.status === 'pending_review') && items.length > 0 && totalIssues === 0 && !isCoordinator && (
             <button onClick={() => updateStatus('approved')}
               className="flex items-center gap-1.5 text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">
               <FileCheck className="w-4 h-4" /> Approve
