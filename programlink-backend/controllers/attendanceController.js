@@ -19,8 +19,8 @@ async function listAttendance(req, res) {
       where  = `WHERE a.org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1)`;
       params = [organizationId];
     } else if (role === 'coordinator') {
-      where  = `WHERE a.org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1)`;
-      params = [req.user.sponsorId];
+      where  = `WHERE a.org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1)`;
+      params = [req.user.sponsorId ?? organizationId];
     } else {
       where  = `WHERE a.org_id = $1`;
       params = [organizationId];

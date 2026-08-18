@@ -36,7 +36,7 @@ exports.listDocuments = async (req, res) => {
     if (['sponsor', 'coordinator', 'admin'].includes(role)) {
       // Sponsors / coordinators see ALL documents from orgs in their program.
       // Also allow orgs that applied to this sponsor (self-registered sites have no sponsor_id yet).
-      const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+      const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
       const baseQuery = `
         SELECT d.*,
                o.name     AS org_name,

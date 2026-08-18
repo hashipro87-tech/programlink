@@ -5,7 +5,7 @@ const pool = require('../config/database');
 // Each warning has: { type, severity, title, detail, org_id?, org_name?, link }
 exports.getWarnings = async (req, res) => {
   try {
-    const orgId = (req.user.role === 'coordinator') ? req.user.sponsorId : req.user.organizationId;
+    const orgId = (req.user.role === 'coordinator') ? (req.user.sponsorId ?? req.user.organizationId) : req.user.organizationId;
     const warnings = [];
 
     const today      = new Date().toISOString().split('T')[0];

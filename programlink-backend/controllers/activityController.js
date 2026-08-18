@@ -19,9 +19,9 @@ async function listActivity(req, res) {
     } else if (role === 'coordinator') {
       // Coordinator sees activity from assigned orgs + their sponsor's program
       where = `WHERE a.org_id IN (
-        SELECT id FROM organizations WHERE sponsor_id = $1
+        SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1
       )`;
-      params = [req.user.sponsorId];
+      params = [req.user.sponsorId ?? organizationId];
     } else {
       where = `WHERE a.org_id = $1`;
       params = [organizationId];

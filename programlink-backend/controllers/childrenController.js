@@ -30,8 +30,8 @@ async function listChildren(req, res) {
     let query, params;
 
     if (role === 'sponsor' || role === 'coordinator' || role === 'admin') {
-      // Coordinators use sponsorId (the sponsor they work under), not their own org
-      const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+      // Coordinators: sponsorId is null if org IS the sponsor, fall back to organizationId
+      const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
       let where = `WHERE o.sponsor_id = $1`;
       params = [scopeId];
       let idx = 2;
@@ -500,7 +500,7 @@ async function deleteChild(req, res) {
 async function getChildrenSummary(req, res) {
   try {
     const { organizationId, role } = req.user;
-    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+    const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
     const { rows } = await pool.query(
       `SELECT
          o.id AS org_id, o.name AS org_name, o.type AS org_type,
@@ -540,7 +540,7 @@ const FIELD_LABELS = {
 async function getEnrollmentCompliance(req, res) {
   try {
     const { organizationId, role } = req.user;
-    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+    const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
     const [totalsRes, pendingRes, gapsRes] = await Promise.all([
       pool.query(
         `SELECT

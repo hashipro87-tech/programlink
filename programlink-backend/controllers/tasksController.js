@@ -7,7 +7,7 @@ const { logActivity, TYPES } = require('../services/activityService');
 async function listTasks(req, res) {
   try {
     const { organizationId, id: userId, role } = req.user;
-    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+    const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
     const { status, priority, category, assigned_to, limit = 100, offset = 0 } = req.query;
 
     // Sponsors/coordinators see all tasks for their program
@@ -58,7 +58,7 @@ async function listTasks(req, res) {
 async function createTask(req, res) {
   try {
     const { organizationId, id: userId, role } = req.user;
-    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
+    const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
     const { title, description, due_date, priority = 'medium', status = 'pending', category, assigned_to } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required' });

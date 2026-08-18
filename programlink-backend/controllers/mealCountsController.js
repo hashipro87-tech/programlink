@@ -22,7 +22,7 @@ exports.listMealCounts = async (req, res) => {
       query += ` AND o.sponsor_id = $${params.length}`;
     } else if (req.user.role === 'coordinator') {
       // Scope to sites/kitchens under the coordinator's sponsor
-      params.push(req.user.sponsorId);
+      params.push(req.user.sponsorId ?? req.user.organizationId);
       query += ` AND o.sponsor_id = $${params.length}`;
     }
     query += ' ORDER BY mc.date DESC';

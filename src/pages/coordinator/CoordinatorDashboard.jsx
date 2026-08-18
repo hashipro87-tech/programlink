@@ -13,26 +13,38 @@ import {
   Building2, MessageSquare, FileText, CheckCircle, Settings,
   ClipboardList, AlertTriangle, UtensilsCrossed, Bell,
   AlertCircle, ChevronRight, Send, CheckSquare, X,
-  TrendingUp, ShieldCheck, Activity, Users,
+  TrendingUp, ShieldCheck, Activity, Users, CalendarCheck,
+  Truck, ChefHat, BookOpen, RotateCcw, GraduationCap,
+  FileOutput, DollarSign, Repeat, Globe,
 } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import api from '../../services/api';
 import { useNotifications } from '../../hooks/useNotifications';
 
 // Pages
-import DocumentsPage             from '../documents/DocumentsPage';
-import MessagesPage              from '../messages/MessagesPage';
-import NotificationsPage         from '../notifications/NotificationsPage';
-import SettingsPage              from '../settings/SettingsPage';
-import CoordinatorSitesPage      from './CoordinatorSitesPage';
-import CoordinatorMealCountsPage from './CoordinatorMealCountsPage';
-import CoordinatorKitchensPage   from './CoordinatorKitchensPage';
-import CoordinatorEnrollmentPage from './CoordinatorEnrollmentPage';
-import ChildRosterPage           from '../sponsor/ChildRosterPage';
-import ApplicationsPage          from '../sponsor/ApplicationsPage';
-import TasksPage                 from '../tasks/TasksPage';
-import InspectionsPage           from '../inspections/InspectionsPage';
-import ActivityFeedPage          from '../activity/ActivityFeedPage';
+import MessagesPage                  from '../messages/MessagesPage';
+import NotificationsPage             from '../notifications/NotificationsPage';
+import SettingsPage                  from '../settings/SettingsPage';
+import CoordinatorSitesPage          from './CoordinatorSitesPage';
+import CoordinatorMealCountsPage     from './CoordinatorMealCountsPage';
+import CoordinatorKitchensPage       from './CoordinatorKitchensPage';
+import CoordinatorEnrollmentPage     from './CoordinatorEnrollmentPage';
+import ChildRosterPage               from '../sponsor/ChildRosterPage';
+import ApplicationsPage              from '../sponsor/ApplicationsPage';
+import TasksPage                     from '../tasks/TasksPage';
+import InspectionsPage               from '../inspections/InspectionsPage';
+import ActivityFeedPage              from '../activity/ActivityFeedPage';
+import CompliancePage                from '../sponsor/CompliancePage';
+import AttendancePage                from '../attendance/AttendancePage';
+import MealOrdersPage                from '../sponsor/MealOrdersPage';
+import SponsorProductionRecordsPage  from '../sponsor/SponsorProductionRecordsPage';
+import MenuBuilderPage               from '../menus/MenuBuilderPage';
+import MenuCyclesPage                from '../menus/MenuCyclesPage';
+import ClaimsPage                    from '../sponsor/ClaimsPage';
+import StateRuleBookPage             from '../sponsor/StateRuleBookPage';
+import RenewalWizardPage             from '../sponsor/RenewalWizardPage';
+import TrainingPage                  from '../sponsor/TrainingPage';
+import FormGeneratorPage             from '../forms/FormGeneratorPage';
 
 const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/coordinator',               icon: CheckCircle     },
@@ -45,18 +57,34 @@ const NAV_ITEMS = [
   { sectionLabel: 'Program Data' },
   { label: 'Enrollment Review', path: '/dashboard/coordinator/enrollment',    icon: Users           },
   { label: 'Children',          path: '/dashboard/coordinator/children',       icon: Users           },
-  { label: 'Meal Counts',    path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
-  { label: 'Documents',      path: '/dashboard/coordinator/documents',     icon: FileText        },
+  { label: 'Attendance',        path: '/dashboard/coordinator/attendance',     icon: CalendarCheck   },
+  { label: 'Meal Counts',       path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
+  { label: 'Menus',             path: '/dashboard/coordinator/menus',          icon: BookOpen        },
+  { label: 'Menu Cycles',       path: '/dashboard/coordinator/menu-cycles',    icon: Repeat          },
+
+  { sectionLabel: 'Operations' },
+  { label: 'Deliveries',        path: '/dashboard/coordinator/deliveries',     icon: Truck           },
+  { label: 'Production Records',path: '/dashboard/coordinator/production',     icon: ChefHat         },
+
+  { sectionLabel: 'Finance' },
+  { label: 'Claims',            path: '/dashboard/coordinator/claims',         icon: DollarSign      },
+
+  { sectionLabel: 'Compliance' },
+  { label: 'Compliance',        path: '/dashboard/coordinator/compliance',     icon: ShieldCheck     },
+  { label: 'Renewals',          path: '/dashboard/coordinator/renewals',       icon: RotateCcw       },
+  { label: 'Staff Training',    path: '/dashboard/coordinator/training',       icon: GraduationCap   },
+  { label: 'Form Generator',    path: '/dashboard/coordinator/forms',          icon: FileOutput      },
+  { label: 'State Rule Book',   path: '/dashboard/coordinator/state-rules',    icon: Globe           },
 
   { sectionLabel: 'Work' },
-  { label: 'Tasks',          path: '/dashboard/coordinator/tasks',         icon: CheckSquare     },
-  { label: 'Inspections',    path: '/dashboard/coordinator/inspections',   icon: ShieldCheck     },
-  { label: 'Activity',       path: '/dashboard/coordinator/activity',      icon: Activity        },
+  { label: 'Tasks',             path: '/dashboard/coordinator/tasks',          icon: CheckSquare     },
+  { label: 'Inspections',       path: '/dashboard/coordinator/inspections',    icon: ShieldCheck     },
+  { label: 'Activity',          path: '/dashboard/coordinator/activity',       icon: Activity        },
 
   { divider: true },
-  { label: 'Messages',       path: '/dashboard/coordinator/messages',      icon: MessageSquare   },
-  { label: 'Notifications',  path: '/dashboard/coordinator/notifications', icon: Bell            },
-  { label: 'Settings',       path: '/dashboard/coordinator/settings',      icon: Settings        },
+  { label: 'Messages',          path: '/dashboard/coordinator/messages',       icon: MessageSquare   },
+  { label: 'Notifications',     path: '/dashboard/coordinator/notifications',  icon: Bell            },
+  { label: 'Settings',          path: '/dashboard/coordinator/settings',       icon: Settings        },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -829,19 +857,29 @@ export default function CoordinatorDashboard() {
             <Overview />
           ) : (
             <Routes>
-              <Route path="applications"  element={<ApplicationsPage />} />
-              <Route path="enrollment"    element={<CoordinatorEnrollmentPage />} />
-              <Route path="children"     element={<ChildRosterPage />} />
-              <Route path="sites"         element={<CoordinatorSitesPage />} />
-              <Route path="kitchens"      element={<CoordinatorKitchensPage />} />
-              <Route path="meal-counts"   element={<CoordinatorMealCountsPage />} />
-              <Route path="documents"     element={<DocumentsPage />} />
-              <Route path="tasks"         element={<TasksPage />} />
-              <Route path="inspections"  element={<InspectionsPage />} />
-              <Route path="activity"    element={<ActivityFeedPage />} />
-              <Route path="messages"      element={<MessagesPage />} />
-              <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="settings"      element={<SettingsPage />} />
+              <Route path="applications"   element={<ApplicationsPage />} />
+              <Route path="enrollment"     element={<CoordinatorEnrollmentPage />} />
+              <Route path="children"       element={<ChildRosterPage />} />
+              <Route path="sites"          element={<CoordinatorSitesPage />} />
+              <Route path="kitchens"       element={<CoordinatorKitchensPage />} />
+              <Route path="attendance"     element={<AttendancePage />} />
+              <Route path="meal-counts"    element={<CoordinatorMealCountsPage />} />
+              <Route path="menus"          element={<MenuBuilderPage />} />
+              <Route path="menu-cycles"    element={<MenuCyclesPage />} />
+              <Route path="deliveries"     element={<MealOrdersPage />} />
+              <Route path="production"     element={<SponsorProductionRecordsPage />} />
+              <Route path="claims"         element={<ClaimsPage />} />
+              <Route path="compliance"     element={<CompliancePage />} />
+              <Route path="renewals"       element={<RenewalWizardPage />} />
+              <Route path="training"       element={<TrainingPage />} />
+              <Route path="forms"          element={<FormGeneratorPage />} />
+              <Route path="state-rules"    element={<StateRuleBookPage />} />
+              <Route path="tasks"          element={<TasksPage />} />
+              <Route path="inspections"    element={<InspectionsPage />} />
+              <Route path="activity"       element={<ActivityFeedPage />} />
+              <Route path="messages"       element={<MessagesPage />} />
+              <Route path="notifications"  element={<NotificationsPage />} />
+              <Route path="settings"       element={<SettingsPage />} />
             </Routes>
           )}
         </div>

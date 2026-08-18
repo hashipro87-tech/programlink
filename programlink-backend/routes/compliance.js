@@ -17,7 +17,7 @@ const REQUIRED = {
 // ── GET /compliance ───────────────────────────────────────────────────────────
 router.get('/', authenticate, authorizeRoles('sponsor', 'coordinator', 'admin'), async (req, res) => {
   try {
-    const sponsorId = (req.user.role === 'coordinator') ? req.user.sponsorId : req.user.organizationId;
+    const sponsorId = (req.user.role === 'coordinator') ? (req.user.sponsorId ?? req.user.organizationId) : req.user.organizationId;
 
     // CTE replaces 4 correlated subqueries — single-pass over applications table,
     // document subqueries become FILTER aggregations on the existing LEFT JOIN.
@@ -212,7 +212,7 @@ router.post('/remind-bulk', authenticate, authorizeRoles('sponsor', 'coordinator
       return res.status(400).json({ error: 'org_ids array is required.' });
     }
 
-    const sponsorId = (req.user.role === 'coordinator') ? req.user.sponsorId : req.user.organizationId;
+    const sponsorId = (req.user.role === 'coordinator') ? (req.user.sponsorId ?? req.user.organizationId) : req.user.organizationId;
 
     // Only allow orgs that belong to this sponsor
     const { rows: orgs } = await pool.query(
@@ -258,7 +258,7 @@ router.post('/request-bulk', authenticate, authorizeRoles('sponsor', 'coordinato
     }
     if (!label) return res.status(400).json({ error: 'Document label is required.' });
 
-    const sponsorId = (req.user.role === 'coordinator') ? req.user.sponsorId : req.user.organizationId;
+    const sponsorId = (req.user.role === 'coordinator') ? (req.user.sponsorId ?? req.user.organizationId) : req.user.organizationId;
 
     // Only allow orgs that belong to this sponsor
     const { rows: orgs } = await pool.query(
