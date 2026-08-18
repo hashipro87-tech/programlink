@@ -3,6 +3,7 @@ const express = require('express');
 const router  = express.Router();
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
+  getCurrentCycle,
   listCycles, createCycle, updateCycle, deleteCycle,
   assignWeekMenu,
   listSchedules, applySchedule, removeSchedule,
@@ -12,6 +13,7 @@ const {
 const canWrite = authorizeRoles('sponsor', 'coordinator', 'admin');
 
 // ── Specific routes BEFORE /:id ────────────────────────────────────────────────
+router.get('/current',               authenticate, getCurrentCycle);
 router.get('/schedules',             authenticate, listSchedules);
 router.delete('/schedules/:schedule_id', authenticate, canWrite, removeSchedule);
 router.get('/resolve',               authenticate, resolveMenuForDate);

@@ -3,6 +3,22 @@
 // against real calendar dates. Production Records + Claims resolve menus from cycles.
 const pool = require('../config/database');
 
+// ── GET /menu-cycles/current ──────────────────────────────────────────────────
+// Return today's active cycle week + menu for a given org.
+async function getCurrentCycle(req, res) {
+  try {
+    const { organizationId } = req.user;
+    const { org_id } = req.query;
+    const scopeId = org_id || organizationId;
+    const today   = new Date().toISOString().split('T')[0];
+    const result  = await _resolveMenu(scopeId, today);
+    res.json(result);
+  } catch (err) {
+    console.error('getCurrentCycle error:', err);
+    res.status(500).json({ error: 'Failed to get current cycle' });
+  }
+}
+
 // ── GET /menu-cycles ──────────────────────────────────────────────────────────
 // List all cycles for the org, with their weeks and active schedule.
 async function listCycles(req, res) {
@@ -48,6 +64,7 @@ async function createCycle(req, res) {
     const { name, description, week_count = 4 } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
     const wc = Math.min(52, Math.max(1, parseInt(week_count) || 4));
+    const { start_date } = req.body; // optional — if provided, auto-activates cycle
 
     const { rows: [cycle] } = await pool.query(
       `INSERT INTO menu_cycles (org_id, name, description, week_count)
@@ -60,6 +77,15 @@ async function createCycle(req, res) {
       await pool.query(
         `INSERT INTO cycle_weeks (cycle_id, week_number, label) VALUES ($1,$2,$3)`,
         [cycle.id, w, `Week ${w}`]
+      );
+    }
+
+    // If start_date provided, auto-create a perpetual active schedule
+    if (start_date) {
+      await pool.query(
+        `INSERT INTO cycle_schedules (cycle_id, org_id, start_date, end_date, is_active)
+         VALUES ($1,$2,$3,NULL,TRUE)`,
+        [cycle.id, organizationId, start_date]
       );
     }
 
@@ -224,7 +250,7 @@ async function _resolveMenu(orgId, date) {
     WHERE cs.org_id = $1
       AND cs.is_active = TRUE
       AND cs.start_date <= $2::date
-      AND cs.end_date   >= $2::date
+      AND (cs.end_date IS NULL OR cs.end_date >= $2::date)
     ORDER BY cs.start_date DESC
     LIMIT 1
   `, [orgId, date]);
@@ -247,14 +273,23 @@ async function _resolveMenu(orgId, date) {
     WHERE cw.cycle_id = $1 AND cw.week_number = $2
   `, [sched.cycle_id, weekNumber]);
 
+  // Calculate actual calendar dates for this cycle week
+  const weekStartDate = new Date(thisMonday);
+  const weekEndDate   = new Date(thisMonday);
+  weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 4); // Friday
+
   const week = weekRes.rows[0];
   return {
-    found:        !!week?.menu_id,
-    cycle_name:   sched.cycle_name,
-    week_number:  weekNumber,
-    week_label:   week?.label || `Week ${weekNumber}`,
-    menu_id:      week?.menu_id || null,
-    menu_name:    week?.menu_name || null,
+    found:            !!week?.menu_id,
+    cycle_id:         sched.cycle_id,
+    cycle_name:       sched.cycle_name,
+    week_number:      weekNumber,
+    week_count:       sched.week_count,
+    week_label:       week?.label || `Week ${weekNumber}`,
+    menu_id:          week?.menu_id || null,
+    menu_name:        week?.menu_name || null,
+    week_start_date:  weekStartDate.toISOString().split('T')[0],
+    week_end_date:    weekEndDate.toISOString().split('T')[0],
   };
 }
 
@@ -267,6 +302,7 @@ function getMonday(dateStr) {
 }
 
 module.exports = {
+  getCurrentCycle,
   listCycles, createCycle, updateCycle, deleteCycle,
   assignWeekMenu,
   listSchedules, applySchedule, removeSchedule,

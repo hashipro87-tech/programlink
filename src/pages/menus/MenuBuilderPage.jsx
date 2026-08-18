@@ -1418,6 +1418,7 @@ export default function MenuBuilderPage() {
   const [showHelp, setShowHelp]         = useState(false);
   const [helpContext, setHelpContext]   = useState(null); // meal type user last opened
   const [showImport, setShowImport]     = useState(false);
+  const [activeCycle, setActiveCycle]   = useState(null); // current cycle for today
 
   // Load orgs + rates + templates on mount
   useEffect(() => {
@@ -1430,7 +1431,12 @@ export default function MenuBuilderPage() {
   const loadMenu = useCallback(async () => {
     setLoading(true);
     try {
-      const listRes = await api.get('/menus?limit=50');
+      const [listRes, cycleRes] = await Promise.all([
+        api.get('/menus?limit=50'),
+        api.get(`/menu-cycles/current${selectedOrg ? `?org_id=${selectedOrg}` : ''}`).catch(() => ({ data: {} })),
+      ]);
+      setActiveCycle(cycleRes.data?.cycle_name ? cycleRes.data : null);
+
       const existing = (listRes.data.menus || []).find(m => {
         const ms = m.week_start?.slice(0, 10);
         return ms === weekStart && (!selectedOrg || m.org_id === selectedOrg);
@@ -1440,7 +1446,6 @@ export default function MenuBuilderPage() {
         setMenu(detailRes.data.menu);
         setItems(detailRes.data.items || []);
         setHasInfant(detailRes.data.menu?.has_infant || false);
-        // Load comments
         api.get(`/menus/${existing.id}/comments`).then(r => setComments(r.data.comments || [])).catch(() => {});
       } else {
         setMenu(null); setItems([]); setHasInfant(false); setComments([]);
@@ -1854,6 +1859,24 @@ export default function MenuBuilderPage() {
           </div>
         )}
       </div>
+
+      {/* Active cycle banner */}
+      {activeCycle && (
+        <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-xl px-4 py-2.5 mb-3">
+          <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse flex-shrink-0" />
+          <span className="text-sm text-brand-700">
+            <span className="font-semibold">🔄 {activeCycle.week_label}</span>
+            {activeCycle.week_start_date && (
+              <> &nbsp;·&nbsp; {new Date(activeCycle.week_start_date + 'T00:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' })} – {new Date(activeCycle.week_end_date + 'T00:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' })}</>
+            )}
+            &nbsp;·&nbsp; <span className="font-medium">{activeCycle.cycle_name}</span>
+          </span>
+          <span className="text-xs text-brand-400 ml-1">— Automatically selected</span>
+          {activeCycle.menu_name && (
+            <span className="ml-auto text-xs text-brand-500 font-medium">Menu: {activeCycle.menu_name}</span>
+          )}
+        </div>
+      )}
 
       {/* Validation summary */}
       {items.length > 0 && (

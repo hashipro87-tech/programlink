@@ -118,20 +118,97 @@ function ApplyModal({ cycle, onClose, onApplied }) {
   );
 }
 
-// ── New Cycle Modal ────────────────────────────────────────────────────────────
-function NewCycleModal({ onClose, onCreated }) {
-  const [name,      setName]      = useState('');
-  const [weekCount, setWeekCount] = useState(4);
-  const [desc,      setDesc]      = useState('');
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState('');
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function nextMonday() {
+  const d = new Date();
+  const day = d.getDay(); // 0=Sun
+  const diff = day === 1 ? 0 : ((8 - day) % 7) || 7;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+}
+function fmtShort(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
+}
+
+// ── Active Cycle Card ─────────────────────────────────────────────────────────
+function ActiveCycleCard({ current }) {
+  if (!current?.cycle_name) return null;
+  return (
+    <div className="flex items-start gap-4 bg-green-50 border border-green-200 rounded-2xl px-5 py-4 mb-6">
+      <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse block" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-green-800">
+          Active Menu · {current.week_label} — {fmtShort(current.week_start_date)} – {fmtShort(current.week_end_date)}
+        </p>
+        <p className="text-xs text-green-600 mt-0.5">
+          {current.cycle_name} &nbsp;·&nbsp;
+          {current.menu_name
+            ? <>Menu: <span className="font-semibold">{current.menu_name}</span></>
+            : <span className="italic">No menu assigned for this week yet</span>
+          }
+        </p>
+        <p className="text-xs text-green-500 mt-1">
+          🔄 Automatically selected — Production Records and Claims use this menu
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Create Cycle Wizard (2-step) ───────────────────────────────────────────────
+function CreateCycleWizard({ menus, onClose, onCreated }) {
+  const [step,       setStep]      = useState(1); // 1 = info, 2 = assign
+  const [name,       setName]      = useState('');
+  const [startDate,  setStartDate] = useState(nextMonday);
+  const [weekCount,  setWeekCount] = useState(4);
+  const [assigned,   setAssigned]  = useState({}); // { weekNum: menuId }
+  const [saving,     setSaving]    = useState(false);
+  const [error,      setError]     = useState('');
+
+  const PRESETS = [
+    { name: 'Fall 4-Week Cycle',   weeks: 4 },
+    { name: 'Spring 4-Week Cycle', weeks: 4 },
+    { name: 'Summer 2-Week Cycle', weeks: 2 },
+    { name: '6-Week Rotation',     weeks: 6 },
+  ];
+
+  // Auto-calculate date range for each week slot
+  const weekSlots = Array.from({ length: weekCount }, (_, i) => {
+    const n     = i + 1;
+    const start = addDays(startDate, (n - 1) * 7);
+    const end   = addDays(start, 4);
+    return { n, start, end };
+  });
 
   const handleCreate = async () => {
     if (!name.trim()) { setError('Cycle name is required.'); return; }
+    if (!startDate)   { setError('Start date is required.'); return; }
     setSaving(true); setError('');
     try {
-      const { data } = await api.post('/menu-cycles', { name: name.trim(), description: desc, week_count: weekCount });
-      onCreated(data);
+      const { data: cycle } = await api.post('/menu-cycles', {
+        name: name.trim(),
+        week_count: weekCount,
+        start_date: startDate,
+      });
+      // Assign menus to weeks
+      await Promise.all(
+        Object.entries(assigned)
+          .filter(([, menuId]) => menuId)
+          .map(([weekNum, menuId]) =>
+            api.put(`/menu-cycles/${cycle.id}/weeks/${weekNum}`, { menu_id: menuId })
+          )
+      );
+      onCreated(cycle);
       onClose();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create cycle.');
@@ -140,77 +217,127 @@ function NewCycleModal({ onClose, onCreated }) {
     }
   };
 
-  const PRESETS = [
-    { name: 'Fall Cycle',    weeks: 4 },
-    { name: 'Winter Cycle',  weeks: 4 },
-    { name: 'Spring Cycle',  weeks: 4 },
-    { name: 'Summer Feeding', weeks: 2 },
-    { name: 'Emergency Menu', weeks: 1 },
-  ];
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">New Menu Cycle</h2>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">
+              {step === 1 ? 'New Menu Cycle' : `Assign Menus — ${name || 'Cycle'}`}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Step {step} of 2</p>
+          </div>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
 
-        <div className="p-6 space-y-4">
-          {/* Quick presets */}
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Quick Start</p>
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map(p => (
-                <button key={p.name}
-                  onClick={() => { setName(p.name); setWeekCount(p.weeks); }}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-                    name === p.name ? 'bg-brand-50 border-brand-300 text-brand-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}>
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Step indicator */}
+        <div className="flex px-6 pt-4 gap-2 flex-shrink-0">
+          {[1,2].map(s => (
+            <div key={s} className={`h-1 flex-1 rounded-full ${s <= step ? 'bg-brand-500' : 'bg-gray-100'}`} />
+          ))}
+        </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Cycle Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Fall Cycle"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-          </div>
+        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+          {step === 1 ? (
+            <>
+              {/* Quick presets */}
+              <div className="flex flex-wrap gap-2">
+                {PRESETS.map(p => (
+                  <button key={p.name}
+                    onClick={() => { setName(p.name); setWeekCount(p.weeks); }}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      name === p.name ? 'bg-brand-50 border-brand-300 text-brand-700 font-semibold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Number of Weeks</label>
-            <div className="flex items-center gap-3">
-              {[1,2,3,4,5,6,8,12].map(n => (
-                <button key={n} onClick={() => setWeekCount(n)}
-                  className={`w-9 h-9 text-sm rounded-xl border font-semibold transition-colors ${
-                    weekCount === n ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}>
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Cycle Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Fall 4-Week Menu Cycle"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Description (optional)</label>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)}
-              placeholder="e.g. Used August through October"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-          </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Cycle Start Date</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <p className="text-xs text-gray-400 mt-1">Should be a Monday. The system calculates all week dates from here.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Number of Weeks</label>
+                <div className="flex flex-wrap gap-2">
+                  {[1,2,3,4,5,6,8,12].map(n => (
+                    <button key={n} onClick={() => setWeekCount(n)}
+                      className={`w-10 h-10 text-sm rounded-xl border font-semibold transition-colors ${
+                        weekCount === n ? 'bg-brand-600 text-white border-brand-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">
+                Assign a saved menu to each week. The system will automatically rotate through them starting {fmtShort(startDate)}.
+              </p>
+              <div className="space-y-2">
+                {weekSlots.map(({ n, start, end }) => (
+                  <div key={n} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                    <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-brand-600">{n}</span>
+                    </div>
+                    <div className="w-28 flex-shrink-0">
+                      <p className="text-xs font-semibold text-gray-700">Week {n}</p>
+                      <p className="text-xs text-gray-400">{fmtShort(start)} – {fmtShort(end)}</p>
+                    </div>
+                    <select
+                      value={assigned[n] || ''}
+                      onChange={e => setAssigned(a => ({ ...a, [n]: e.target.value || null }))}
+                      className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                      <option value="">— Select a menu —</option>
+                      {menus.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name || `Week of ${m.week_start?.slice(0,10)}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              {menus.length === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  No saved menus yet — you can assign them later from the cycle card.
+                  Build menus in the Menu Builder first.
+                </p>
+              )}
+            </>
+          )}
 
           {error && <div className="px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">{error}</div>}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-5">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
-            Cancel
-          </button>
-          <button onClick={handleCreate} disabled={saving || !name.trim()}
-            className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40">
-            {saving ? 'Creating…' : `Create ${weekCount}-Week Cycle`}
-          </button>
+        <div className="flex justify-between gap-3 px-6 pb-5 flex-shrink-0">
+          {step === 2
+            ? <button onClick={() => setStep(1)} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">← Back</button>
+            : <button onClick={onClose}         className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+          }
+          {step === 1
+            ? <button onClick={() => { if (!name.trim() || !startDate) { setError('Name and start date are required.'); return; } setError(''); setStep(2); }}
+                className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl">
+                Next: Assign Menus →
+              </button>
+            : <button onClick={handleCreate} disabled={saving}
+                className="px-5 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40">
+                {saving ? 'Creating…' : '✓ Create & Activate'}
+              </button>
+          }
         </div>
       </div>
     </div>
@@ -411,21 +538,24 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MenuCyclesPage() {
-  const [cycles,   setCycles]   = useState([]);
-  const [menus,    setMenus]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [showNew,  setShowNew]  = useState(false);
-  const [applyTarget, setApplyTarget] = useState(null); // cycle to apply
+  const [cycles,       setCycles]       = useState([]);
+  const [menus,        setMenus]        = useState([]);
+  const [currentCycle, setCurrentCycle] = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [showNew,      setShowNew]      = useState(false);
+  const [applyTarget,  setApplyTarget]  = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [cycRes, menuRes] = await Promise.all([
+      const [cycRes, menuRes, curRes] = await Promise.all([
         api.get('/menu-cycles'),
         api.get('/menus?limit=200'),
+        api.get('/menu-cycles/current').catch(() => ({ data: {} })),
       ]);
       setCycles(cycRes.data.cycles || []);
       setMenus(menuRes.data.menus || []);
+      setCurrentCycle(curRes.data);
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -445,8 +575,6 @@ export default function MenuCyclesPage() {
       load();
     } catch { alert('Failed to remove schedule.'); }
   };
-
-  const activeCycles = cycles.filter(c => (c.schedules || []).some(isActive));
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -494,20 +622,8 @@ export default function MenuCyclesPage() {
         </div>
       )}
 
-      {/* Active now banner */}
-      {activeCycles.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl mb-5">
-          <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0 animate-pulse" />
-          <p className="text-sm font-semibold text-green-700">
-            {activeCycles.length === 1
-              ? `${activeCycles[0].name} is active now`
-              : `${activeCycles.length} cycles are active now`}
-          </p>
-          <p className="text-xs text-green-600 ml-auto">
-            Production Records and Claims pull menus from this cycle automatically
-          </p>
-        </div>
-      )}
+      {/* Active cycle card */}
+      <ActiveCycleCard current={currentCycle} />
 
       {/* Cycle list */}
       {loading ? (
@@ -539,9 +655,10 @@ export default function MenuCyclesPage() {
 
       {/* Modals */}
       {showNew && (
-        <NewCycleModal
+        <CreateCycleWizard
+          menus={menus}
           onClose={() => setShowNew(false)}
-          onCreated={cycle => { setCycles(prev => [cycle, ...prev]); load(); }}
+          onCreated={() => { setShowNew(false); load(); }}
         />
       )}
       {applyTarget && (
