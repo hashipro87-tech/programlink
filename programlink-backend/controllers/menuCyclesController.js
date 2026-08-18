@@ -1,4 +1,4 @@
-// menuCyclesController.js — reusable rotating menu cycles
+// menuCyclesController.js — reusable rotating menu cycles (v2)
 // Sponsors build a cycle (Fall Cycle = 4 weeks of menus), then schedule it
 // against real calendar dates. Production Records + Claims resolve menus from cycles.
 const pool = require('../config/database');
