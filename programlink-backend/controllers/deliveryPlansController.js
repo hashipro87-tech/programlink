@@ -170,10 +170,14 @@ exports.getSiteSchedule = async (req, res) => {
         di.status,
         di.notes,
         dp.arrival_time,
-        dp.breakfast,
-        dp.lunch,
-        dp.snack,
-        dp.supper,
+        COALESCE(dp.breakfast_time, dp.arrival_time) AS breakfast_time,
+        COALESCE(dp.lunch_time,     dp.arrival_time) AS lunch_time,
+        COALESCE(dp.snack_time,     dp.arrival_time) AS snack_time,
+        COALESCE(dp.supper_time,    dp.arrival_time) AS supper_time,
+        COALESCE(di.breakfast_override, dp.breakfast) AS breakfast,
+        COALESCE(di.lunch_override,     dp.lunch)     AS lunch,
+        COALESCE(di.snack_override,     dp.snack)     AS snack,
+        COALESCE(di.supper_override,    dp.supper)    AS supper,
         dp.auto_notify,
         s.name  AS site_name,
         k.name  AS kitchen_name
@@ -183,6 +187,8 @@ exports.getSiteSchedule = async (req, res) => {
       LEFT JOIN organizations k ON k.id = dp.kitchen_id
       WHERE dp.site_id = $1
         AND di.date >= $2
+        AND di.date >= dp.start_date
+        AND (dp.end_date IS NULL OR di.date <= dp.end_date)
         AND di.date <= $2::date + $3 * INTERVAL '1 day'
         AND di.status != 'skipped'
       ORDER BY di.date ASC
@@ -191,11 +197,10 @@ exports.getSiteSchedule = async (req, res) => {
     // Shape to match route objects expected by SiteDashboard
     const deliveries = rows.map((r) => {
       const stops = [];
-      const time  = r.arrival_time?.slice(0, 5); // HH:MM
-      if (r.breakfast > 0) stops.push({ meal_type: 'breakfast', meal_count: r.breakfast, pickup_time: time });
-      if (r.lunch     > 0) stops.push({ meal_type: 'lunch',     meal_count: r.lunch,     pickup_time: time });
-      if (r.snack     > 0) stops.push({ meal_type: 'snack',     meal_count: r.snack,     pickup_time: time });
-      if (r.supper    > 0) stops.push({ meal_type: 'supper',    meal_count: r.supper,    pickup_time: time });
+      if (r.breakfast > 0) stops.push({ meal_type: 'breakfast', meal_count: r.breakfast, pickup_time: r.breakfast_time?.slice(0, 5) });
+      if (r.lunch     > 0) stops.push({ meal_type: 'lunch',     meal_count: r.lunch,     pickup_time: r.lunch_time?.slice(0, 5) });
+      if (r.snack     > 0) stops.push({ meal_type: 'snack',     meal_count: r.snack,     pickup_time: r.snack_time?.slice(0, 5) });
+      if (r.supper    > 0) stops.push({ meal_type: 'supper',    meal_count: r.supper,    pickup_time: r.supper_time?.slice(0, 5) });
       return {
         id:           r.id,
         plan_id:      r.plan_id,

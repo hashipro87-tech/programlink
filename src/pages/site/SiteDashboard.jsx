@@ -54,8 +54,16 @@ const NAV_ITEMS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function todayISO()    { return new Date().toISOString().split('T')[0]; }
-function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
+// Use local date (not UTC) so users in US timezones get the correct "today"
+function todayISO()    {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function tomorrowISO() {
+  const d = new Date();
+  d.setDate(d.getDate()+1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function fmt12(t) {
   if (!t) return '';

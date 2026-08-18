@@ -17,18 +17,18 @@ const {
 
 router.use(authenticate);
 
-// Sponsor: manage plans
-router.get('/',           authorizeRoles('sponsor', 'admin'),                         listPlans);
+// Sponsor + Coordinator: manage/view plans
+router.get('/',           authorizeRoles('sponsor', 'coordinator', 'admin'),          listPlans);
 router.post('/',          authorizeRoles('sponsor', 'admin'),                         createPlan);
 router.post('/bulk',      authorizeRoles('sponsor', 'admin'),                         bulkCreatePlans);
 router.patch('/:id',      authorizeRoles('sponsor', 'admin'),                         updatePlan);
 router.delete('/:id',     authorizeRoles('sponsor', 'admin'),                         deletePlan);
 
-// Sponsor: today's (or any date's) delivery checklist
-router.get('/today',      authorizeRoles('sponsor', 'admin'),                         getTodayDeliveries);
+// Sponsor + Coordinator: today's (or any date's) delivery checklist
+router.get('/today',      authorizeRoles('sponsor', 'coordinator', 'admin'),          getTodayDeliveries);
 
-// Sponsor: manually send today's list to a kitchen
-router.post('/notify-kitchen', authorizeRoles('sponsor', 'admin'),                   notifyKitchen);
+// Sponsor + Coordinator: manually send today's list to a kitchen
+router.post('/notify-kitchen', authorizeRoles('sponsor', 'coordinator', 'admin'),    notifyKitchen);
 
 // Site: view upcoming delivery schedule from plans
 router.get('/schedule',   authorizeRoles('site', 'coordinator', 'sponsor'),           getSiteSchedule);
