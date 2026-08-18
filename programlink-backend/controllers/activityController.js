@@ -11,19 +11,17 @@ async function listActivity(req, res) {
     let params;
 
     if (role === 'sponsor' || role === 'admin') {
-      // Sponsor sees all activity across their orgs + their own org
+      // Sponsor sees all activity across their orgs (sites/kitchens) + their own org
       where = `WHERE a.org_id IN (
-        SELECT id FROM organizations WHERE sponsor_id = (
-          SELECT sponsor_id FROM organizations WHERE id = $1
-        ) UNION SELECT $1
+        SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1
       )`;
       params = [organizationId];
     } else if (role === 'coordinator') {
+      // Coordinator sees activity from assigned orgs + their sponsor's program
       where = `WHERE a.org_id IN (
-        SELECT org_id FROM coordinator_assignments WHERE coordinator_id = $1
-        UNION SELECT $2
+        SELECT id FROM organizations WHERE sponsor_id = $1
       )`;
-      params = [userId, organizationId];
+      params = [req.user.sponsorId];
     } else {
       where = `WHERE a.org_id = $1`;
       params = [organizationId];

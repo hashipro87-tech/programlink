@@ -7,12 +7,13 @@ const { logActivity, TYPES } = require('../services/activityService');
 async function listTasks(req, res) {
   try {
     const { organizationId, id: userId, role } = req.user;
+    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
     const { status, priority, category, assigned_to, limit = 100, offset = 0 } = req.query;
 
-    // Sponsors/coordinators see all tasks for their org
+    // Sponsors/coordinators see all tasks for their program
     // Sites/kitchens see only tasks assigned to them or created for their org
     let where = `WHERE t.org_id = $1`;
-    const params = [organizationId];
+    const params = [scopeId];
     let idx = 2;
 
     if (role === 'site' || role === 'kitchen') {
@@ -56,7 +57,8 @@ async function listTasks(req, res) {
 // ── POST /tasks ───────────────────────────────────────────────────────────────
 async function createTask(req, res) {
   try {
-    const { organizationId, id: userId } = req.user;
+    const { organizationId, id: userId, role } = req.user;
+    const scopeId = (role === 'coordinator') ? req.user.sponsorId : organizationId;
     const { title, description, due_date, priority = 'medium', status = 'pending', category, assigned_to } = req.body;
 
     if (!title) return res.status(400).json({ error: 'Title is required' });
@@ -65,7 +67,7 @@ async function createTask(req, res) {
       `INSERT INTO tasks (org_id, created_by, assigned_to, title, description, due_date, priority, status, category)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [organizationId, userId, assigned_to || null, title, description || null,
+      [scopeId, userId, assigned_to || null, title, description || null,
        due_date || null, priority, status, category || null]
     );
 
