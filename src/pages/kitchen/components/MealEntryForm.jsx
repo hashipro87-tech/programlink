@@ -237,10 +237,10 @@ export default function MealEntryForm() {
     if (preset === 'lastEntry' && recentMeals.length > 0) {
       const last = recentMeals[0];
       setCounts({
-        breakfast: last.breakfast_count ?? 0,
-        lunch:     last.lunch_count     ?? 0,
-        supper:    last.supper_count    ?? 0,
-        snack:     last.snack_count     ?? 0,
+        breakfast: last.breakfast ?? last.breakfast_count ?? 0,
+        lunch:     last.lunch     ?? last.lunch_count     ?? 0,
+        supper:    last.supper    ?? last.supper_count    ?? 0,
+        snack:     last.snack     ?? last.snack_count     ?? 0,
       });
       showToast(`Filled with ${last.date}'s counts`);
     }

@@ -16,6 +16,14 @@ exports.listMealCounts = async (req, res) => {
     if (req.user.role === 'site' || req.user.role === 'kitchen') {
       params.push(req.user.organizationId);
       query += ` AND (mc.site_id = $${params.length} OR mc.kitchen_id = $${params.length})`;
+    } else if (req.user.role === 'sponsor' || req.user.role === 'admin') {
+      // Scope to sites/kitchens owned by this sponsor
+      params.push(req.user.organizationId);
+      query += ` AND o.sponsor_id = $${params.length}`;
+    } else if (req.user.role === 'coordinator') {
+      // Scope to sites/kitchens under the coordinator's sponsor
+      params.push(req.user.sponsorId);
+      query += ` AND o.sponsor_id = $${params.length}`;
     }
     query += ' ORDER BY mc.date DESC';
     const { rows } = await pool.query(query, params);
