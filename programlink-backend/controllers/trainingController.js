@@ -28,8 +28,8 @@ async function listTrainings(req, res) {
   try {
     let orgFilter, params;
 
-    if (role === 'sponsor' || role === 'admin') {
-      // Sponsor sees all orgs under them, or a specific one
+    if (role === 'sponsor' || role === 'admin' || role === 'coordinator') {
+      // Sponsor/coordinator sees all orgs under them, or a specific one
       if (org_id) {
         // Verify org belongs to sponsor
         const { rows: [org] } = await pool.query(

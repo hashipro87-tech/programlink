@@ -191,8 +191,8 @@ async function updateItem(req, res) {
   }
 
   try {
-    // Check the item belongs to this user's org (sponsor sees all, site sees own)
-    const check = role === 'sponsor'
+    // Check the item belongs to this user's org (sponsor/coordinator sees all, site sees own)
+    const check = (role === 'sponsor' || role === 'coordinator')
       ? `AND r.sponsor_id = $2`
       : `AND ri.site_id = $2`;
 

@@ -26,15 +26,14 @@ async function listRecords(req, res) {
 
     let orgFilter, params;
 
-    if (role === 'sponsor' || role === 'admin') {
-      // Sponsor sees all their sites' and kitchens' records
-      const targetOrg = org_id || organizationId;
+    if (role === 'sponsor' || role === 'admin' || role === 'coordinator') {
+      // Sponsor/coordinator sees all their sites' and kitchens' records
+      const scopeId = org_id || organizationId;
       orgFilter = `pr.org_id IN (
-        SELECT id FROM organizations WHERE sponsor_id = (
-          SELECT sponsor_id FROM organizations WHERE id = $1
-        ) UNION SELECT $1
+        SELECT id FROM organizations WHERE sponsor_id = $1
+        UNION SELECT $1
       )`;
-      params = [targetOrg];
+      params = [scopeId];
     } else {
       orgFilter = `pr.org_id = $1`;
       params    = [organizationId];
@@ -312,8 +311,8 @@ async function getSummary(req, res) {
     const end    = new Date(y, m, 1).toISOString().split('T')[0];
 
     let orgFilter, params;
-    if (role === 'sponsor' || role === 'admin') {
-      orgFilter = `org_id IN (SELECT id FROM organizations WHERE sponsor_id = (SELECT sponsor_id FROM organizations WHERE id = $1) UNION SELECT $1)`;
+    if (role === 'sponsor' || role === 'admin' || role === 'coordinator') {
+      orgFilter = `org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1)`;
       params    = [organizationId, start, end];
     } else {
       orgFilter = `org_id = $1`;

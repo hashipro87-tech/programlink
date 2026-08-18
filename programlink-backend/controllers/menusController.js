@@ -64,9 +64,10 @@ async function listMenus(req, res) {
     const { organizationId, role } = req.user;
     const { org_id, limit = 12, offset = 0 } = req.query;
     let where, params;
-    if (role === 'sponsor' || role === 'admin') {
+    if (role === 'sponsor' || role === 'admin' || role === 'coordinator') {
+      const scopeId = (role === 'coordinator') ? (req.user.sponsorId ?? organizationId) : organizationId;
       where  = `WHERE m.org_id IN (SELECT id FROM organizations WHERE sponsor_id = $1 UNION SELECT $1)`;
-      params = [organizationId];
+      params = [scopeId];
     } else {
       where  = `WHERE m.org_id = $1`;
       params = [organizationId];
