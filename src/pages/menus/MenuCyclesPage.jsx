@@ -26,7 +26,13 @@ function weekRange(start, end) {
 
 function isActive(schedule) {
   const today = new Date().toISOString().split('T')[0];
-  return schedule.start_date <= today && schedule.end_date >= today;
+  const perpetual = !schedule.end_date || schedule.end_date >= '2099-01-01';
+  return schedule.start_date <= today && (perpetual || schedule.end_date >= today);
+}
+
+function fmtEndDate(d) {
+  if (!d || d >= '2099-01-01') return 'No end date';
+  return fmtDate(d);
 }
 
 // ── Apply Schedule Modal ───────────────────────────────────────────────────────
@@ -520,9 +526,11 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
               }`}>
                 <Clock className={`w-3.5 h-3.5 flex-shrink-0 ${isActive(s) ? 'text-green-500' : 'text-gray-400'}`} />
                 <span className={`font-medium ${isActive(s) ? 'text-green-700' : 'text-gray-600'}`}>
-                  {fmtDate(s.start_date)} → {fmtDate(s.end_date)}
+                  {fmtDate(s.start_date)} → {fmtEndDate(s.end_date)}
                 </span>
-                <span className="text-gray-400">· {weekRange(s.start_date, s.end_date)}</span>
+                {s.end_date && s.end_date < '2099-01-01' && (
+                  <span className="text-gray-400">· {weekRange(s.start_date, s.end_date)}</span>
+                )}
                 {s.notes && <span className="text-gray-400 truncate ml-1">· {s.notes}</span>}
                 <button onClick={() => onScheduleRemove(s.id)} className="ml-auto text-gray-300 hover:text-red-400">
                   <X className="w-3.5 h-3.5" />

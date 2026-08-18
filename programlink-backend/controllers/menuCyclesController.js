@@ -41,8 +41,7 @@ async function listCycles(req, res) {
         (
           SELECT json_agg(cs ORDER BY cs.start_date)
           FROM cycle_schedules cs
-          WHERE cs.cycle_id = mc.id AND cs.is_active = TRUE
-          ORDER BY cs.start_date
+          WHERE cs.cycle_id = mc.id
         ) AS schedules
       FROM menu_cycles mc
       WHERE mc.org_id = $1
@@ -80,11 +79,11 @@ async function createCycle(req, res) {
       );
     }
 
-    // If start_date provided, auto-create a perpetual active schedule
+    // If start_date provided, auto-create a long-running active schedule (runs until 2099)
     if (start_date) {
       await pool.query(
-        `INSERT INTO cycle_schedules (cycle_id, org_id, start_date, end_date, is_active)
-         VALUES ($1,$2,$3,NULL,TRUE)`,
+        `INSERT INTO cycle_schedules (cycle_id, org_id, start_date, end_date, notes, is_active)
+         VALUES ($1,$2,$3,'2099-12-31','Auto-activated',TRUE)`,
         [cycle.id, organizationId, start_date]
       );
     }
