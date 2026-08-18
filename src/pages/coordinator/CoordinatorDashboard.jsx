@@ -15,7 +15,7 @@ import {
   AlertCircle, ChevronRight, Send, CheckSquare, X,
   TrendingUp, ShieldCheck, Activity, Users, CalendarCheck,
   Truck, ChefHat, BookOpen, RotateCcw, GraduationCap,
-  FileOutput, DollarSign, Repeat, Globe,
+  FileOutput, Repeat, Globe, Search,
 } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import api from '../../services/api';
@@ -40,7 +40,6 @@ import MealOrdersPage                from '../sponsor/MealOrdersPage';
 import SponsorProductionRecordsPage  from '../sponsor/SponsorProductionRecordsPage';
 import MenuBuilderPage               from '../menus/MenuBuilderPage';
 import MenuCyclesPage                from '../menus/MenuCyclesPage';
-import ClaimsPage                    from '../sponsor/ClaimsPage';
 import StateRuleBookPage             from '../sponsor/StateRuleBookPage';
 import RenewalWizardPage             from '../sponsor/RenewalWizardPage';
 import TrainingPage                  from '../sponsor/TrainingPage';
@@ -50,41 +49,37 @@ const NAV_ITEMS = [
   { label: 'Overview',       path: '/dashboard/coordinator',               icon: CheckCircle     },
 
   { sectionLabel: 'Assignments' },
-  { label: 'Applications',   path: '/dashboard/coordinator/applications',  icon: ClipboardList   },
-  { label: 'My Sites',       path: '/dashboard/coordinator/sites',         icon: Building2       },
-  { label: 'My Kitchens',    path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
+  { label: 'Applications',      path: '/dashboard/coordinator/applications',  icon: ClipboardList   },
+  { label: 'My Sites',          path: '/dashboard/coordinator/sites',         icon: Building2       },
+  { label: 'My Kitchens',       path: '/dashboard/coordinator/kitchens',      icon: UtensilsCrossed },
 
   { sectionLabel: 'Program Data' },
   { label: 'Enrollment Review', path: '/dashboard/coordinator/enrollment',    icon: Users           },
-  { label: 'Children',          path: '/dashboard/coordinator/children',       icon: Users           },
-  { label: 'Attendance',        path: '/dashboard/coordinator/attendance',     icon: CalendarCheck   },
   { label: 'Meal Counts',       path: '/dashboard/coordinator/meal-counts',   icon: ClipboardList   },
-  { label: 'Menus',             path: '/dashboard/coordinator/menus',          icon: BookOpen        },
-  { label: 'Menu Cycles',       path: '/dashboard/coordinator/menu-cycles',    icon: Repeat          },
+  { label: 'Documents',         path: '/dashboard/coordinator/compliance',    icon: FileText        },
+  { label: 'Menus',             path: '/dashboard/coordinator/menus',         icon: BookOpen        },
+  { label: 'Menu Cycles',       path: '/dashboard/coordinator/menu-cycles',   icon: Repeat          },
 
   { sectionLabel: 'Operations' },
-  { label: 'Deliveries',        path: '/dashboard/coordinator/deliveries',     icon: Truck           },
-  { label: 'Production Records',path: '/dashboard/coordinator/production',     icon: ChefHat         },
-
-  { sectionLabel: 'Finance' },
-  { label: 'Claims',            path: '/dashboard/coordinator/claims',         icon: DollarSign      },
+  { label: 'Deliveries',        path: '/dashboard/coordinator/deliveries',    icon: Truck           },
+  { label: 'Production Records',path: '/dashboard/coordinator/production',    icon: ChefHat         },
 
   { sectionLabel: 'Compliance' },
-  { label: 'Compliance',        path: '/dashboard/coordinator/compliance',     icon: ShieldCheck     },
-  { label: 'Renewals',          path: '/dashboard/coordinator/renewals',       icon: RotateCcw       },
-  { label: 'Staff Training',    path: '/dashboard/coordinator/training',       icon: GraduationCap   },
-  { label: 'Form Generator',    path: '/dashboard/coordinator/forms',          icon: FileOutput      },
-  { label: 'State Rule Book',   path: '/dashboard/coordinator/state-rules',    icon: Globe           },
+  { label: 'State Rule Book',   path: '/dashboard/coordinator/state-rules',   icon: Globe           },
+  { label: 'Compliance',        path: '/dashboard/coordinator/compliance',    icon: ShieldCheck     },
+  { label: 'Inspections',       path: '/dashboard/coordinator/inspections',   icon: Search          },
+  { label: 'Renewals',          path: '/dashboard/coordinator/renewals',      icon: RotateCcw       },
+  { label: 'Staff Training',    path: '/dashboard/coordinator/training',      icon: GraduationCap   },
+  { label: 'Form Generator',    path: '/dashboard/coordinator/forms',         icon: FileOutput      },
 
   { sectionLabel: 'Work' },
-  { label: 'Tasks',             path: '/dashboard/coordinator/tasks',          icon: CheckSquare     },
-  { label: 'Inspections',       path: '/dashboard/coordinator/inspections',    icon: ShieldCheck     },
-  { label: 'Activity',          path: '/dashboard/coordinator/activity',       icon: Activity        },
+  { label: 'Tasks',             path: '/dashboard/coordinator/tasks',         icon: CheckSquare     },
+  { label: 'Activity',          path: '/dashboard/coordinator/activity',      icon: Activity        },
 
   { divider: true },
-  { label: 'Messages',          path: '/dashboard/coordinator/messages',       icon: MessageSquare   },
-  { label: 'Notifications',     path: '/dashboard/coordinator/notifications',  icon: Bell            },
-  { label: 'Settings',          path: '/dashboard/coordinator/settings',       icon: Settings        },
+  { label: 'Messages',          path: '/dashboard/coordinator/messages',      icon: MessageSquare   },
+  { label: 'Notifications',     path: '/dashboard/coordinator/notifications', icon: Bell            },
+  { label: 'Settings',          path: '/dashboard/coordinator/settings',      icon: Settings        },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -868,7 +863,6 @@ export default function CoordinatorDashboard() {
               <Route path="menu-cycles"    element={<MenuCyclesPage />} />
               <Route path="deliveries"     element={<MealOrdersPage />} />
               <Route path="production"     element={<SponsorProductionRecordsPage />} />
-              <Route path="claims"         element={<ClaimsPage />} />
               <Route path="compliance"     element={<CompliancePage />} />
               <Route path="renewals"       element={<RenewalWizardPage />} />
               <Route path="training"       element={<TrainingPage />} />
