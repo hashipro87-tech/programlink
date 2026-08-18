@@ -678,9 +678,11 @@ function SiteDeliveriesPage() {
 
   const today      = todayISO();
   const tomorrow   = tomorrowISO();
-  const todayRoutes = routes.filter((r) => r.date === today && r.status !== 'cancelled');
-  const upcoming   = routes.filter((r) => r.date > today && r.status !== 'cancelled');
-  const past       = routes.filter((r) => r.date < today || r.status === 'delivered').slice(0, 5);
+  // Normalize: backend DATE columns may serialize as "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm:ssZ"
+  const rDate      = (r) => (r.date ?? '').slice(0, 10);
+  const todayRoutes = routes.filter((r) => rDate(r) === today && r.status !== 'cancelled');
+  const upcoming   = routes.filter((r) => rDate(r) > today && r.status !== 'cancelled');
+  const past       = routes.filter((r) => rDate(r) < today).slice(0, 5);
 
   const todayDelivery = todayRoutes[0] ?? null;
   const todayStops    = todayRoutes.flatMap((r) => r.stops ?? []);
@@ -693,9 +695,10 @@ function SiteDeliveriesPage() {
   // This week total
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekStr   = weekStart.toISOString().split('T')[0];
+  const ws = weekStart;
+  const weekStr = `${ws.getFullYear()}-${String(ws.getMonth()+1).padStart(2,'0')}-${String(ws.getDate()).padStart(2,'0')}`;
   const weekMeals = routes
-    .filter((r) => r.date >= weekStr)
+    .filter((r) => rDate(r) >= weekStr)
     .flatMap((r) => r.stops ?? [])
     .reduce((s, st) => s + (st.meal_count || 0), 0);
 
@@ -830,7 +833,7 @@ function SiteDeliveriesPage() {
       })()}
 
       {/* Delivery timeline */}
-      {routes.filter(r => r.date >= todayISO()).map((route) => {
+      {routes.filter(r => rDate(r) >= today).map((route) => {
         const stops     = route.stops ?? [];
         const total     = stops.reduce((s, st) => s + (st.meal_count || 0), 0);
         const isToday   = route.date === today;
