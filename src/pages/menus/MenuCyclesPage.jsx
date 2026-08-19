@@ -410,6 +410,189 @@ function CreateCycleWizard({ menus, sites, onClose, onCreated }) {
   );
 }
 
+// ── Compliance validation (mirrors MenuBuilderPage logic) ─────────────────────
+const MEAL_REQS = {
+  breakfast: ['grain','milk','fruit'],
+  lunch:     ['grain','milk','protein','vegetable','fruit'],
+  snack:     [], // any 2 different components
+  supper:    ['grain','milk','protein','vegetable','fruit'],
+};
+function validateMealClient(items, day, meal) {
+  const mealItems = items.filter(i => i.day_of_week === day && i.meal_type === meal);
+  if (!mealItems.length) return { ok: false, missing: [], empty: true };
+  const comps = new Set(mealItems.map(i => i.component));
+  if (meal === 'snack') {
+    const ok = comps.size >= 2;
+    return { ok, missing: ok ? [] : ['need 2 different components'], empty: false };
+  }
+  const required = MEAL_REQS[meal] || [];
+  const missing = required.filter(c => !comps.has(c));
+  return { ok: missing.length === 0, missing, empty: false };
+}
+
+// ── Week Menu Grid (inline compliance view) ───────────────────────────────────
+const GRID_DAYS  = [
+  { n:1, label:'Mon' }, { n:2, label:'Tue' }, { n:3, label:'Wed' },
+  { n:4, label:'Thu' }, { n:5, label:'Fri' },
+];
+const GRID_MEALS = ['breakfast','lunch','snack','supper'];
+const COMP_COLORS = {
+  grain:'bg-yellow-100 text-yellow-800', milk:'bg-blue-100 text-blue-800',
+  protein:'bg-red-100 text-red-800', fruit:'bg-green-100 text-green-800',
+  vegetable:'bg-emerald-100 text-emerald-800', other:'bg-gray-100 text-gray-600',
+};
+
+function WeekMenuGrid({ menuId, onOpenInBuilder }) {
+  const [menuItems, setMenuItems] = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [editCell,  setEditCell]  = useState(null); // { day, meal }
+  const [newFood,   setNewFood]   = useState('');
+  const [newComp,   setNewComp]   = useState('grain');
+  const [saving,    setSaving]    = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/menus/${menuId}`);
+      setMenuItems(data.items || []);
+    } catch { setMenuItems([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [menuId]);
+
+  const handleAddItem = async () => {
+    if (!newFood.trim() || !editCell) return;
+    setSaving(true);
+    try {
+      await api.post(`/menus/${menuId}/items`, {
+        day_of_week: editCell.day, meal_type: editCell.meal,
+        food_item: newFood.trim(), component: newComp, is_whole_grain: false,
+      });
+      await load();
+      setNewFood(''); setEditCell(null);
+    } catch { /* ignore */ } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (item) => {
+    try {
+      await api.delete(`/menus/items/${item.id}`);
+      setMenuItems(p => p.filter(i => i.id !== item.id));
+    } catch { /* ignore */ }
+  };
+
+  if (loading) return <div className="py-4 text-center text-xs text-gray-400 animate-pulse">Loading menu…</div>;
+
+  const issues = [];
+  for (const d of GRID_DAYS) {
+    for (const m of GRID_MEALS) {
+      const v = validateMealClient(menuItems, d.n, m);
+      if (!v.ok && !v.empty) issues.push(`${d.label} ${m}: missing ${v.missing.join(', ')}`);
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-100 bg-gray-50/50 p-4">
+      {/* Compliance summary */}
+      {issues.length > 0 ? (
+        <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-amber-800">{issues.length} compliance issue{issues.length > 1 ? 's' : ''}</p>
+            <p className="text-xs text-amber-700 mt-0.5">{issues.slice(0, 2).join(' · ')}{issues.length > 2 ? ` +${issues.length-2} more` : ''}</p>
+          </div>
+        </div>
+      ) : menuItems.length > 0 ? (
+        <div className="mb-3 bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-green-600" />
+          <p className="text-xs font-bold text-green-800">All meals compliant</p>
+        </div>
+      ) : null}
+
+      {/* Mon–Fri grid */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr>
+              <th className="text-left pr-3 pb-2 text-gray-400 font-semibold w-20">Meal</th>
+              {GRID_DAYS.map(d => (
+                <th key={d.n} className="text-center pb-2 text-gray-500 font-semibold px-2">{d.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {GRID_MEALS.map(meal => (
+              <tr key={meal}>
+                <td className="pr-3 py-1.5 text-gray-500 font-medium capitalize align-top">{meal}</td>
+                {GRID_DAYS.map(d => {
+                  const v = validateMealClient(menuItems, d.n, meal);
+                  const cellItems = menuItems.filter(i => i.day_of_week === d.n && i.meal_type === meal);
+                  const isEditing = editCell?.day === d.n && editCell?.meal === meal;
+                  const bg = v.empty ? 'bg-gray-100 border-gray-200'
+                           : v.ok   ? 'bg-green-50 border-green-200'
+                                    : 'bg-red-50 border-red-200';
+                  return (
+                    <td key={d.n} className={`px-2 py-1.5 border rounded-lg align-top min-w-[100px] ${bg}`}
+                      onClick={() => !isEditing && setEditCell({ day: d.n, meal })}>
+                      <div className="space-y-0.5">
+                        {cellItems.map(it => (
+                          <div key={it.id} className="flex items-center gap-1 group">
+                            <span className={`text-[10px] px-1 rounded font-medium ${COMP_COLORS[it.component] || COMP_COLORS.other}`}>
+                              {it.component?.slice(0,4)}
+                            </span>
+                            <span className="text-[11px] text-gray-700 flex-1 leading-tight">{it.food_item}</span>
+                            <button onClick={e => { e.stopPropagation(); handleDelete(it); }}
+                              className="hidden group-hover:block text-red-400 hover:text-red-600 ml-auto flex-shrink-0">
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {v.empty && <span className="text-[10px] text-gray-400 italic">empty</span>}
+                        {!v.ok && !v.empty && (
+                          <p className="text-[10px] text-red-500">Missing: {v.missing.join(', ')}</p>
+                        )}
+                      </div>
+                      {isEditing && (
+                        <div className="mt-1 space-y-1" onClick={e => e.stopPropagation()}>
+                          <input autoFocus value={newFood} onChange={e => setNewFood(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleAddItem()}
+                            placeholder="Food item…"
+                            className="w-full text-[11px] border border-gray-300 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+                          <select value={newComp} onChange={e => setNewComp(e.target.value)}
+                            className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5">
+                            {['grain','milk','protein','fruit','vegetable'].map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-1">
+                            <button onClick={handleAddItem} disabled={saving || !newFood.trim()}
+                              className="flex-1 text-[10px] bg-brand-600 text-white rounded py-0.5 disabled:opacity-40">
+                              {saving ? '…' : '+ Add'}
+                            </button>
+                            <button onClick={() => { setEditCell(null); setNewFood(''); }}
+                              className="text-[10px] text-gray-500 hover:text-gray-700 px-1">✕</button>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-[10px] text-gray-400">Click any cell to add items · Hover an item to delete</p>
+        <button onClick={onOpenInBuilder}
+          className="text-xs font-semibold text-brand-600 hover:text-brand-800 flex items-center gap-1">
+          Open in Menu Builder <ArrowRight className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Import Week Menu Modal ─────────────────────────────────────────────────────
 function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
   const [step,      setStep]      = useState('upload'); // upload|extracting|review|done
@@ -600,6 +783,7 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
   const [mode,             setMode]            = useState('pick'); // 'pick' | 'build'
   const [showImport,       setShowImport]      = useState(false);
   const [showBlankConfirm, setShowBlankConfirm] = useState(false);
+  const [showGrid,         setShowGrid]        = useState(false);
   const [search,           setSearch]          = useState('');
   const [menuName,         setMenuName]        = useState(`Week ${week.week_number} Menu`);
   const [cells,            setCells]           = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
@@ -660,6 +844,13 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
           ) : (
             <p className="text-xs text-gray-400 italic">No menu assigned</p>
           )}
+          {week.menu_id && week.item_count > 0 && (
+            <button onClick={() => setShowGrid(g => !g)}
+              className="text-xs text-brand-600 hover:underline font-medium flex items-center gap-1">
+              {showGrid ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
+              {showGrid ? 'Hide menu' : 'Review menu'}
+            </button>
+          )}
           {week.menu_id && week.item_count === 0 && (
             <a href="/dashboard/sponsor/menus"
               className="text-xs text-brand-600 hover:underline font-medium">
@@ -688,12 +879,18 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
           </button>
         </div>
       </div>
+      {week.menu_id && showGrid && (
+        <WeekMenuGrid
+          menuId={week.menu_id}
+          onOpenInBuilder={() => window.location.href = '/dashboard/sponsor/menus'}
+        />
+      )}
       {showImport && (
         <ImportWeekMenuModal
           week={week}
           cycleId={cycleId}
           onClose={() => setShowImport(false)}
-          onRefresh={() => { setShowImport(false); onRefresh(); }}
+          onRefresh={() => { setShowImport(false); setShowGrid(true); onRefresh(); }}
         />
       )}
 
