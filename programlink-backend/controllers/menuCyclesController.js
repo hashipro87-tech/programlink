@@ -242,12 +242,17 @@ async function resolveMenuForDate(req, res) {
 
 // Internal helper — also called by productionRecordsController prefillPreview
 async function _resolveMenu(orgId, date) {
-  // Find active schedule that covers this date
+  // Find active schedule that covers this date.
+  // Also check the sponsor's cycles when orgId is a kitchen/site (sub-org).
   const schedRes = await pool.query(`
     SELECT cs.*, mc.week_count, mc.name AS cycle_name
     FROM cycle_schedules cs
     JOIN menu_cycles mc ON mc.id = cs.cycle_id
-    WHERE cs.org_id = $1
+    WHERE cs.org_id IN (
+      $1,
+      -- sponsor org (if orgId is a kitchen/site, look up its sponsor)
+      (SELECT COALESCE(sponsor_id, $1) FROM organizations WHERE id = $1 LIMIT 1)
+    )
       AND cs.is_active = TRUE
       AND cs.start_date <= $2::date
       AND (cs.end_date IS NULL OR cs.end_date >= $2::date)
