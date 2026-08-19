@@ -460,8 +460,9 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
   // Derive the role from the current URL and build the Menu Builder link
   const openInBuilder = () => {
     const role = window.location.pathname.includes('/coordinator/') ? 'coordinator' : 'sponsor';
-    const orgParam = menuOrg ? `?org=${menuOrg}` : '';
-    window.location.href = `/dashboard/${role}/menus${orgParam}`;
+    // Don't pre-select org — cycle menus belong to the sponsor root org, not a specific kitchen.
+    // Let the user navigate freely once in Menu Builder.
+    window.location.href = `/dashboard/${role}/menus`;
   };
 
   const load = async () => {
