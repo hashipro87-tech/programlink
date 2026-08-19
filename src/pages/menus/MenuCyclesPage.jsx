@@ -351,7 +351,7 @@ function CreateCycleWizard({ menus, sites, onClose, onCreated }) {
                             <button onClick={() => setNewMenuNames(p => { const c={...p}; delete c[n]; return c; })}
                               className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
                           </div>
-                          <p className="text-xs text-gray-400">A blank menu will be created — add food items in Menu Builder later.</p>
+                          <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">⚠️ A blank menu will be created — add food items in Menu Builder later.</p>
                         </div>
                       ) : (
                         <select
@@ -841,8 +841,8 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
         {/* Action row */}
         <div className="flex items-center gap-2 mt-4">
           <button onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 font-medium">
-            {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            className="flex items-center gap-1.5 text-sm text-brand-700 hover:text-brand-900 font-bold">
+            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             {expanded ? 'Hide weeks' : 'Manage weeks'}
           </button>
           <div className="ml-auto flex items-center gap-2">
