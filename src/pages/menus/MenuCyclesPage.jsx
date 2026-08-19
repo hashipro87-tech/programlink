@@ -439,21 +439,31 @@ function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
     }
   };
 
+  const MEAL_NORM = { am_snack: 'snack', pm_snack: 'snack', morning_snack: 'snack', afternoon_snack: 'snack' };
+  const COMP_NORM = { dairy: 'milk', 'meat/alt': 'protein', meat: 'protein', other: 'grain', protein_alt: 'protein' };
+  const VALID_MEALS = ['breakfast','lunch','snack','supper'];
+  const VALID_COMPS = ['milk','grain','protein','fruit','vegetable'];
+
   const handleSave = async () => {
     const kept = items.filter(it => it._keep);
     if (!kept.length) { setError('No items selected.'); return; }
     setSaving(true); setError('');
     try {
       const { data: newMenu } = await api.post('/menus/create-named', { name: menuName.trim() });
-      // Save in batches of 5 to avoid overwhelming the connection pool
+      // Normalize meal_type + component to values the DB accepts, then batch in groups of 5
+      const normalized = kept.map(it => {
+        const mt = MEAL_NORM[it.meal_type] || (VALID_MEALS.includes(it.meal_type) ? it.meal_type : 'snack');
+        const cp = COMP_NORM[it.component] || (VALID_COMPS.includes(it.component) ? it.component : 'grain');
+        return { ...it, meal_type: mt, component: cp };
+      });
       const BATCH = 5;
-      for (let i = 0; i < kept.length; i += BATCH) {
-        await Promise.all(kept.slice(i, i + BATCH).map(it =>
+      for (let i = 0; i < normalized.length; i += BATCH) {
+        await Promise.all(normalized.slice(i, i + BATCH).map(it =>
           api.post(`/menus/${newMenu.id}/items`, {
             day_of_week:    it.day_of_week,
             meal_type:      it.meal_type,
             food_item:      it.food_item,
-            component:      it.component || 'grain',
+            component:      it.component,
             is_whole_grain: it.is_whole_grain || false,
           })
         ));
