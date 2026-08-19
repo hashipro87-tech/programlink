@@ -1431,9 +1431,11 @@ export default function MenuBuilderPage() {
   const loadMenu = useCallback(async () => {
     setLoading(true);
     try {
+      // Resolve cycle for the SELECTED week (not just today)
+      const cycleParam = `?date=${weekStart}${selectedOrg ? `&org_id=${selectedOrg}` : ''}`;
       const [listRes, cycleRes] = await Promise.all([
         api.get('/menus?limit=50'),
-        api.get(`/menu-cycles/current${selectedOrg ? `?org_id=${selectedOrg}` : ''}`).catch(() => ({ data: {} })),
+        api.get(`/menu-cycles/resolve${cycleParam}`).catch(() => ({ data: {} })),
       ]);
       setActiveCycle(cycleRes.data?.cycle_name ? cycleRes.data : null);
 
@@ -1447,6 +1449,16 @@ export default function MenuBuilderPage() {
         setItems(detailRes.data.items || []);
         setHasInfant(detailRes.data.menu?.has_infant || false);
         api.get(`/menus/${existing.id}/comments`).then(r => setComments(r.data.comments || [])).catch(() => {});
+      } else if (cycleRes.data?.menu_id) {
+        // No menu for this week yet, but the active cycle has one — load its items
+        const detailRes = await api.get(`/menus/${cycleRes.data.menu_id}`).catch(() => null);
+        if (detailRes) {
+          setMenu({ ...detailRes.data.menu, _from_cycle: true, week_start: weekStart });
+          setItems(detailRes.data.items || []);
+          setHasInfant(detailRes.data.menu?.has_infant || false);
+        } else {
+          setMenu(null); setItems([]); setHasInfant(false); setComments([]);
+        }
       } else {
         setMenu(null); setItems([]); setHasInfant(false); setComments([]);
       }
@@ -1865,16 +1877,13 @@ export default function MenuBuilderPage() {
         <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-xl px-4 py-2.5 mb-3">
           <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse flex-shrink-0" />
           <span className="text-sm text-brand-700">
-            <span className="font-semibold">🔄 {activeCycle.week_label}</span>
-            {activeCycle.week_start_date && (
-              <> &nbsp;·&nbsp; {new Date(activeCycle.week_start_date + 'T00:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' })} – {new Date(activeCycle.week_end_date + 'T00:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'UTC' })}</>
-            )}
-            &nbsp;·&nbsp; <span className="font-medium">{activeCycle.cycle_name}</span>
+            <span className="font-semibold">🔄 {activeCycle.cycle_name}</span>
+            &nbsp;·&nbsp; <span className="font-medium">{activeCycle.week_label}</span>
           </span>
-          <span className="text-xs text-brand-400 ml-1">— Automatically selected</span>
-          {activeCycle.menu_name && (
-            <span className="ml-auto text-xs text-brand-500 font-medium">Menu: {activeCycle.menu_name}</span>
-          )}
+          {activeCycle.menu_name
+            ? <span className="text-xs text-brand-500 font-medium ml-1">· {activeCycle.menu_name} {menu?._from_cycle ? '(loaded from cycle)' : ''}</span>
+            : <span className="text-xs text-amber-500 ml-1">· No menu assigned for this week yet</span>
+          }
         </div>
       )}
 

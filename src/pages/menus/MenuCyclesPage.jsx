@@ -172,11 +172,12 @@ function ActiveCycleCard({ current }) {
 }
 
 // ── Create Cycle Wizard (2-step) ───────────────────────────────────────────────
-function CreateCycleWizard({ menus, onClose, onCreated }) {
+function CreateCycleWizard({ menus, sites, onClose, onCreated }) {
   const [step,       setStep]      = useState(1); // 1 = info, 2 = assign
   const [name,       setName]      = useState('');
   const [startDate,  setStartDate] = useState(nextMonday);
   const [weekCount,  setWeekCount] = useState(4);
+  const [siteId,     setSiteId]    = useState('');
   const [assigned,   setAssigned]  = useState({}); // { weekNum: menuId }
   const [saving,     setSaving]    = useState(false);
   const [error,      setError]     = useState('');
@@ -205,10 +206,12 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
     if (!startDate)   { setError('Start date is required.'); return; }
     setSaving(true); setError('');
     try {
+      const siteName = sites.find(s => s.id === siteId)?.name || '';
       const { data: cycle } = await api.post('/menu-cycles', {
         name: name.trim(),
         week_count: weekCount,
         start_date: startDate,
+        description: siteId ? `site:${siteId}:${siteName}` : '',
       });
 
       // Resolve assignments: create new menus for typed names, use existing for selected ids
@@ -292,6 +295,17 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
                 <p className="text-xs text-gray-400 mt-1">Should be a Monday. The system calculates all week dates from here.</p>
               </div>
 
+              {sites.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Which Site or Kitchen? <span className="text-gray-300 font-normal">(optional)</span></label>
+                  <select value={siteId} onChange={e => setSiteId(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <option value="">All sites / not site-specific</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Number of Weeks</label>
                 <div className="flex flex-wrap gap-2">
@@ -323,17 +337,21 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
                     </div>
                     <div className="flex-1 space-y-1.5">
                       {newMenuNames[n] !== undefined ? (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            autoFocus
-                            placeholder={`e.g. Week ${n} Menu`}
-                            value={newMenuNames[n]}
-                            onChange={e => setNewMenuNames(p => ({ ...p, [n]: e.target.value }))}
-                            className="flex-1 text-sm border border-brand-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-                          />
-                          <button onClick={() => setNewMenuNames(p => { const c={...p}; delete c[n]; return c; })}
-                            className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-brand-600">Type the name for this new menu:</p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              autoFocus
+                              placeholder={`e.g. Fall Week ${n} Menu`}
+                              value={newMenuNames[n]}
+                              onChange={e => setNewMenuNames(p => ({ ...p, [n]: e.target.value }))}
+                              className="flex-1 text-sm border border-brand-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                            />
+                            <button onClick={() => setNewMenuNames(p => { const c={...p}; delete c[n]; return c; })}
+                              className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                          </div>
+                          <p className="text-xs text-gray-400">A blank menu will be created — add food items in Menu Builder later.</p>
                         </div>
                       ) : (
                         <select
@@ -501,7 +519,11 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
                 </span>
               )}
             </div>
-            {cycle.description && <p className="text-xs text-gray-500 mt-0.5">{cycle.description}</p>}
+            {cycle.description && (() => {
+            const m = cycle.description.match(/^site:[^:]+:(.+)$/);
+            const siteName = m ? m[1] : cycle.description;
+            return siteName ? <p className="text-xs text-gray-500 mt-0.5">📍 {siteName}</p> : null;
+          })()}
             <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
               <span>{totalWeeks} weeks</span>
               <span>·</span>
@@ -590,6 +612,7 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
 export default function MenuCyclesPage() {
   const [cycles,       setCycles]       = useState([]);
   const [menus,        setMenus]        = useState([]);
+  const [sites,        setSites]        = useState([]);
   const [currentCycle, setCurrentCycle] = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [showNew,      setShowNew]      = useState(false);
@@ -598,14 +621,16 @@ export default function MenuCyclesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [cycRes, menuRes, curRes] = await Promise.all([
+      const [cycRes, menuRes, curRes, siteRes] = await Promise.all([
         api.get('/menu-cycles'),
         api.get('/menus?limit=200'),
         api.get('/menu-cycles/current').catch(() => ({ data: {} })),
+        api.get('/organizations?type=site&limit=200').catch(() => ({ data: {} })),
       ]);
       setCycles(cycRes.data.cycles || []);
       setMenus(menuRes.data.menus || []);
       setCurrentCycle(curRes.data);
+      setSites(siteRes.data.organizations || []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -707,6 +732,7 @@ export default function MenuCyclesPage() {
       {showNew && (
         <CreateCycleWizard
           menus={menus}
+          sites={sites}
           onClose={() => setShowNew(false)}
           onCreated={() => { setShowNew(false); load(); }}
         />
