@@ -445,20 +445,24 @@ function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
     setSaving(true); setError('');
     try {
       const { data: newMenu } = await api.post('/menus/create-named', { name: menuName.trim() });
-      await Promise.all(kept.map(it =>
-        api.post(`/menus/${newMenu.id}/items`, {
-          day_of_week: it.day_of_week,
-          meal_type:   it.meal_type,
-          food_item:   it.food_item,
-          component:   it.component || 'grain',
-          is_whole_grain: it.is_whole_grain || false,
-        })
-      ));
+      // Save in batches of 5 to avoid overwhelming the connection pool
+      const BATCH = 5;
+      for (let i = 0; i < kept.length; i += BATCH) {
+        await Promise.all(kept.slice(i, i + BATCH).map(it =>
+          api.post(`/menus/${newMenu.id}/items`, {
+            day_of_week:    it.day_of_week,
+            meal_type:      it.meal_type,
+            food_item:      it.food_item,
+            component:      it.component || 'grain',
+            is_whole_grain: it.is_whole_grain || false,
+          })
+        ));
+      }
       await api.put(`/menu-cycles/${cycleId}/weeks/${week.week_number}`, { menu_id: newMenu.id });
       setStep('done');
       onRefresh();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save.');
+      setError(err.response?.data?.error || err.message || 'Failed to save. Please try again.');
     } finally { setSaving(false); }
   };
 
@@ -531,7 +535,6 @@ function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
                   </div>
                 );
               })}
-              {error && <p className="text-xs text-red-600 bg-red-50 px-4 py-2.5 rounded-xl">{error}</p>}
             </div>
           )}
 
@@ -544,27 +547,34 @@ function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
           )}
         </div>
 
-        <div className="flex justify-end gap-3 px-6 pb-5 flex-shrink-0">
-          {step === 'done'
-            ? <button onClick={onClose} className="px-5 py-2 text-sm font-bold text-white bg-brand-600 rounded-xl">Done</button>
-            : step === 'review'
-            ? <>
-                <button onClick={() => setStep('upload')} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">← Back</button>
-                <button onClick={handleSave} disabled={saving || !items.filter(i=>i._keep).length}
-                  className="px-5 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40">
-                  {saving ? 'Saving…' : `✓ Save ${items.filter(i=>i._keep).length} Items & Assign`}
-                </button>
-              </>
-            : step === 'upload'
-            ? <>
-                <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
-                <button onClick={handleExtract} disabled={!file}
-                  className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40">
-                  Extract Menu →
-                </button>
-              </>
-            : null
-          }
+        <div className="px-6 pb-5 flex-shrink-0 space-y-3">
+          {error && (
+            <p className="text-xs text-red-700 font-medium bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl">
+              ⚠️ {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            {step === 'done'
+              ? <button onClick={onClose} className="px-5 py-2 text-sm font-bold text-white bg-brand-600 rounded-xl">Done</button>
+              : step === 'review'
+              ? <>
+                  <button onClick={() => { setStep('upload'); setError(''); }} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">← Back</button>
+                  <button onClick={handleSave} disabled={saving || !items.filter(i=>i._keep).length}
+                    className="px-5 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40 min-w-[180px]">
+                    {saving ? 'Saving…' : `✓ Save ${items.filter(i=>i._keep).length} Items & Assign`}
+                  </button>
+                </>
+              : step === 'upload'
+              ? <>
+                  <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+                  <button onClick={handleExtract} disabled={!file}
+                    className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40">
+                    Extract Menu →
+                  </button>
+                </>
+              : null
+            }
+          </div>
         </div>
       </div>
     </div>
