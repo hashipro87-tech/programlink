@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import {
   FolderOpen, Plus, Calendar, ChevronDown, ChevronRight,
   Trash2, CheckCircle2, Edit2, X, AlertTriangle, Clock,
-  Link2, Unlink, ArrowRight,
+  Link2, Unlink, ArrowRight, Upload,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -410,17 +410,179 @@ function CreateCycleWizard({ menus, sites, onClose, onCreated }) {
   );
 }
 
+// ── Import Week Menu Modal ─────────────────────────────────────────────────────
+function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
+  const [step,      setStep]      = useState('upload'); // upload|extracting|review|done
+  const [file,      setFile]      = useState(null);
+  const [menuName,  setMenuName]  = useState(`Week ${week.week_number} Menu`);
+  const [items,     setItems]     = useState([]);
+  const [error,     setError]     = useState('');
+  const [saving,    setSaving]    = useState(false);
+
+  const handleFile = e => { if (e.target.files[0]) setFile(e.target.files[0]); };
+
+  const handleExtract = async () => {
+    if (!file) { setError('Please select a file first.'); return; }
+    setStep('extracting'); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data } = await api.post('/menus/import/extract', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const extracted = data.items || [];
+      setItems(extracted.map((it, i) => ({ ...it, _id: i, _keep: true })));
+      setStep('review');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Extraction failed. Try a different file.');
+      setStep('upload');
+    }
+  };
+
+  const handleSave = async () => {
+    const kept = items.filter(it => it._keep);
+    if (!kept.length) { setError('No items selected.'); return; }
+    setSaving(true); setError('');
+    try {
+      const { data: newMenu } = await api.post('/menus/create-named', { name: menuName.trim() });
+      await Promise.all(kept.map(it =>
+        api.post(`/menus/${newMenu.id}/items`, {
+          day_of_week: it.day_of_week,
+          meal_type:   it.meal_type,
+          food_item:   it.food_item,
+          component:   it.component || 'grain',
+          is_whole_grain: it.is_whole_grain || false,
+        })
+      ));
+      await api.put(`/menu-cycles/${cycleId}/weeks/${week.week_number}`, { menu_id: newMenu.id });
+      setStep('done');
+      onRefresh();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save.');
+    } finally { setSaving(false); }
+  };
+
+  const DAY_NAMES = ['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Import Menu — Week {week.week_number}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Upload Excel, Word, or PDF — AI extracts the menu items</p>
+          </div>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-1">
+          {step === 'upload' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">Menu Name</label>
+                <input type="text" value={menuName} onChange={e => setMenuName(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center">
+                <Upload className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-600 font-medium mb-1">Upload your menu file</p>
+                <p className="text-xs text-gray-400 mb-4">.xlsx, .xls, .docx, .pdf accepted</p>
+                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-brand-50 text-brand-700 text-sm font-semibold rounded-xl hover:bg-brand-100">
+                  <Upload className="w-4 h-4" /> Choose File
+                  <input type="file" accept=".xlsx,.xls,.docx,.doc,.pdf" onChange={handleFile} className="hidden" />
+                </label>
+                {file && <p className="text-xs text-green-600 font-medium mt-3">✓ {file.name}</p>}
+              </div>
+              {error && <p className="text-xs text-red-600 bg-red-50 px-4 py-2.5 rounded-xl">{error}</p>}
+            </div>
+          )}
+
+          {step === 'extracting' && (
+            <div className="text-center py-16">
+              <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-sm font-semibold text-gray-700">Extracting menu items…</p>
+              <p className="text-xs text-gray-400 mt-1">AI is reading your file</p>
+            </div>
+          )}
+
+          {step === 'review' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-gray-700">{items.filter(i=>i._keep).length} of {items.length} items selected</p>
+                <button onClick={() => setItems(p => p.map(i => ({...i, _keep: true})))}
+                  className="text-xs text-brand-600 hover:underline">Select all</button>
+              </div>
+              {['breakfast','lunch','snack','supper'].map(meal => {
+                const mealItems = items.filter(it => it.meal_type === meal);
+                if (!mealItems.length) return null;
+                return (
+                  <div key={meal} className="border border-gray-100 rounded-xl overflow-hidden">
+                    <p className="px-4 py-2 bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-widest capitalize">{meal}</p>
+                    {mealItems.map(it => (
+                      <label key={it._id} className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 border-t border-gray-50 ${!it._keep ? 'opacity-40' : ''}`}>
+                        <input type="checkbox" checked={it._keep}
+                          onChange={e => setItems(p => p.map(i => i._id===it._id ? {...i,_keep:e.target.checked} : i))}
+                          className="rounded" />
+                        <span className="text-xs font-medium text-gray-500 w-8">{DAY_NAMES[it.day_of_week]}</span>
+                        <span className="text-sm text-gray-800 flex-1">{it.food_item}</span>
+                        <span className="text-xs text-gray-400">{it.component}</span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              })}
+              {error && <p className="text-xs text-red-600 bg-red-50 px-4 py-2.5 rounded-xl">{error}</p>}
+            </div>
+          )}
+
+          {step === 'done' && (
+            <div className="text-center py-16">
+              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-base font-bold text-gray-800">Menu imported and assigned!</p>
+              <p className="text-xs text-gray-400 mt-1">Week {week.week_number} is ready.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 pb-5 flex-shrink-0">
+          {step === 'done'
+            ? <button onClick={onClose} className="px-5 py-2 text-sm font-bold text-white bg-brand-600 rounded-xl">Done</button>
+            : step === 'review'
+            ? <>
+                <button onClick={() => setStep('upload')} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">← Back</button>
+                <button onClick={handleSave} disabled={saving || !items.filter(i=>i._keep).length}
+                  className="px-5 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40">
+                  {saving ? 'Saving…' : `✓ Save ${items.filter(i=>i._keep).length} Items & Assign`}
+                </button>
+              </>
+            : step === 'upload'
+            ? <>
+                <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+                <button onClick={handleExtract} disabled={!file}
+                  className="px-5 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-40">
+                  Extract Menu →
+                </button>
+              </>
+            : null
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Week Row ───────────────────────────────────────────────────────────────────
 const WEEK_DAYS  = [{key:'mon',label:'Mon',n:1},{key:'tue',label:'Tue',n:2},{key:'wed',label:'Wed',n:3},{key:'thu',label:'Thu',n:4},{key:'fri',label:'Fri',n:5}];
 const WEEK_MEALS = [{key:'breakfast',label:'Breakfast'},{key:'lunch',label:'Lunch'},{key:'snack',label:'Snack'},{key:'supper',label:'Supper'}];
 
 function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
-  const [open,      setOpen]      = useState(false);
-  const [mode,      setMode]      = useState('pick'); // 'pick' | 'build'
-  const [search,    setSearch]    = useState('');
-  const [menuName,  setMenuName]  = useState(`Week ${week.week_number} Menu`);
-  const [cells,     setCells]     = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
-  const [saving,    setSaving]    = useState(false);
+  const [open,        setOpen]        = useState(false);
+  const [mode,        setMode]        = useState('pick'); // 'pick' | 'build'
+  const [showImport,  setShowImport]  = useState(false);
+  const [search,      setSearch]      = useState('');
+  const [menuName,    setMenuName]    = useState(`Week ${week.week_number} Menu`);
+  const [cells,       setCells]       = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
+  const [saving,      setSaving]      = useState(false);
 
   const filtered = menus.filter(m =>
     !search || m.name?.toLowerCase().includes(search.toLowerCase())
@@ -481,8 +643,20 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
             className="text-xs text-green-700 font-semibold px-2 py-1 rounded-lg hover:bg-green-50 flex items-center gap-1">
             <Plus className="w-3 h-3" /> Build menu
           </button>
+          <button onClick={() => setShowImport(true)}
+            className="text-xs text-purple-700 font-semibold px-2 py-1 rounded-lg hover:bg-purple-50 flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Import
+          </button>
         </div>
       </div>
+      {showImport && (
+        <ImportWeekMenuModal
+          week={week}
+          cycleId={cycleId}
+          onClose={() => setShowImport(false)}
+          onRefresh={() => { setShowImport(false); onRefresh(); }}
+        />
+      )}
 
       {open && mode === 'pick' && (
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
