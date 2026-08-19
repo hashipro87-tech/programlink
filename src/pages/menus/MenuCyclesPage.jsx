@@ -452,7 +452,12 @@ function WeekRow({ week, menus, onAssign, onUnassign }) {
             className="w-full mb-2 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {filtered.length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-4">No menus found. Build menus in the Menu Builder first.</p>
+              <div className="text-center py-4 space-y-2">
+                <p className="text-xs text-gray-500">No menus found.</p>
+                <a href="/dashboard/sponsor/menus" className="inline-block text-xs font-bold text-brand-600 hover:text-brand-700 underline">
+                  → Go to Menu Builder to add food items
+                </a>
+              </div>
             )}
             {filtered.map(m => (
               <button key={m.id} onClick={() => { onAssign(week.week_number, m.id); setOpen(false); setSearch(''); }}
@@ -575,6 +580,11 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
           ))}
           {(!cycle.weeks || cycle.weeks.length === 0) && (
             <p className="text-xs text-gray-400 text-center py-4">No weeks — reload to see them.</p>
+          )}
+          {(cycle.weeks || []).length > 0 && (cycle.weeks || []).every(w => !w.menu_id) && (
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+              <strong>Next step:</strong> Go to <a href="/dashboard/sponsor/menus" className="underline font-bold">Menu Builder</a> → add food items for each day → come back here and assign those menus to each week slot.
+            </div>
           )}
         </div>
       )}
