@@ -411,13 +411,48 @@ function CreateCycleWizard({ menus, sites, onClose, onCreated }) {
 }
 
 // ── Week Row ───────────────────────────────────────────────────────────────────
-function WeekRow({ week, menus, onAssign, onUnassign }) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+const WEEK_DAYS  = [{key:'mon',label:'Mon',n:1},{key:'tue',label:'Tue',n:2},{key:'wed',label:'Wed',n:3},{key:'thu',label:'Thu',n:4},{key:'fri',label:'Fri',n:5}];
+const WEEK_MEALS = [{key:'breakfast',label:'Breakfast'},{key:'lunch',label:'Lunch'},{key:'snack',label:'Snack'},{key:'supper',label:'Supper'}];
+
+function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
+  const [open,      setOpen]      = useState(false);
+  const [mode,      setMode]      = useState('pick'); // 'pick' | 'build'
+  const [search,    setSearch]    = useState('');
+  const [menuName,  setMenuName]  = useState(`Week ${week.week_number} Menu`);
+  const [cells,     setCells]     = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
+  const [saving,    setSaving]    = useState(false);
 
   const filtered = menus.filter(m =>
     !search || m.name?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const setCell = (day, meal, val) => setCells(p => ({ ...p, [`${day}_${meal}`]: val }));
+
+  const handleBuildSave = async () => {
+    if (!menuName.trim()) { alert('Enter a menu name.'); return; }
+    setSaving(true);
+    try {
+      const { data: newMenu } = await api.post('/menus/create-named', { name: menuName.trim() });
+      const promises = [];
+      for (const d of WEEK_DAYS) {
+        for (const m of WEEK_MEALS) {
+          const text = (cells[`${d.key}_${m.key}`] || '').trim();
+          if (text) {
+            promises.push(api.post(`/menus/${newMenu.id}/items`, {
+              day_of_week: d.n, meal_type: m.key, food_item: text,
+              component: m.key === 'snack' ? 'fruit' : m.key === 'breakfast' ? 'grain' : 'grain',
+            }));
+          }
+        }
+      }
+      await Promise.all(promises);
+      await api.put(`/menu-cycles/${cycleId}/weeks/${week.week_number}`, { menu_id: newMenu.id });
+      onRefresh();
+      setOpen(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save menu');
+    } finally { setSaving(false); }
+  };
 
   return (
     <div className="border border-gray-100 rounded-xl overflow-hidden">
@@ -438,37 +473,87 @@ function WeekRow({ week, menus, onAssign, onUnassign }) {
               <Unlink className="w-3 h-3" /> Unassign
             </button>
           )}
-          <button onClick={() => setOpen(o => !o)}
+          <button onClick={() => { setOpen(o => !o); setMode('pick'); }}
             className="text-xs text-brand-600 font-semibold px-2 py-1 rounded-lg hover:bg-brand-50 flex items-center gap-1">
-            <Link2 className="w-3 h-3" /> {week.menu_id ? 'Change' : 'Assign menu'}
+            <Link2 className="w-3 h-3" /> {week.menu_id ? 'Change' : 'Assign'}
+          </button>
+          <button onClick={() => { setOpen(true); setMode('build'); }}
+            className="text-xs text-green-700 font-semibold px-2 py-1 rounded-lg hover:bg-green-50 flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Build menu
           </button>
         </div>
       </div>
 
-      {open && (
+      {open && mode === 'pick' && (
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search menus…" autoFocus
-            className="w-full mb-2 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
-          <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="flex gap-2 mb-2">
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search existing menus…" autoFocus
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
+            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 px-2"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
             {filtered.length === 0 && (
-              <div className="text-center py-4 space-y-2">
-                <p className="text-xs text-gray-500">No menus found.</p>
-                <a href="/dashboard/sponsor/menus" className="inline-block text-xs font-bold text-brand-600 hover:text-brand-700 underline">
-                  → Go to Menu Builder to add food items
-                </a>
-              </div>
+              <p className="text-xs text-gray-400 text-center py-3">No menus found — use <strong>Build menu</strong> to create one here.</p>
             )}
             {filtered.map(m => (
               <button key={m.id} onClick={() => { onAssign(week.week_number, m.id); setOpen(false); setSearch(''); }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-white hover:shadow-sm transition-all ${
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-white transition-all ${
                   week.menu_id === m.id ? 'bg-white ring-1 ring-brand-300 text-brand-700 font-semibold' : 'text-gray-700'
                 }`}>
                 <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <span className="flex-1 truncate">{m.name || `Week of ${m.week_start?.slice(0, 10)}`}</span>
-                <span className="text-xs text-gray-400 flex-shrink-0">{m.week_start?.slice(0, 10)}</span>
+                <span className="flex-1 truncate">{m.name || `Week of ${m.week_start?.slice(0,10)}`}</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {open && mode === 'build' && (
+        <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex-1 mr-3">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Menu Name</label>
+              <input type="text" value={menuName} onChange={e => setMenuName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white" />
+            </div>
+            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 mt-4"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr>
+                  <td className="py-1 pr-2 font-bold text-gray-500 w-20" />
+                  {WEEK_DAYS.map(d => (
+                    <td key={d.key} className="py-1 px-1 font-bold text-gray-600 text-center">{d.label}</td>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {WEEK_MEALS.map(m => (
+                  <tr key={m.key}>
+                    <td className="py-1 pr-2 font-semibold text-gray-500 whitespace-nowrap">{m.label}</td>
+                    {WEEK_DAYS.map(d => (
+                      <td key={d.key} className="py-0.5 px-1">
+                        <input
+                          type="text"
+                          placeholder="—"
+                          value={cells[`${d.key}_${m.key}`] || ''}
+                          onChange={e => setCell(d.key, m.key, e.target.value)}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white min-w-[80px]"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end mt-3">
+            <button onClick={handleBuildSave} disabled={saving}
+              className="px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40">
+              {saving ? 'Saving…' : '✓ Save Menu & Assign'}
+            </button>
           </div>
         </div>
       )}
@@ -576,7 +661,8 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
           {assigning && <p className="text-xs text-gray-400">Saving…</p>}
           {(cycle.weeks || []).map(w => (
             <WeekRow key={w.week_number} week={w} menus={menus}
-              onAssign={handleAssign} onUnassign={handleUnassign} />
+              cycleId={cycle.id}
+              onAssign={handleAssign} onUnassign={handleUnassign} onRefresh={onRefresh} />
           ))}
           {(!cycle.weeks || cycle.weeks.length === 0) && (
             <p className="text-xs text-gray-400 text-center py-4">No weeks — reload to see them.</p>
