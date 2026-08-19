@@ -576,13 +576,14 @@ const WEEK_DAYS  = [{key:'mon',label:'Mon',n:1},{key:'tue',label:'Tue',n:2},{key
 const WEEK_MEALS = [{key:'breakfast',label:'Breakfast'},{key:'lunch',label:'Lunch'},{key:'snack',label:'Snack'},{key:'supper',label:'Supper'}];
 
 function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
-  const [open,        setOpen]        = useState(false);
-  const [mode,        setMode]        = useState('pick'); // 'pick' | 'build'
-  const [showImport,  setShowImport]  = useState(false);
-  const [search,      setSearch]      = useState('');
-  const [menuName,    setMenuName]    = useState(`Week ${week.week_number} Menu`);
-  const [cells,       setCells]       = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
-  const [saving,      setSaving]      = useState(false);
+  const [open,             setOpen]            = useState(false);
+  const [mode,             setMode]            = useState('pick'); // 'pick' | 'build'
+  const [showImport,       setShowImport]      = useState(false);
+  const [showBlankConfirm, setShowBlankConfirm] = useState(false);
+  const [search,           setSearch]          = useState('');
+  const [menuName,         setMenuName]        = useState(`Week ${week.week_number} Menu`);
+  const [cells,            setCells]           = useState({}); // { 'mon_breakfast': 'Oatmeal', ... }
+  const [saving,           setSaving]          = useState(false);
 
   const filtered = menus.filter(m =>
     !search || m.name?.toLowerCase().includes(search.toLowerCase())
@@ -590,8 +591,11 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
 
   const setCell = (day, meal, val) => setCells(p => ({ ...p, [`${day}_${meal}`]: val }));
 
-  const handleBuildSave = async () => {
+  const handleBuildSave = async (forceBlank = false) => {
     if (!menuName.trim()) { alert('Enter a menu name.'); return; }
+    const hasItems = Object.values(cells).some(v => v?.trim());
+    if (!hasItems && !forceBlank) { setShowBlankConfirm(true); return; }
+    setShowBlankConfirm(false);
     setSaving(true);
     try {
       const { data: newMenu } = await api.post('/menus/create-named', { name: menuName.trim() });
@@ -624,9 +628,24 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800">{week.label || `Week ${week.week_number}`}</p>
-          {week.menu_name
-            ? <p className="text-xs text-green-600 font-medium">✓ {week.menu_name}</p>
-            : <p className="text-xs text-gray-400 italic">No menu assigned</p>}
+          {week.menu_name ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-green-600 font-medium">✓ {week.menu_name}</p>
+              {week.item_count === 0 && (
+                <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Menu not built yet
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 italic">No menu assigned</p>
+          )}
+          {week.menu_id && week.item_count === 0 && (
+            <a href="/dashboard/sponsor/menus"
+              className="text-xs text-brand-600 hover:underline font-medium">
+              Edit in Menu Builder →
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {week.menu_id && (
@@ -724,11 +743,28 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
             </table>
           </div>
           <div className="flex justify-end mt-3">
-            <button onClick={handleBuildSave} disabled={saving}
+            <button onClick={() => handleBuildSave(false)} disabled={saving}
               className="px-4 py-2 text-sm font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : '✓ Save Menu & Assign'}
             </button>
           </div>
+
+          {showBlankConfirm && (
+            <div className="mt-3 border border-amber-200 bg-amber-50 rounded-xl p-4">
+              <p className="text-sm font-bold text-amber-800 mb-1">Create blank menu?</p>
+              <p className="text-xs text-amber-700 mb-3">A blank menu will be created for this week. You can add food items later in Menu Builder.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowBlankConfirm(false)}
+                  className="px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={() => handleBuildSave(true)}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg">
+                  Create Blank Menu
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

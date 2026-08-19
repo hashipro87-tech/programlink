@@ -31,7 +31,8 @@ async function listCycles(req, res) {
         (
           SELECT json_agg(cw ORDER BY cw.week_number)
           FROM (
-            SELECT cw.id, cw.week_number, cw.label, cw.menu_id, m.name AS menu_name, m.week_start
+            SELECT cw.id, cw.week_number, cw.label, cw.menu_id, m.name AS menu_name, m.week_start,
+                   (SELECT COUNT(*)::int FROM menu_items mi WHERE mi.menu_id = cw.menu_id) AS item_count
             FROM cycle_weeks cw
             LEFT JOIN menus m ON m.id = cw.menu_id
             WHERE cw.cycle_id = mc.id
