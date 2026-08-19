@@ -420,7 +420,12 @@ const MEAL_REQS = {
 function validateMealClient(items, day, meal) {
   const mealItems = items.filter(i => i.day_of_week === day && i.meal_type === meal);
   if (!mealItems.length) return { ok: false, missing: [], empty: true };
-  const comps = new Set(mealItems.map(i => i.component));
+  // Count both primary and secondary components
+  const comps = new Set();
+  mealItems.forEach(i => {
+    if (i.component) comps.add(i.component);
+    if (i.secondary_component) comps.add(i.secondary_component);
+  });
   if (meal === 'snack') {
     const ok = comps.size >= 2;
     return { ok, missing: ok ? [] : ['need 2 different components'], empty: false };
@@ -448,6 +453,7 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
   const [editCell,  setEditCell]  = useState(null); // { day, meal }
   const [newFood,   setNewFood]   = useState('');
   const [newComp,   setNewComp]   = useState('grain');
+  const [newSecComp, setNewSecComp] = useState('');
   const [saving,    setSaving]    = useState(false);
 
   const load = async () => {
@@ -467,10 +473,12 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
     try {
       await api.post(`/menus/${menuId}/items`, {
         day_of_week: editCell.day, meal_type: editCell.meal,
-        food_item: newFood.trim(), component: newComp, is_whole_grain: false,
+        food_item: newFood.trim(), component: newComp,
+        secondary_component: newSecComp || null,
+        is_whole_grain: false,
       });
       await load();
-      setNewFood(''); setEditCell(null);
+      setNewFood(''); setNewSecComp(''); setEditCell(null);
     } catch { /* ignore */ } finally { setSaving(false); }
   };
 
@@ -536,10 +544,17 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
                       onClick={() => !isEditing && setEditCell({ day: d.n, meal })}>
                       <div className="space-y-0.5">
                         {cellItems.map(it => (
-                          <div key={it.id} className="flex items-center gap-1 group">
-                            <span className={`text-[10px] px-1 rounded font-medium ${COMP_COLORS[it.component] || COMP_COLORS.other}`}>
-                              {it.component?.slice(0,4)}
-                            </span>
+                          <div key={it.id} className="flex items-start gap-1 group">
+                            <div className="flex flex-col gap-0.5 flex-shrink-0">
+                              <span className={`text-[10px] px-1 rounded font-medium ${COMP_COLORS[it.component] || COMP_COLORS.other}`}>
+                                {it.component?.slice(0,4)}
+                              </span>
+                              {it.secondary_component && (
+                                <span className={`text-[10px] px-1 rounded font-medium ${COMP_COLORS[it.secondary_component] || COMP_COLORS.other}`}>
+                                  {it.secondary_component?.slice(0,4)}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[11px] text-gray-700 flex-1 leading-tight">{it.food_item}</span>
                             <button onClick={e => { e.stopPropagation(); handleDelete(it); }}
                               className="hidden group-hover:block text-red-400 hover:text-red-600 ml-auto flex-shrink-0">
@@ -561,6 +576,13 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
                           <select value={newComp} onChange={e => setNewComp(e.target.value)}
                             className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5">
                             {['grain','milk','protein','fruit','vegetable'].map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
+                          <select value={newSecComp} onChange={e => setNewSecComp(e.target.value)}
+                            className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5 text-gray-500">
+                            <option value="">+ also credits as…</option>
+                            {['grain','milk','protein','fruit','vegetable'].filter(c => c !== newComp).map(c => (
                               <option key={c} value={c}>{c}</option>
                             ))}
                           </select>

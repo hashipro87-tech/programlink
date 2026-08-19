@@ -303,15 +303,16 @@ async function upsertItem(req, res) {
   try {
     const { id: menu_id } = req.params;
     const { organizationId } = req.user;
-    const { day_of_week, meal_type, food_item, component, is_whole_grain = false, quantity } = req.body;
+    const { day_of_week, meal_type, food_item, component, secondary_component, is_whole_grain = false, quantity } = req.body;
     if (!day_of_week || !meal_type || !food_item || !component)
       return res.status(400).json({ error: 'day_of_week, meal_type, food_item, and component are required' });
     const check = await pool.query(`SELECT id FROM menus WHERE id=$1 AND (org_id=$2 OR org_id IN (SELECT id FROM organizations WHERE sponsor_id=$2))`, [menu_id, organizationId]);
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
+    const secComp = secondary_component && secondary_component !== component ? secondary_component : null;
     const { rows } = await pool.query(
-      `INSERT INTO menu_items (menu_id, day_of_week, meal_type, food_item, component, is_whole_grain, quantity)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING *`,
-      [menu_id, day_of_week, meal_type, food_item.trim(), component, is_whole_grain, quantity || null]
+      `INSERT INTO menu_items (menu_id, day_of_week, meal_type, food_item, component, secondary_component, is_whole_grain, quantity)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING RETURNING *`,
+      [menu_id, day_of_week, meal_type, food_item.trim(), component, secComp, is_whole_grain, quantity || null]
     );
     await pool.query(`UPDATE menus SET updated_at=NOW() WHERE id=$1`, [menu_id]);
     res.status(201).json(rows[0] || { menu_id, day_of_week, meal_type, food_item, component });
