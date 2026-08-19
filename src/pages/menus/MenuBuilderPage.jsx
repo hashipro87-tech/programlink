@@ -9,6 +9,7 @@ import {
   Trash2, BookOpen, Baby, DollarSign, Search,
   ChevronDown, ChevronUp, ShieldCheck, AlertOctagon,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -1375,6 +1376,7 @@ function ImportMenuModal({ onClose, ensureMenu, onImported }) {
 export default function MenuBuilderPage() {
   const { user } = useAuth();
   const isCoordinator = user?.role === 'coordinator';
+  const [searchParams] = useSearchParams();
   const [weekStart, setWeekStart]       = useState(() => mondayOf(new Date()));
   const [menu, setMenu]                 = useState(null);
   const [items, setItems]               = useState([]);
@@ -1422,8 +1424,16 @@ export default function MenuBuilderPage() {
 
   // Load orgs + rates + templates on mount
   useEffect(() => {
+    const orgParam = searchParams.get('org');
     api.get('/organizations?limit=100').catch(() => ({ data: { organizations: [] } }))
-      .then(r => setOrgs(r.data.organizations || r.data || []));
+      .then(r => {
+        const list = r.data.organizations || r.data || [];
+        setOrgs(list);
+        // Pre-select org from URL param (e.g. opened from Menu Cycles "Open in Menu Builder")
+        if (orgParam && list.some(o => o.id === orgParam)) {
+          setSelectedOrg(orgParam);
+        }
+      });
     api.get('/menus/rates').then(r => { setRates(r.data.rates); setUserState(r.data.state); }).catch(() => {});
     api.get('/menus/templates').then(r => setTemplates(r.data.templates || [])).catch(() => {});
   }, []);

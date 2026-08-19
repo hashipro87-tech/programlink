@@ -449,6 +449,7 @@ const COMP_COLORS = {
 
 function WeekMenuGrid({ menuId, onOpenInBuilder }) {
   const [menuItems, setMenuItems] = useState(null);
+  const [menuOrg,   setMenuOrg]   = useState(null); // org_id of this menu
   const [loading,   setLoading]   = useState(true);
   const [editCell,  setEditCell]  = useState(null); // { day, meal }
   const [newFood,   setNewFood]   = useState('');
@@ -456,11 +457,19 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
   const [newSecComp, setNewSecComp] = useState('');
   const [saving,    setSaving]    = useState(false);
 
+  // Derive the role from the current URL and build the Menu Builder link
+  const openInBuilder = () => {
+    const role = window.location.pathname.includes('/coordinator/') ? 'coordinator' : 'sponsor';
+    const orgParam = menuOrg ? `?org=${menuOrg}` : '';
+    window.location.href = `/dashboard/${role}/menus${orgParam}`;
+  };
+
   const load = async () => {
     setLoading(true);
     try {
       const { data } = await api.get(`/menus/${menuId}`);
       setMenuItems(data.items || []);
+      setMenuOrg(data.menu?.org_id || null);
     } catch { setMenuItems([]); }
     finally { setLoading(false); }
   };
@@ -606,7 +615,7 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
       </div>
       <div className="mt-3 flex items-center justify-between">
         <p className="text-[10px] text-gray-400">Click any cell to add items · Hover an item to delete</p>
-        <button onClick={onOpenInBuilder}
+        <button onClick={openInBuilder}
           className="text-xs font-semibold text-brand-600 hover:text-brand-800 flex items-center gap-1">
           Open in Menu Builder <ArrowRight className="w-3 h-3" />
         </button>
@@ -902,10 +911,7 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
         </div>
       </div>
       {week.menu_id && showGrid && (
-        <WeekMenuGrid
-          menuId={week.menu_id}
-          onOpenInBuilder={() => window.location.href = '/dashboard/sponsor/menus'}
-        />
+        <WeekMenuGrid menuId={week.menu_id} />
       )}
       {showImport && (
         <ImportWeekMenuModal
