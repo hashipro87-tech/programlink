@@ -196,6 +196,10 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
     return { n, start, end };
   });
 
+  // newMenuNames: { weekNum: 'typed name' } for inline-created menus
+  const [newMenuNames, setNewMenuNames] = useState({});
+  const [creating,    setCreating]      = useState({}); // { weekNum: true } spinner
+
   const handleCreate = async () => {
     if (!name.trim()) { setError('Cycle name is required.'); return; }
     if (!startDate)   { setError('Start date is required.'); return; }
@@ -206,9 +210,23 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
         week_count: weekCount,
         start_date: startDate,
       });
+
+      // Resolve assignments: create new menus for typed names, use existing for selected ids
+      const resolvedAssigned = { ...assigned };
+      for (const slot of weekSlots) {
+        const newName = newMenuNames[slot.n]?.trim();
+        if (newName) {
+          const { data: newMenu } = await api.post('/menus/create-named', {
+            name: newName,
+            week_start: slot.start,
+          });
+          resolvedAssigned[slot.n] = newMenu.id;
+        }
+      }
+
       // Assign menus to weeks
       await Promise.all(
-        Object.entries(assigned)
+        Object.entries(resolvedAssigned)
           .filter(([, menuId]) => menuId)
           .map(([weekNum, menuId]) =>
             api.put(`/menu-cycles/${cycle.id}/weeks/${weekNum}`, { menu_id: menuId })
@@ -295,25 +313,49 @@ function CreateCycleWizard({ menus, onClose, onCreated }) {
               </p>
               <div className="space-y-2">
                 {weekSlots.map(({ n, start, end }) => (
-                  <div key={n} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-                    <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div key={n} className="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                    <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
                       <span className="text-xs font-bold text-brand-600">{n}</span>
                     </div>
-                    <div className="w-28 flex-shrink-0">
+                    <div className="w-24 flex-shrink-0 mt-1">
                       <p className="text-xs font-semibold text-gray-700">Week {n}</p>
                       <p className="text-xs text-gray-400">{fmtShort(start)} – {fmtShort(end)}</p>
                     </div>
-                    <select
-                      value={assigned[n] || ''}
-                      onChange={e => setAssigned(a => ({ ...a, [n]: e.target.value || null }))}
-                      className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
-                      <option value="">— Select a menu —</option>
-                      {menus.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name || `Week of ${m.week_start?.slice(0,10)}`}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex-1 space-y-1.5">
+                      {newMenuNames[n] !== undefined ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder={`e.g. Week ${n} Menu`}
+                            value={newMenuNames[n]}
+                            onChange={e => setNewMenuNames(p => ({ ...p, [n]: e.target.value }))}
+                            className="flex-1 text-sm border border-brand-300 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                          />
+                          <button onClick={() => setNewMenuNames(p => { const c={...p}; delete c[n]; return c; })}
+                            className="text-xs text-gray-400 hover:text-gray-600 px-2">✕</button>
+                        </div>
+                      ) : (
+                        <select
+                          value={assigned[n] || ''}
+                          onChange={e => setAssigned(a => ({ ...a, [n]: e.target.value || null }))}
+                          className="w-full text-sm border border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                          <option value="">— Select existing menu —</option>
+                          {menus.map(m => (
+                            <option key={m.id} value={m.id}>
+                              {m.name || `Week of ${m.week_start?.slice(0,10)}`}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {newMenuNames[n] === undefined && (
+                        <button
+                          onClick={() => setNewMenuNames(p => ({ ...p, [n]: '' }))}
+                          className="text-xs text-brand-600 hover:text-brand-700 font-medium">
+                          + Create new menu
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

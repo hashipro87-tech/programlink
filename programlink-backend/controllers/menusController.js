@@ -672,8 +672,38 @@ Additional rules:
   }
 }
 
+// ── POST /menus/create-named ───────────────────────────────────────────────────
+// Create a blank named menu (for use in cycle wizard — no week_start required).
+// Uses a unique week_start derived from name + timestamp to avoid conflicts.
+async function createNamedMenu(req, res) {
+  try {
+    const { organizationId, id: userId } = req.user;
+    const { name, org_id, week_start } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
+    const targetOrg = org_id || organizationId;
+    // Use provided week_start or generate a unique sentinel date far in the past
+    // to avoid conflicts with real week menus
+    const ws = week_start || (() => {
+      const d = new Date('1900-01-01');
+      d.setDate(d.getDate() + Math.floor(Math.random() * 36500));
+      return d.toISOString().split('T')[0];
+    })();
+    const { rows } = await pool.query(
+      `INSERT INTO menus (org_id, name, week_start, status, created_by)
+       VALUES ($1,$2,$3,'draft',$4)
+       ON CONFLICT (org_id, week_start) DO UPDATE SET name=EXCLUDED.name
+       RETURNING *`,
+      [targetOrg, name.trim(), ws, userId]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('createNamedMenu error:', err);
+    res.status(500).json({ error: 'Failed to create menu' });
+  }
+}
+
 module.exports = {
-  listMenus, getMenu, createMenu, updateMenu, deleteMenu,
+  listMenus, getMenu, createMenu, createNamedMenu, updateMenu, deleteMenu,
   upsertItem, deleteItem, clearMenuItems,
   getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
   generateMenu, listComments, addComment, deleteComment, extractMenuFromFile,

@@ -146,7 +146,7 @@ async function assignWeekMenu(req, res) {
     if (!check.rows.length) return res.status(403).json({ error: 'Access denied' });
 
     const { rows } = await pool.query(
-      `UPDATE cycle_weeks SET menu_id=$1, label=COALESCE($2, label), updated_at=NOW()
+      `UPDATE cycle_weeks SET menu_id=$1, label=COALESCE($2, label)
        WHERE cycle_id=$3 AND week_number=$4 RETURNING *`,
       [menu_id || null, label || null, cycleId, parseInt(week_number)]
     );

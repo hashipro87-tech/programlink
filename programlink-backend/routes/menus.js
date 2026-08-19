@@ -8,7 +8,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
 const {
-  listMenus, getMenu, createMenu, updateMenu, deleteMenu,
+  listMenus, getMenu, createMenu, createNamedMenu, updateMenu, deleteMenu,
   upsertItem, deleteItem, clearMenuItems,
   getEstimateRates, listTemplates, saveTemplate, deleteTemplate,
   generateMenu, listComments, addComment, deleteComment, extractMenuFromFile,
@@ -18,6 +18,7 @@ const canWrite = authorizeRoles('sponsor', 'coordinator', 'kitchen', 'admin');
 
 // ── Specific routes BEFORE /:id ────────────────────────────────────────────────
 router.get('/rates',             authenticate, getEstimateRates);
+router.post('/create-named',     authenticate, canWrite, createNamedMenu);
 router.get('/templates',         authenticate, listTemplates);
 router.post('/templates',        authenticate, canWrite, saveTemplate);
 router.delete('/templates/:id',  authenticate, canWrite, deleteTemplate);
