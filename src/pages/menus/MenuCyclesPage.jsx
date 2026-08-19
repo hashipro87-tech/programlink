@@ -447,9 +447,8 @@ const COMP_COLORS = {
   vegetable:'bg-emerald-100 text-emerald-800', other:'bg-gray-100 text-gray-600',
 };
 
-function WeekMenuGrid({ menuId, onOpenInBuilder }) {
+function WeekMenuGrid({ menuId, forOrgId }) {
   const [menuItems, setMenuItems] = useState(null);
-  const [menuOrg,   setMenuOrg]   = useState(null); // org_id of this menu
   const [loading,   setLoading]   = useState(true);
   const [editCell,  setEditCell]  = useState(null); // { day, meal }
   const [newFood,   setNewFood]   = useState('');
@@ -457,12 +456,12 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
   const [newSecComp, setNewSecComp] = useState('');
   const [saving,    setSaving]    = useState(false);
 
-  // Derive the role from the current URL and build the Menu Builder link
+  // Derive the role from the current URL and build the Menu Builder link.
+  // forOrgId = the kitchen/site this cycle is "for" (set by the user via the "For:" dropdown).
   const openInBuilder = () => {
     const role = window.location.pathname.includes('/coordinator/') ? 'coordinator' : 'sponsor';
-    // Don't pre-select org — cycle menus belong to the sponsor root org, not a specific kitchen.
-    // Let the user navigate freely once in Menu Builder.
-    window.location.href = `/dashboard/${role}/menus`;
+    const orgParam = forOrgId ? `?org=${forOrgId}` : '';
+    window.location.href = `/dashboard/${role}/menus${orgParam}`;
   };
 
   const load = async () => {
@@ -470,7 +469,6 @@ function WeekMenuGrid({ menuId, onOpenInBuilder }) {
     try {
       const { data } = await api.get(`/menus/${menuId}`);
       setMenuItems(data.items || []);
-      setMenuOrg(data.menu?.org_id || null);
     } catch { setMenuItems([]); }
     finally { setLoading(false); }
   };
@@ -810,7 +808,7 @@ function ImportWeekMenuModal({ week, cycleId, onClose, onRefresh }) {
 const WEEK_DAYS  = [{key:'mon',label:'Mon',n:1},{key:'tue',label:'Tue',n:2},{key:'wed',label:'Wed',n:3},{key:'thu',label:'Thu',n:4},{key:'fri',label:'Fri',n:5}];
 const WEEK_MEALS = [{key:'breakfast',label:'Breakfast'},{key:'lunch',label:'Lunch'},{key:'snack',label:'Snack'},{key:'supper',label:'Supper'}];
 
-function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
+function WeekRow({ week, menus, cycleId, forOrgId, onAssign, onUnassign, onRefresh }) {
   const [open,             setOpen]            = useState(false);
   const [mode,             setMode]            = useState('pick'); // 'pick' | 'build'
   const [showImport,       setShowImport]      = useState(false);
@@ -912,7 +910,7 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
         </div>
       </div>
       {week.menu_id && showGrid && (
-        <WeekMenuGrid menuId={week.menu_id} />
+        <WeekMenuGrid menuId={week.menu_id} forOrgId={forOrgId} />
       )}
       {showImport && (
         <ImportWeekMenuModal
@@ -1018,10 +1016,22 @@ function WeekRow({ week, menus, cycleId, onAssign, onUnassign, onRefresh }) {
 }
 
 // ── Cycle Card ─────────────────────────────────────────────────────────────────
-function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onScheduleRemove, onRefresh }) {
+function CycleCard({ cycle, menus, orgs = [], onSelect, selected, onDelete, onApply, onScheduleRemove, onRefresh }) {
   const [expanded, setExpanded] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [forOrgId, setForOrgId] = useState(cycle.for_org_id || '');
+
+  const handleForOrgChange = async (orgId) => {
+    setForOrgId(orgId);
+    try {
+      await api.put(`/menu-cycles/${cycle.id}`, {
+        name: cycle.name,
+        description: cycle.description,
+        for_org_id: orgId || null,
+      });
+    } catch { /* silent — cosmetic */ }
+  };
 
   const assignedCount = (cycle.weeks || []).filter(w => w.menu_id).length;
   const totalWeeks    = cycle.week_count || 0;
@@ -1070,6 +1080,22 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
             const siteName = m ? m[1] : cycle.description;
             return siteName ? <p className="text-xs text-gray-500 mt-0.5">📍 {siteName}</p> : null;
           })()}
+            {/* For kitchen/site picker — determines which org "Open in Menu Builder" pre-selects */}
+            {orgs.length > 0 && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-xs text-gray-400">For:</span>
+                <select
+                  value={forOrgId}
+                  onChange={e => handleForOrgChange(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-0.5 text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400"
+                >
+                  <option value="">— pick a kitchen/site —</option>
+                  {orgs.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
               <span>{totalWeeks} weeks</span>
               <span>·</span>
@@ -1117,7 +1143,7 @@ function CycleCard({ cycle, menus, onSelect, selected, onDelete, onApply, onSche
           {assigning && <p className="text-xs text-gray-400">Saving…</p>}
           {(cycle.weeks || []).map(w => (
             <WeekRow key={w.week_number} week={w} menus={menus}
-              cycleId={cycle.id}
+              cycleId={cycle.id} forOrgId={forOrgId}
               onAssign={handleAssign} onUnassign={handleUnassign} onRefresh={onRefresh} />
           ))}
           {(!cycle.weeks || cycle.weeks.length === 0) && (
@@ -1165,6 +1191,7 @@ export default function MenuCyclesPage() {
   const [cycles,       setCycles]       = useState([]);
   const [menus,        setMenus]        = useState([]);
   const [sites,        setSites]        = useState([]);
+  const [kitchens,     setKitchens]     = useState([]);
   const [currentCycle, setCurrentCycle] = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [showNew,      setShowNew]      = useState(false);
@@ -1173,16 +1200,18 @@ export default function MenuCyclesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [cycRes, menuRes, curRes, siteRes] = await Promise.all([
+      const [cycRes, menuRes, curRes, siteRes, kitRes] = await Promise.all([
         api.get('/menu-cycles'),
         api.get('/menus?limit=200'),
         api.get('/menu-cycles/current').catch(() => ({ data: {} })),
         api.get('/organizations?type=site&limit=200').catch(() => ({ data: {} })),
+        api.get('/organizations?type=kitchen&limit=200').catch(() => ({ data: {} })),
       ]);
       setCycles(cycRes.data.cycles || []);
       setMenus(menuRes.data.menus || []);
       setCurrentCycle(curRes.data);
       setSites(siteRes.data.organizations || []);
+      setKitchens(kitRes.data.organizations || []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
@@ -1262,6 +1291,7 @@ export default function MenuCyclesPage() {
               key={cycle.id}
               cycle={cycle}
               menus={menus}
+              orgs={[...kitchens, ...sites]}
               onDelete={handleDelete}
               onApply={c => setApplyTarget(c)}
               onScheduleRemove={handleScheduleRemove}

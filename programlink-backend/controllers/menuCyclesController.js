@@ -101,12 +101,12 @@ async function updateCycle(req, res) {
   try {
     const { organizationId } = req.user;
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, for_org_id } = req.body;
 
     const { rows } = await pool.query(
-      `UPDATE menu_cycles SET name=$1, description=$2, updated_at=NOW()
-       WHERE id=$3 AND org_id=$4 RETURNING *`,
-      [name, description || null, id, organizationId]
+      `UPDATE menu_cycles SET name=$1, description=$2, for_org_id=$3, updated_at=NOW()
+       WHERE id=$4 AND org_id=$5 RETURNING *`,
+      [name, description || null, for_org_id || null, id, organizationId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Cycle not found' });
     res.json(rows[0]);
