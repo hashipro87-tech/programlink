@@ -121,13 +121,23 @@ function TodayProductionSchedule({ onViewAll }) {
         <div className="px-6 py-8 flex items-center justify-center">
           <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : sites.length === 0 ? (
-        <div className="px-6 py-10 text-center">
-          <Truck className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-gray-500">No deliveries scheduled today</p>
-          <p className="text-xs text-gray-400 mt-1">Your sponsor will set up recurring delivery plans.</p>
-        </div>
-      ) : (
+      ) : sites.length === 0 ? (() => {
+        const dow = new Date().getDay(); // 0=Sun, 6=Sat
+        const isWeekend = dow === 0 || dow === 6;
+        return (
+          <div className="px-6 py-10 text-center">
+            <Truck className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-gray-500">
+              {isWeekend ? 'No meals scheduled this weekend' : 'No deliveries scheduled today'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+              {isWeekend
+                ? 'Most programs run Monday–Friday. Your next scheduled service will show up here.'
+                : 'If you expected meals today, check with your sponsor — they set up the delivery schedule.'}
+            </p>
+          </div>
+        );
+      })() : (
         <>
           {/* Per-site breakdown */}
           <div className="divide-y divide-gray-50">
@@ -229,26 +239,53 @@ function useKitchenData() {
 function KitchenDailyChecklist({ todayProd, todayRoutes, todayCount }) {
   const totalMeals   = (todayProd?.totals?.breakfast ?? 0) + (todayProd?.totals?.lunch ?? 0) +
                        (todayProd?.totals?.snack ?? 0)     + (todayProd?.totals?.supper ?? 0);
-  const hasProduction = totalMeals > 0;
-  const deliveriesDone = todayRoutes.length > 0 && todayRoutes.every((r) => r.status === 'delivered');
-  const allSubmitted  = todayProd?.pendingCount === 0 && (todayProd?.sites?.length ?? 0) > 0;
-  const ownSubmitted  = todayCount && ((todayCount.breakfast ?? 0) + (todayCount.lunch ?? 0) + (todayCount.snack ?? 0)) > 0;
+  const hasProduction  = totalMeals > 0;
+  const hasDeliveries  = todayRoutes.length > 0;
+  const hasSites       = (todayProd?.sites?.length ?? 0) > 0;
+  const deliveriesDone = hasDeliveries && todayRoutes.every((r) => r.status === 'delivered');
+  const allSubmitted   = todayProd?.pendingCount === 0 && hasSites;
+  const ownSubmitted   = !!todayCount && ((todayCount.breakfast ?? 0) + (todayCount.lunch ?? 0) +
+                          (todayCount.snack ?? 0) + (todayCount.supper ?? 0)) > 0;
 
+  // Only show tasks that actually apply today. A kitchen with no production
+  // scheduled shouldn't be staring at "0/5 done" — there's nothing to do.
   const tasks = [
-    { label: 'Review today\'s production',     done: hasProduction },
-    { label: `Prepare ${totalMeals || '—'} meals`, done: false },
-    { label: 'Complete all deliveries',        done: deliveriesDone },
-    { label: 'Verify all site meal counts',    done: allSubmitted },
-    { label: 'Submit end-of-day counts',       done: ownSubmitted },
-  ];
+    hasProduction && { label: 'Review today\'s production', done: true },
+    hasProduction && {
+      label: `Prepare ${totalMeals} meal${totalMeals === 1 ? '' : 's'}`,
+      // Considered prepared once every site's counts are in
+      done: allSubmitted,
+    },
+    hasDeliveries && { label: 'Complete all deliveries',   done: deliveriesDone },
+    hasSites      && { label: 'Verify all site meal counts', done: allSubmitted },
+    { label: 'Submit end-of-day counts', done: ownSubmitted },
+  ].filter(Boolean);
+
   const doneCount = tasks.filter((t) => t.done).length;
+  const allDone   = doneCount === tasks.length;
+
+  // Nothing scheduled and nothing submitted — quiet day, say so plainly.
+  const quietDay = !hasProduction && !hasDeliveries && !hasSites;
 
   return (
-    <div className="card mb-6 border-brand-100">
-      <div className="px-5 py-3.5 border-b border-brand-100 flex items-center justify-between bg-brand-50 rounded-t-2xl">
-        <h2 className="text-sm font-bold text-brand-900">Today's Checklist</h2>
-        <span className="text-xs font-bold text-brand-600">{doneCount}/{tasks.length} done</span>
+    <div className={`card mb-6 ${allDone ? 'border-green-100' : 'border-brand-100'}`}>
+      <div className={`px-5 py-3.5 border-b flex items-center justify-between rounded-t-2xl ${
+        allDone ? 'border-green-100 bg-green-50' : 'border-brand-100 bg-brand-50'
+      }`}>
+        <h2 className={`text-sm font-bold ${allDone ? 'text-green-900' : 'text-brand-900'}`}>
+          Today's Checklist
+        </h2>
+        <span className={`text-xs font-bold ${allDone ? 'text-green-600' : 'text-brand-600'}`}>
+          {allDone ? '✓ All done' : `${doneCount}/${tasks.length} done`}
+        </span>
       </div>
+      {quietDay && (
+        <div className="px-5 pt-3 pb-1">
+          <p className="text-xs text-gray-500">
+            No meals scheduled today. Just submit your end-of-day counts when service is over.
+          </p>
+        </div>
+      )}
       <div className="px-5 py-2 flex flex-wrap gap-x-4 gap-y-1.5">
         {tasks.map((t, i) => (
           <div key={i} className="flex items-center gap-1.5">
