@@ -36,6 +36,13 @@ const COMPONENTS = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function todayISO() { return new Date().toISOString().split('T')[0]; }
 
+// Normalize a date coming back from the API to 'YYYY-MM-DD'.
+// production_records.date is a DATE column selected via `pr.*` with no cast, so
+// node-postgres hands back a JS Date and it serializes as a full ISO timestamp
+// ("2026-08-22T00:00:00.000Z"). Comparing or key-building against that directly
+// silently never matches. Same root cause as Task #159 on the sponsor page.
+function dayKey(d) { return String(d ?? '').slice(0, 10); }
+
 function getMondayOf(dateStr) {
   const d   = new Date(dateStr + 'T00:00:00Z');
   const dow = ((d.getUTCDay() + 6) % 7); // 0=Mon
@@ -89,7 +96,12 @@ function RecordDrawer({ date, mealType, onClose, onSaved }) {
     setError('');
     api.get('/production-records', { params: { week_of: date } })
       .then(({ data }) => {
-        const rec = (data.records ?? []).find(r => r.date === date && r.meal_type === mealType);
+        // dayKey() — r.date arrives as a full ISO timestamp, so a raw ===
+        // comparison never matched and the drawer opened blank on top of an
+        // existing record, hiding whatever was already logged for that meal.
+        const rec = (data.records ?? []).find(
+          r => dayKey(r.date) === date && r.meal_type === mealType
+        );
         if (rec) {
           setRecord(rec);
           setServings(rec.servings_prepared > 0 ? String(rec.servings_prepared) : '');
@@ -500,7 +512,9 @@ export default function ProductionRecordsPage() {
       .then(({ data }) => {
         const map = {};
         for (const r of (data.records ?? [])) {
-          map[`${r.date}-${r.meal_type}`] = r;
+          // dayKey() — without it every key carried a full timestamp and no grid
+          // cell ever matched, so the whole week rendered as empty "Log" cells.
+          map[`${dayKey(r.date)}-${r.meal_type}`] = r;
         }
         setRecords(map);
       })
@@ -517,7 +531,9 @@ export default function ProductionRecordsPage() {
   const handleSaved = (rec) => {
     setRecords(prev => ({
       ...prev,
-      [`${rec.date}-${rec.meal_type}`]: rec,
+      // dayKey() so a freshly saved record lands under the same key the grid
+      // looks up — otherwise the cell stayed blank until a full page reload.
+      [`${dayKey(rec.date)}-${rec.meal_type}`]: rec,
     }));
   };
 

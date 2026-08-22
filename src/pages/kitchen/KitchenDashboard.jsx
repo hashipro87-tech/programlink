@@ -80,6 +80,11 @@ function countUploadedDocs(docs = []) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function todayISO()    { return new Date().toISOString().split('T')[0]; }
+
+// Normalize an API date to 'YYYY-MM-DD'. Postgres DATE columns arrive as JS
+// Date objects via node-postgres and serialize to full ISO timestamps, so
+// comparing them directly against a 'YYYY-MM-DD' string silently never matches.
+function dayKey(d) { return String(d ?? '').slice(0, 10); }
 function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
 function dateLabel(iso) {
   if (iso === todayISO())    return 'Today';
@@ -254,8 +259,13 @@ function useKitchenData() {
       const mealCounts   = mcRes.status  === 'fulfilled' ? (mcRes.value.data?.meal_counts ?? mcRes.value.data?.counts ?? []) : [];
       const docs         = docRes.status === 'fulfilled' ? (docRes.value.data?.documents ?? []) : [];
       const notifications = notifRes.status === 'fulfilled' ? (notifRes.value.data?.notifications ?? []) : [];
-      const todayRoutes  = allRoutes.filter((r) => r.date === today && r.status !== 'cancelled');
-      const todayCount   = mealCounts.find((c) => c.date === today) ?? null;
+      // dayKey() on both: DATE columns come back from node-postgres as JS Dates
+      // and serialize to full ISO timestamps, so raw === against 'YYYY-MM-DD'
+      // never matched. todayCount was therefore always null, which meant the
+      // "Submit end-of-day counts" checklist item could never be ticked off
+      // even right after the kitchen submitted them.
+      const todayRoutes  = allRoutes.filter((r) => dayKey(r.date) === today && r.status !== 'cancelled');
+      const todayCount   = mealCounts.find((c) => dayKey(c.date) === today) ?? null;
 
       setData({ todayProd, tomorrowProd, todayRoutes, mealCounts, docs, notifications, todayCount });
       setLoading(false);
@@ -692,7 +702,10 @@ function KitchenDeliveriesPage() {
   // deliveries first and had to scroll past them to find today's.
   const byDate = {};
   for (const r of routes) {
-    const d = r.date ?? 'unknown';
+    // dayKey() — manual routes come from a DATE column and arrive as full ISO
+    // timestamps. Grouping on the raw value split one day into several buckets
+    // and made dateLabel() miss its "Today"/"Tomorrow" comparison entirely.
+    const d = r.date ? dayKey(r.date) : 'unknown';
     if (!byDate[d]) byDate[d] = [];
     byDate[d].push(r);
   }
