@@ -3,10 +3,20 @@
 
 import { ArrowRight, CheckCircle, Clock, FileText } from 'lucide-react';
 
-const REQUIRED_DOCS = ['W-9', 'Menu Plan', 'Insurance Certificate'];
+// Default matches KITCHEN_REQUIRED_DOCS in KitchenDashboard.jsx (and REQUIRED.kitchen
+// in backend routes/compliance.js). This list previously held only 3 of the 5 required
+// docs, so the banner said "you're all set" while Compliance still showed 2 missing.
+const DEFAULT_REQUIRED_DOCS = [
+  'W-9', 'Food Safety Permit', 'Insurance', 'Menu Plan', 'Health Inspection',
+];
 
-export default function NextActionBanner({ uploadedDocs = [], applicationStatus = 'not_submitted', onAction }) {
-  const missingDoc = REQUIRED_DOCS.find((doc) => !uploadedDocs.includes(doc));
+export default function NextActionBanner({
+  uploadedDocs = [],
+  requiredDocs = DEFAULT_REQUIRED_DOCS,
+  applicationStatus = 'not_submitted',
+  onAction,
+}) {
+  const missingDoc = requiredDocs.find((doc) => !uploadedDocs.includes(doc));
 
   let config = null;
 

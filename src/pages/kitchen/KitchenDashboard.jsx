@@ -9,12 +9,11 @@ import { useDashboardStats } from '../../hooks/useDashboardStats';
 import {
   ClipboardList, FileText, Building2, MessageSquare,
   UtensilsCrossed, CheckCircle, Settings, Truck, Bell,
-  CheckSquare, Square, AlertCircle, Clock, TrendingUp, Activity, BookOpen, GraduationCap,
+  CheckSquare, Square, AlertCircle, Clock, Activity, BookOpen, GraduationCap,
 } from 'lucide-react';
 import { useNotifications } from '../../hooks/useNotifications';
 
 import Sidebar           from '../../components/layout/Sidebar';
-import StatCard          from '../../components/common/StatCard';
 import ApplicationPage   from '../application/ApplicationPage';
 import DocumentsPage     from '../documents/DocumentsPage';
 import MessagesPage      from '../messages/MessagesPage';
@@ -28,15 +27,12 @@ import ProductionRecordsPage  from './ProductionRecordsPage';
 import TrainingPage           from '../sponsor/TrainingPage';
 import api                    from '../../services/api';
 
-// New kitchen-specific components
-import NextActionBanner    from './components/NextActionBanner';
-import MealReminderBanner  from './components/MealReminderBanner';
+// Kitchen-specific components.
+// NextActionBanner / MealReminderBanner / DocumentUploadCard / SponsorMessaging /
+// AlertsCenter / ActionCenter / ActivityTimeline were imported here but never
+// rendered after the Task #97 redesign — imports removed. The component files
+// still exist if we want to bring any of them back.
 import MealEntryForm       from './components/MealEntryForm';
-import DocumentUploadCard  from './components/DocumentUploadCard';
-import SponsorMessaging    from './components/SponsorMessaging';
-import AlertsCenter        from './components/AlertsCenter';
-import ActionCenter        from '../../components/common/ActionCenter';
-import ActivityTimeline    from '../../components/common/ActivityTimeline';
 
 const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',              icon: CheckCircle,    end: true },
@@ -61,6 +57,27 @@ const NAV_ITEMS = [
   { label: 'Settings',        path: '/dashboard/kitchen/settings',     icon: Settings },
 ];
 
+// ─── Required kitchen documents ───────────────────────────────────────────────
+// SINGLE SOURCE OF TRUTH — must match REQUIRED.kitchen in backend routes/compliance.js
+// (previously this list was duplicated in 3 places with 3 different answers: the
+//  compliance card said 5 docs, NextActionBanner said 3, the summary card said "/3")
+export const KITCHEN_REQUIRED_DOCS = [
+  { type: 'w9',          label: 'W-9' },
+  { type: 'food_permit', label: 'Food Safety Permit' },
+  { type: 'insurance',   label: 'Insurance' },
+  { type: 'menu_plan',   label: 'Menu Plan' },
+  { type: 'health_cert', label: 'Health Inspection' },
+];
+
+// Count how many required docs are actually on file, from the real documents API.
+// A doc counts as "on file" if it exists and isn't rejected/requested.
+function countUploadedDocs(docs = []) {
+  const ON_FILE = ['valid', 'expiring_soon', 'pending_review', 'expired'];
+  return KITCHEN_REQUIRED_DOCS.filter(({ type }) =>
+    docs.some((d) => d.type === type && ON_FILE.includes(d.status))
+  ).length;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function todayISO()    { return new Date().toISOString().split('T')[0]; }
 function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split('T')[0]; }
@@ -75,7 +92,12 @@ function fmt12(t) {
   return `${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;
 }
 function mealLabel(v) {
-  return ({ breakfast:'Breakfast', am_snack:'AM Snack', lunch:'Lunch', pm_snack:'PM Snack', dinner:'Dinner' }[v] ?? v);
+  // NOTE: CACFP and the meal_counts CHECK constraint use 'supper', not 'dinner'.
+  // 'supper' was missing here, so it fell through and rendered lowercase.
+  return ({
+    breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch',
+    pm_snack: 'PM Snack', snack: 'Snack', supper: 'Supper', dinner: 'Supper',
+  }[v] ?? v);
 }
 
 // ─── Today's Production Schedule ──────────────────────────────────────────────
@@ -490,15 +512,7 @@ function SiteStatusCard({ todayProd }) {
 
 // ─── Document Compliance Card (inline) ───────────────────────────────────────
 function DocComplianceCard({ docs, navigate }) {
-  const REQUIRED = [
-    { type: 'food_permit',  label: 'Food Safety Permit' },
-    { type: 'health_cert',  label: 'Health Inspection' },
-    { type: 'insurance',    label: 'Insurance' },
-    { type: 'menu_plan',    label: 'Menu Plan' },
-    { type: 'w9',           label: 'W-9' },
-  ];
-
-  const rows = REQUIRED.map(({ type, label }) => {
+  const rows = KITCHEN_REQUIRED_DOCS.map(({ type, label }) => {
     const doc      = docs.find((d) => d.type === type);
     const status   = doc?.status ?? 'missing';
     const daysLeft = doc?.expires_at
@@ -546,16 +560,22 @@ function DocComplianceCard({ docs, navigate }) {
 }
 
 // ─── Monthly Summary Card ─────────────────────────────────────────────────────
-function KitchenSummaryCard({ mealCounts, stats }) {
+function KitchenSummaryCard({ mealCounts, stats, docs = [] }) {
   const month = new Date().toLocaleString('en-US', { month: 'long' });
   const monthTotal = mealCounts.reduce(
     (s, c) => s + (c.breakfast ?? 0) + (c.lunch ?? 0) + (c.snack ?? 0) + (c.supper ?? 0), 0
   );
 
+  // Derived from the real documents API — stats.docs_uploaded does not exist on
+  // the /stats endpoint (only on /compliance), so this always read as 0 before.
+  const docCount = countUploadedDocs(docs);
+  const docTotal = KITCHEN_REQUIRED_DOCS.length;
+
   const items = [
     { label: 'Meals Prepared',  value: monthTotal > 0 ? monthTotal.toLocaleString() : '—', color: 'text-brand-600' },
     { label: 'Sites Served',    value: stats.connected_sites ?? '—',                        color: 'text-blue-600' },
-    { label: 'Docs Uploaded',   value: `${stats.docs_uploaded ?? 0}/3`,                     color: 'text-green-600' },
+    { label: 'Docs on File',    value: `${docCount}/${docTotal}`,
+      color: docCount === docTotal ? 'text-green-600' : 'text-gray-700' },
   ];
 
   return (
@@ -724,30 +744,6 @@ function KitchenDeliveriesPage() {
   );
 }
 
-// Derive onboarding checklist steps from real API stats
-function buildChecklist(stats) {
-  const appStatus   = stats.application_status;
-  const docsUploaded = stats.docs_uploaded ?? 0;
-  const appSubmitted = appStatus && appStatus !== 'not_started';
-  const appApproved  = appStatus === 'approved';
-
-  return [
-    { label: 'Register your kitchen',          done: true },
-    { label: 'Upload at least one document',   done: docsUploaded >= 1 },
-    { label: 'Upload 3 required documents',    done: docsUploaded >= 3 },
-    { label: 'Submit application for review',  done: appSubmitted },
-    { label: 'Application approved by sponsor',done: appApproved },
-  ];
-}
-
-// Derive the application status string for NextActionBanner
-// The banner uses: not_submitted | submitted | approved
-function getBannerStatus(statsStatus) {
-  if (!statsStatus || statsStatus === 'not_started') return 'not_submitted';
-  if (statsStatus === 'approved') return 'approved';
-  return 'submitted';
-}
-
 // ─── Kitchen Overview — 9-section layout ─────────────────────────────────────
 function KitchenOverview({ stats, loading, navigate }) {
   const { data, loading: dataLoading } = useKitchenData();
@@ -807,7 +803,7 @@ function KitchenOverview({ stats, loading, navigate }) {
       <DocComplianceCard docs={docs ?? []} navigate={navigate} />
 
       {/* 7. Monthly Summary */}
-      <KitchenSummaryCard mealCounts={mealCounts ?? []} stats={stats} />
+      <KitchenSummaryCard mealCounts={mealCounts ?? []} stats={stats} docs={docs ?? []} />
 
       {/* 8. Tomorrow's Production preview */}
       <TomorrowProductionCard tomorrowProd={tomorrowProd} />
@@ -843,68 +839,12 @@ export default function KitchenDashboard() {
   const { stats, loading } = useDashboardStats();
   const { unreadCount } = useNotifications();
 
-  const checklist   = buildChecklist(stats);
-  const completed   = checklist.filter((s) => s.done).length;
-  const progressPct = Math.round((completed / checklist.length) * 100);
-
-  // Derive uploaded docs list for NextActionBanner
-  // In a real build this would come from the documents API; for now we derive from stats
-  const uploadedDocs = [];
-  if ((stats.docs_uploaded ?? 0) >= 1) uploadedDocs.push('W-9');
-  if ((stats.docs_uploaded ?? 0) >= 2) uploadedDocs.push('Menu Plan');
-  if ((stats.docs_uploaded ?? 0) >= 3) uploadedDocs.push('Insurance Certificate');
-
-  const bannerStatus = getBannerStatus(stats.application_status);
-
-  // Build Action Center tasks from real stats
-  const actionTasks = [
-    {
-      id: 'docs',
-      label: `Upload required documents (${stats.docs_uploaded ?? 0}/3 uploaded)`,
-      path: '/dashboard/kitchen/documents',
-      done: (stats.docs_uploaded ?? 0) >= 3,
-    },
-    {
-      id: 'app',
-      label: 'Submit your application for review',
-      path: '/dashboard/kitchen/application',
-      done: bannerStatus !== 'not_submitted',
-    },
-    {
-      id: 'meals',
-      label: 'Submit today\'s meal counts',
-      path: '/dashboard/kitchen/meals',
-      done: bannerStatus !== 'approved' || !!stats.counts_today,
-    },
-    {
-      id: 'messages',
-      label: `Respond to unread messages (${stats.unread_messages ?? 0})`,
-      path: '/dashboard/kitchen/messages',
-      done: !(stats.unread_messages > 0),
-    },
-  ];
-
-  // Navigate to the right sub-page when a banner action is clicked
-  const handleBannerAction = () => {
-    if (uploadedDocs.length < 3) {
-      navigate('/dashboard/kitchen/documents');
-    } else if (bannerStatus === 'not_submitted') {
-      navigate('/dashboard/kitchen/application');
-    } else {
-      navigate('/dashboard/kitchen/meals');
-    }
-  };
-
-  // AlertsCenter navigation helper
-  const handleAlertNav = (path) => {
-    navigate(`/dashboard/kitchen/${path}`);
-  };
-
-  // When all 3 docs are uploaded via DocumentUploadCard, refresh stats
-  // (useDashboardStats will re-fetch on next render cycle)
-  const handleAllUploaded = () => {
-    navigate('/dashboard/kitchen/application');
-  };
+  // NOTE: the old onboarding checklist / action-center / next-action-banner block
+  // that used to live here was removed. Those components stopped being rendered in
+  // the Task #97 redesign, but ~65 lines kept computing values for them on every
+  // render — including document counts derived from stats.docs_uploaded, a field
+  // the /stats endpoint never returns. Dead code that computes wrong numbers is
+  // worse than no code: it looks maintained. KitchenOverview owns this screen now.
 
   return (
     <div className="flex h-screen bg-gray-50">
