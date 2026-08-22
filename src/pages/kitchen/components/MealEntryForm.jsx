@@ -32,6 +32,25 @@ const FIELD_CONFIDENCE = {
 
 function toDateStr(d) { return d.toISOString().split('T')[0]; }
 
+// Read a meal count off an entry regardless of shape.
+// The API returns DB column names (breakfast/lunch/snack/supper), but rows we
+// append locally after a save use the POST field names (breakfast_count/...).
+// Code that only checked one shape silently read undefined -> 0.
+function readCount(entry, type) {
+  if (!entry) return 0;
+  return entry[type] ?? entry[`${type}_count`] ?? 0;
+}
+
+// Pull all four counts off an entry at once.
+function readCounts(entry) {
+  return {
+    breakfast: readCount(entry, 'breakfast'),
+    lunch:     readCount(entry, 'lunch'),
+    supper:    readCount(entry, 'supper'),
+    snack:     readCount(entry, 'snack'),
+  };
+}
+
 // How long ago was `ts` (Date)?
 function timeAgo(ts) {
   if (!ts) return '';
@@ -111,6 +130,7 @@ export default function MealEntryForm() {
 
   // Data
   const [recentMeals, setRecentMeals] = useState([]);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   // Scan state
   const [scanning, setScanning]           = useState(false);
@@ -136,8 +156,14 @@ export default function MealEntryForm() {
   const inputRefs = useRef([]);
 
   // ── Load recent meals ───────────────────────────────────────────────────────
+  // NOTE: this used to request ?recent=7, but listMealCounts has no 'recent'
+  // param — it was ignored and the endpoint returned the kitchen's ENTIRE
+  // history. So "7-day average" averaged everything ever recorded. Use the
+  // start_date filter the backend actually supports.
   useEffect(() => {
-    api.get('/meal-counts?recent=7')
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    api.get(`/meal-counts?start_date=${toDateStr(since)}`)
       .then(({ data }) => setRecentMeals(data.meal_counts ?? (Array.isArray(data) ? data : [])))
       .catch(() => {});
   }, []);
@@ -146,6 +172,30 @@ export default function MealEntryForm() {
   useEffect(() => {
     setTimeout(() => inputRefs.current[0]?.focus(), 200);
   }, []);
+
+  // Pre-fill the form with whatever is already recorded for the selected date.
+  // Without this the form always opened at 0s — a kitchen that had already
+  // submitted today saw an empty form and had no way to tell, and picking an
+  // earlier date showed zeros rather than that day's real counts.
+  // prefilledFor guards against clobbering edits when recentMeals arrives late.
+  const prefilledFor = useRef(null);
+  useEffect(() => {
+    if (prefilledFor.current === date) return;
+    const existing = recentMeals.find((m) => (m.date ?? '').slice(0, 10) === date);
+    if (existing) {
+      const c = readCounts(existing);
+      setCounts(c);
+      setSavedCounts(c);        // so "unsaved changes" isn't shown for untouched data
+      setAlreadySubmitted(true);
+      prefilledFor.current = date;
+    } else if (recentMeals.length > 0) {
+      // We have data loaded and this date isn't in it — genuinely a new entry
+      setCounts({ ...EMPTY_COUNTS });
+      setSavedCounts(null);
+      setAlreadySubmitted(false);
+      prefilledFor.current = date;
+    }
+  }, [date, recentMeals]);
 
   // Live "X seconds ago" timer
   useEffect(() => {
@@ -199,17 +249,16 @@ export default function MealEntryForm() {
     setShowPresets(false);
 
     if (preset === 'average' && recentMeals.length > 0) {
-      // DB returns 'breakfast'/'lunch'/'snack'/'supper' — _count is old POST field name
-      const avgF = (key, alt) => Math.round(
-        recentMeals.reduce((s, m) => s + (m[key] ?? m[alt] ?? 0), 0) / recentMeals.length
+      const avgF = (type) => Math.round(
+        recentMeals.reduce((s, m) => s + readCount(m, type), 0) / recentMeals.length
       );
       setCounts({
-        breakfast: avgF('breakfast', 'breakfast_count'),
-        lunch:     avgF('lunch',     'lunch_count'),
-        supper:    avgF('supper',    'supper_count'),
-        snack:     avgF('snack',     'snack_count'),
+        breakfast: avgF('breakfast'),
+        lunch:     avgF('lunch'),
+        supper:    avgF('supper'),
+        snack:     avgF('snack'),
       });
-      showToast('Filled with your 7-day averages');
+      showToast(`Filled with your average across ${recentMeals.length} recent day${recentMeals.length === 1 ? '' : 's'}`);
       return;
     }
 
@@ -219,14 +268,9 @@ export default function MealEntryForm() {
       const diff = (day === 0 ? 6 : day - 1) + 7; // go back to last Monday
       d.setDate(d.getDate() - diff);
       const mondayStr = toDateStr(d);
-      const entry = recentMeals.find((m) => m.date === mondayStr);
+      const entry = recentMeals.find((m) => (m.date ?? '').slice(0, 10) === mondayStr);
       if (entry) {
-        setCounts({
-          breakfast: entry.breakfast ?? entry.breakfast_count ?? 0,
-          lunch:     entry.lunch     ?? entry.lunch_count     ?? 0,
-          supper:    entry.supper    ?? entry.supper_count    ?? 0,
-          snack:     entry.snack     ?? entry.snack_count     ?? 0,
-        });
+        setCounts(readCounts(entry));
         showToast('Filled with last Monday\'s counts');
       } else {
         showToast('No entry found for last Monday', false);
@@ -236,13 +280,8 @@ export default function MealEntryForm() {
 
     if (preset === 'lastEntry' && recentMeals.length > 0) {
       const last = recentMeals[0];
-      setCounts({
-        breakfast: last.breakfast ?? last.breakfast_count ?? 0,
-        lunch:     last.lunch     ?? last.lunch_count     ?? 0,
-        supper:    last.supper    ?? last.supper_count    ?? 0,
-        snack:     last.snack     ?? last.snack_count     ?? 0,
-      });
-      showToast(`Filled with ${last.date}'s counts`);
+      setCounts(readCounts(last));
+      showToast(`Filled with ${(last.date ?? '').slice(0, 10)}'s counts`);
     }
   };
 
@@ -252,14 +291,9 @@ export default function MealEntryForm() {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yStr = toDateStr(yesterday);
-    const cached = recentMeals.find((m) => m.date === yStr);
+    const cached = recentMeals.find((m) => (m.date ?? '').slice(0, 10) === yStr);
     if (cached) {
-      setCounts({
-        breakfast: cached.breakfast ?? cached.breakfast_count ?? 0,
-        lunch:     cached.lunch     ?? cached.lunch_count     ?? 0,
-        supper:    cached.supper    ?? cached.supper_count    ?? 0,
-        snack:     cached.snack     ?? cached.snack_count     ?? 0,
-      });
+      setCounts(readCounts(cached));
       showToast("Copied yesterday's counts");
     } else {
       showToast('No entry found for yesterday', false);
@@ -314,14 +348,16 @@ export default function MealEntryForm() {
   };
 
   // ── Anomaly check ───────────────────────────────────────────────────────────
+  // Was reading m[`${type}_count`], but the API returns DB column names
+  // (breakfast/lunch/snack/supper). Every average came out 0, the `avg > 0`
+  // guard then failed, and this warning never fired for server-loaded data —
+  // only for rows appended locally after a save in the same session.
   const isUnusuallyHigh = (c) => {
     if (recentMeals.length < 3) return false;
-    for (const type of MEAL_TYPES) {
-      const key = `${type}_count`;
-      const avg = recentMeals.reduce((s, m) => s + (m[key] || 0), 0) / recentMeals.length;
-      if (avg > 0 && c[type] > avg * 1.5) return true;
-    }
-    return false;
+    return MEAL_TYPES.some((type) => {
+      const avg = recentMeals.reduce((s, m) => s + readCount(m, type), 0) / recentMeals.length;
+      return avg > 0 && c[type] > avg * 1.5;
+    });
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
@@ -352,9 +388,18 @@ export default function MealEntryForm() {
       setSavedCounts({ ...counts });
       setSavedAt(Date.now());
       setTimeAgoStr('just now');
+      setAlreadySubmitted(true);
+      // Store using the API's own column names so the cached row matches what a
+      // refetch would return (readCount tolerates both, but keep them aligned).
       setRecentMeals((prev) => [
-        { date: payload.date, breakfast_count: payload.breakfast_count, lunch_count: payload.lunch_count, supper_count: payload.supper_count, snack_count: payload.snack_count },
-        ...prev.filter((m) => m.date !== payload.date),
+        {
+          date:      payload.date,
+          breakfast: payload.breakfast_count,
+          lunch:     payload.lunch_count,
+          supper:    payload.supper_count,
+          snack:     payload.snack_count,
+        },
+        ...prev.filter((m) => (m.date ?? '').slice(0, 10) !== payload.date),
       ]);
       showToast(`✓ Saved for ${payload.date}`);
     } catch (err) {
@@ -497,6 +542,17 @@ export default function MealEntryForm() {
               {copying ? 'Copying…' : "Yesterday's"}
             </button>
           </div>
+
+          {/* ── Already-submitted notice ── */}
+          {alreadySubmitted && (
+            <div className="mb-5 flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800">
+                <span className="font-bold">Counts already recorded for this date.</span>{' '}
+                The numbers below are what's on file — edit and save to update them.
+              </p>
+            </div>
+          )}
 
           {/* ── Meal inputs — 2-col on mobile, 4-col on sm+ ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
