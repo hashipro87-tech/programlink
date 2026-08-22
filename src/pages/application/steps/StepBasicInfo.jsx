@@ -40,7 +40,15 @@ const ORG_TYPES = [
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function StepBasicInfo({ formData, onChange, errors }) {
+export default function StepBasicInfo({ formData, onChange, errors, role }) {
+  // ORG_TYPES is a list of CHILD-CARE program types (Child Care Center, Family
+  // Day Care Home, Head Start, Adult Day Care, ...). It only describes what a
+  // *site* is. A kitchen or delivery applicant has no honest answer here —
+  // this used to be required for every role, so a kitchen applying had to pick
+  // "Other" from a list of options that don't apply to them, then reach Step 2
+  // and answer the correct question ("Kitchen type": Commercial / School
+  // cafeteria / Faith-based / Nonprofit) anyway. Now shown only for sites.
+  const showOrgType = !role || role === 'site';
   const addressRef     = useRef(null);
   const [mapsReady, setMapsReady] = useState(!!window.google?.maps?.places);
   const autocompleteRef = useRef(null);
@@ -124,23 +132,25 @@ export default function StepBasicInfo({ formData, onChange, errors }) {
         {err('orgName')}
       </div>
 
-      {/* Organization type */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Organization type <span className="text-red-500">*</span>
-        </label>
-        <select
-          value={formData.orgType || ''}
-          onChange={(e) => onChange('orgType', e.target.value)}
-          className={selectCls('orgType')}
-        >
-          <option value="">Select your organization type…</option>
-          {ORG_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
-        {err('orgType')}
-      </div>
+      {/* Organization type — site applicants only, see showOrgType note above */}
+      {showOrgType && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Organization type <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.orgType || ''}
+            onChange={(e) => onChange('orgType', e.target.value)}
+            className={selectCls('orgType')}
+          >
+            <option value="">Select your organization type…</option>
+            {ORG_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+          {err('orgType')}
+        </div>
+      )}
 
       {/* Contact name + title */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -25,15 +25,19 @@ const STEPS = [
   { id: 'review',    label: 'Review',     time: 1 },
 ];
 
-// Checklist items per step (used in the sidebar)
-const BASIC_ITEMS = [
-  { key: 'orgName',     label: 'Organization name' },
-  { key: 'orgType',     label: 'Organization type' },
-  { key: 'contactName', label: 'Contact name' },
-  { key: 'phone',       label: 'Phone number' },
-  { key: 'email',       label: 'Email address' },
-  { key: 'address',     label: 'Street address' },
-];
+// Checklist items per step (used in the sidebar).
+// orgType only applies to site applicants — see the note in StepBasicInfo.jsx.
+function basicItems(role) {
+  const items = [
+    { key: 'orgName',     label: 'Organization name' },
+    { key: 'orgType',     label: 'Organization type' },
+    { key: 'contactName', label: 'Contact name' },
+    { key: 'phone',       label: 'Phone number' },
+    { key: 'email',       label: 'Email address' },
+    { key: 'address',     label: 'Street address' },
+  ];
+  return (!role || role === 'site') ? items : items.filter((i) => i.key !== 'orgType');
+}
 const DETAIL_ITEMS = {
   kitchen:  [{ key: 'kitchenType', label: 'Kitchen type' }, { key: 'mealCapacity', label: 'Meal capacity' }],
   site:     [{ key: 'siteType',    label: 'Site type'    }, { key: 'enrollment',   label: 'Enrollment'   }],
@@ -45,7 +49,11 @@ function validateStep(stepId, formData, role) {
   const errors = {};
   if (stepId === 'basic') {
     if (!formData.orgName?.trim())     errors.orgName     = 'Organization name is required';
-    if (!formData.orgType)             errors.orgType     = 'Organization type is required';
+    // orgType (Child Care Center / Family Day Care Home / Head Start / ...) is
+    // a site-only concept — not shown to kitchen or delivery applicants, so it
+    // must not be required for them either. It used to be, which forced every
+    // kitchen applicant to pick a meaningless answer just to advance.
+    if ((!role || role === 'site') && !formData.orgType) errors.orgType = 'Organization type is required';
     if (!formData.contactName?.trim()) errors.contactName = 'Contact name is required';
     if (!formData.phone?.trim())       errors.phone       = 'Phone number is required';
     if (!formData.email?.trim())       errors.email       = 'Email address is required';
@@ -153,7 +161,7 @@ function ChecklistSidebar({ formData, role, currentStep }) {
   const sections = [
     {
       label: '1. Basic Info',
-      items: BASIC_ITEMS,
+      items: basicItems(role),
       stepIndex: 0,
     },
     {
@@ -378,7 +386,7 @@ export default function ApplicationFlow({ onSubmitted }) {
             )}
 
             {currentStep === 0 && (
-              <StepBasicInfo formData={formData} onChange={handleChange} errors={errors} />
+              <StepBasicInfo formData={formData} onChange={handleChange} errors={errors} role={user?.role} />
             )}
             {currentStep === 1 && (
               <StepOrgDetails role={user?.role} formData={formData} onChange={handleChange} errors={errors} />
