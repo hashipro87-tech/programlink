@@ -6,23 +6,27 @@
 import { useRef } from 'react';
 import { Upload, CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
 import { useDocuments } from '../../../hooks/useDocuments';
+import { REQUIRED_DOCUMENTS, isDocFulfilled } from '../../../constants/requiredDocuments';
 
-// Required and optional documents per role
+// Required documents per role. kitchen/site come from REQUIRED_DOCUMENTS — the
+// single list shared with DocumentsPage.jsx, KitchenDashboard.jsx, and the
+// backend's compliance.js REQUIRED constant.
+//
+// This used to be its own hardcoded list with entirely different, invented
+// doc_type values (health_permit, food_handler_cert, business_license,
+// state_license, enrollment_records, director_info, fire_inspection — none of
+// which matched a real document anywhere else in the product). A kitchen with
+// every real compliance document approved on /documents still saw "0 of 3
+// required documents uploaded" here and could never submit their application
+// through this step, because getDoc() matches by exact doc_type and none of
+// these types existed anywhere else. See requiredDocuments.js for the full story.
 const DOC_REQUIREMENTS = {
-  kitchen: [
-    { type: 'health_permit',       label: 'Health Department Permit',    required: true,  hasExpiry: true },
-    { type: 'liability_insurance', label: 'General Liability Insurance',  required: true,  hasExpiry: true },
-    { type: 'food_handler_cert',   label: 'Food Handler Certification',   required: true,  hasExpiry: true },
-    { type: 'kitchen_inspection',  label: 'Kitchen Inspection Report',    required: false, hasExpiry: true },
-    { type: 'business_license',    label: 'Business License',             required: false, hasExpiry: true },
-  ],
-  site: [
-    { type: 'state_license',       label: 'State License / Registration', required: true,  hasExpiry: true },
-    { type: 'liability_insurance', label: 'General Liability Insurance',  required: true,  hasExpiry: true },
-    { type: 'enrollment_records',  label: 'Enrollment Documentation',     required: true,  hasExpiry: false },
-    { type: 'director_info',       label: 'Site Director Information',    required: true,  hasExpiry: false },
-    { type: 'fire_inspection',     label: 'Fire Inspection Certificate',  required: false, hasExpiry: true },
-  ],
+  kitchen: REQUIRED_DOCUMENTS.kitchen.map((d) => ({ type: d.doc_type, label: d.label, required: true, hasExpiry: true })),
+  site:    REQUIRED_DOCUMENTS.site.map((d)    => ({ type: d.doc_type, label: d.label, required: true, hasExpiry: true })),
+  // Delivery has no entry in the shared list — nothing else in the product
+  // (Compliance page, Claims engine) tracks required documents for delivery
+  // orgs yet, so this stays a locally-scoped list for now. See the NOTE in
+  // requiredDocuments.js.
   delivery: [
     { type: 'vehicle_registration',label: 'Vehicle Registration(s)',      required: true,  hasExpiry: true },
     { type: 'liability_insurance', label: 'Commercial Auto Insurance',    required: true,  hasExpiry: true },
@@ -129,7 +133,11 @@ export default function StepDocuments({ role }) {
   const { documents, uploading, uploadDocument, getDoc } = useDocuments();
   const requiredDocs = DOC_REQUIREMENTS[role] || [];
 
-  const uploaded    = requiredDocs.filter((d) => d.required && getDoc(d.type)).length;
+  // isDocFulfilled excludes 'rejected' and 'requested' (a sponsor-side
+  // placeholder with no real file) — a rejected doc existing in the row
+  // shouldn't count as satisfying the requirement, or a sponsor could never
+  // force a re-upload before submission.
+  const uploaded    = requiredDocs.filter((d) => d.required && isDocFulfilled(getDoc(d.type))).length;
   const totalReq    = requiredDocs.filter((d) => d.required).length;
   const allRequired = uploaded === totalReq;
 

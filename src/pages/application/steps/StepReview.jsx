@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useDocuments } from '../../../hooks/useDocuments';
 import { DOC_REQUIREMENTS } from './StepDocuments';
+import { isDocFulfilled } from '../../../constants/requiredDocuments';
 
 // Small helper to render a labelled value row
 function ReviewRow({ label, value }) {
@@ -23,8 +24,11 @@ export default function StepReview({ role, formData, onSubmit, submitting }) {
   const [agreed, setAgreed] = useState(false);
 
   const requiredDocs = (DOC_REQUIREMENTS[role] || []).filter((d) => d.required);
+  // isDocFulfilled excludes 'rejected' and 'requested' placeholder rows — a
+  // document a sponsor bounced back shouldn't count as satisfied, or the
+  // applicant could submit right past a rejection without ever fixing it.
   const missingDocs  = requiredDocs.filter(
-    (d) => !documents.find((doc) => doc.doc_type === d.type)
+    (d) => !isDocFulfilled(documents.find((doc) => doc.doc_type === d.type))
   );
   const canSubmit = agreed && missingDocs.length === 0;
 
@@ -115,17 +119,19 @@ export default function StepReview({ role, formData, onSubmit, submitting }) {
         </h3>
         <div className="space-y-2">
           {(DOC_REQUIREMENTS[role] || []).map((docDef) => {
-            const uploaded = documents.find((d) => d.doc_type === docDef.type);
+            const doc      = documents.find((d) => d.doc_type === docDef.type);
+            const fulfilled = isDocFulfilled(doc);
             return (
               <div key={docDef.type} className="flex items-center gap-2 text-sm">
-                {uploaded
+                {fulfilled
                   ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                   : <AlertCircle className={`w-4 h-4 flex-shrink-0 ${docDef.required ? 'text-red-400' : 'text-gray-300'}`} />
                 }
-                <span className={uploaded ? 'text-gray-700' : docDef.required ? 'text-red-600 font-medium' : 'text-gray-400'}>
+                <span className={fulfilled ? 'text-gray-700' : docDef.required ? 'text-red-600 font-medium' : 'text-gray-400'}>
                   {docDef.label}
-                  {!uploaded && docDef.required && ' (missing)'}
-                  {!uploaded && !docDef.required && ' (optional)'}
+                  {!fulfilled && doc?.status === 'rejected' && docDef.required && ' (rejected — re-upload)'}
+                  {!fulfilled && doc?.status !== 'rejected' && docDef.required && ' (missing)'}
+                  {!fulfilled && !docDef.required && ' (optional)'}
                 </span>
               </div>
             );

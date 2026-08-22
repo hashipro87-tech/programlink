@@ -16,23 +16,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-
-// ─── Required docs per org type ──────────────────────────────────────────────
-const REQUIRED_DOCS = {
-  kitchen: [
-    { doc_type: 'w9',          label: 'W-9 Form',              hint: 'IRS W-9 for tax reporting' },
-    { doc_type: 'food_permit', label: 'Food Service Permit',   hint: 'Valid food handler / sanitation permit' },
-    { doc_type: 'insurance',   label: 'Liability Insurance',   hint: 'General liability certificate of insurance' },
-    { doc_type: 'menu_plan',   label: 'Menu Plan',             hint: 'Approved CACFP menu cycle' },
-    { doc_type: 'health_cert', label: 'Health Certificate',    hint: 'Health department inspection certificate' },
-  ],
-  site: [
-    { doc_type: 'enrollment',  label: 'Enrollment Records',    hint: 'Current participant enrollment documentation' },
-    { doc_type: 'license',     label: 'Child Care License',    hint: 'State-issued child care license' },
-    { doc_type: 'insurance',   label: 'Liability Insurance',   hint: 'General liability certificate of insurance' },
-    { doc_type: 'health_cert', label: 'Health Certificate',    hint: 'Health department certificate' },
-  ],
-};
+import { REQUIRED_DOCUMENTS as REQUIRED_DOCS } from '../../constants/requiredDocuments';
+// ^ REQUIRED_DOCS used to be defined locally here. Now imported from the
+// shared constant so this page, KitchenDashboard.jsx, and the application
+// flow's document steps can't drift apart again — see requiredDocuments.js.
 
 const ALL_DOC_TYPES = [
   { value: 'w9',               label: 'W-9 Form' },

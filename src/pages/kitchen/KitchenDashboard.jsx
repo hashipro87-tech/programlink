@@ -33,6 +33,7 @@ import api                    from '../../services/api';
 // rendered after the Task #97 redesign — imports removed. The component files
 // still exist if we want to bring any of them back.
 import MealEntryForm       from './components/MealEntryForm';
+import { REQUIRED_DOCUMENTS, isDocFulfilled } from '../../constants/requiredDocuments';
 
 const NAV_ITEMS = [
   { label: 'Overview',        path: '/dashboard/kitchen',              icon: CheckCircle,    end: true },
@@ -58,29 +59,17 @@ const NAV_ITEMS = [
 ];
 
 // ─── Required kitchen documents ───────────────────────────────────────────────
-// SINGLE SOURCE OF TRUTH — must match REQUIRED.kitchen in backend routes/compliance.js
-// (previously this list was duplicated in 3 places with 3 different answers: the
-//  compliance card said 5 docs, NextActionBanner said 3, the summary card said "/3")
-export const KITCHEN_REQUIRED_DOCS = [
-  { type: 'w9',          label: 'W-9' },
-  { type: 'food_permit', label: 'Food Safety Permit' },
-  { type: 'insurance',   label: 'Insurance' },
-  { type: 'menu_plan',   label: 'Menu Plan' },
-  { type: 'health_cert', label: 'Health Inspection' },
-];
+// Now sourced from src/constants/requiredDocuments.js — the single shared list
+// also used by DocumentsPage.jsx and the application flow's Documents step.
+// (This used to be its own local copy — see requiredDocuments.js for the full
+// history of how many places disagreed and why that broke things.)
+// Keeps the `type` key name the rest of this file already expects.
+export const KITCHEN_REQUIRED_DOCS = REQUIRED_DOCUMENTS.kitchen.map((d) => ({ type: d.doc_type, label: d.label }));
 
 // Count how many required docs are actually on file, from the real documents API.
-// A doc counts as "on file" if it exists and isn't rejected/requested.
-// NOTE: the documents table column — and the API field — is `doc_type`, not
-// `type`. Reading d.type here meant this ALWAYS returned 0 regardless of how
-// many documents were actually uploaded and approved. Also 'approved' wasn't
-// in the on-file list; the DB status is 'valid' (displayed as "Approved" in
-// the UI), but DocumentsPage.jsx's own isApproved() accepts either spelling,
-// so this list does too for safety.
 function countUploadedDocs(docs = []) {
-  const ON_FILE = ['valid', 'approved', 'expiring_soon', 'pending_review', 'expired'];
   return KITCHEN_REQUIRED_DOCS.filter(({ type }) =>
-    docs.some((d) => d.doc_type === type && ON_FILE.includes(d.status))
+    docs.some((d) => d.doc_type === type && isDocFulfilled(d))
   ).length;
 }
 
