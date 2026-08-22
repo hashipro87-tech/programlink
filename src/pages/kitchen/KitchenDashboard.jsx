@@ -71,10 +71,16 @@ export const KITCHEN_REQUIRED_DOCS = [
 
 // Count how many required docs are actually on file, from the real documents API.
 // A doc counts as "on file" if it exists and isn't rejected/requested.
+// NOTE: the documents table column — and the API field — is `doc_type`, not
+// `type`. Reading d.type here meant this ALWAYS returned 0 regardless of how
+// many documents were actually uploaded and approved. Also 'approved' wasn't
+// in the on-file list; the DB status is 'valid' (displayed as "Approved" in
+// the UI), but DocumentsPage.jsx's own isApproved() accepts either spelling,
+// so this list does too for safety.
 function countUploadedDocs(docs = []) {
-  const ON_FILE = ['valid', 'expiring_soon', 'pending_review', 'expired'];
+  const ON_FILE = ['valid', 'approved', 'expiring_soon', 'pending_review', 'expired'];
   return KITCHEN_REQUIRED_DOCS.filter(({ type }) =>
-    docs.some((d) => d.type === type && ON_FILE.includes(d.status))
+    docs.some((d) => d.doc_type === type && ON_FILE.includes(d.status))
   ).length;
 }
 
@@ -604,8 +610,13 @@ function SiteStatusCard({ todayProd }) {
 // ─── Document Compliance Card (inline) ───────────────────────────────────────
 function DocComplianceCard({ docs, navigate }) {
   const rows = KITCHEN_REQUIRED_DOCS.map(({ type, label }) => {
-    const doc      = docs.find((d) => d.type === type);
-    const status   = doc?.status ?? 'missing';
+    // d.doc_type, not d.type — see the note on countUploadedDocs(). Was always
+    // "missing" regardless of what had actually been uploaded.
+    const doc    = docs.find((d) => d.doc_type === type);
+    // DocumentsPage.jsx displays DB status 'valid' as "Approved" in the UI, and
+    // its own isApproved() treats the two as equivalent — normalize here too so
+    // this card doesn't disagree with the page it links to.
+    const status = doc?.status === 'approved' ? 'valid' : (doc?.status ?? 'missing');
     const daysLeft = doc?.expires_at
       ? Math.ceil((new Date(doc.expires_at) - Date.now()) / 86400000)
       : null;
