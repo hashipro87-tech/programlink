@@ -6,7 +6,7 @@ const { logActivity, TYPES } = require('../services/activityService');
 
 exports.listApplications = async (req, res) => {
   try {
-    const { status, limit = 50, offset = 0 } = req.query;
+    const { status, type, limit = 50, offset = 0 } = req.query;
     let query = `
       SELECT a.*, o.name AS org_name, o.type AS org_type
       FROM applications a
@@ -17,13 +17,36 @@ exports.listApplications = async (req, res) => {
       params.push(req.user.organizationId);
       query += ` AND a.sponsor_id = $${params.length}`;
     } else if (req.user.role === 'coordinator') {
-      params.push(req.user.sponsorId);
+      // Coordinators have sponsorId=null after login — their own org row IS the
+      // sponsor org, so organizations.sponsor_id (what JWT sponsorId is derived
+      // from) is never set on it. Same root cause already fixed for the
+      // organizations list in organizationsController.js, but never applied
+      // here — so a.sponsor_id = NULL matched zero rows for every coordinator,
+      // every time, regardless of what applications actually existed.
+      const sponsorScopeId = req.user.sponsorId ?? req.user.organizationId;
+      params.push(sponsorScopeId);
       query += ` AND a.sponsor_id = $${params.length}`;
+
+      // Match organizationsController's coordinator scoping: if this
+      // coordinator has explicit org assignments, narrow to those; a
+      // coordinator with no assignments yet sees everything in the sponsor's
+      // program (safe default for new coordinators).
+      const { rows: asgn } = await pool.query(
+        'SELECT org_id FROM coordinator_assignments WHERE coordinator_id = $1',
+        [req.user.id]
+      );
+      if (asgn.length > 0) {
+        params.push(asgn.map((a) => a.org_id));
+        query += ` AND a.org_id = ANY($${params.length})`;
+      }
     } else {
       params.push(req.user.organizationId);
       query += ` AND a.org_id = $${params.length}`;
     }
     if (status) { params.push(status); query += ` AND a.status = $${params.length}`; }
+    // `type` was accepted by the frontend's filter dropdown (All types / Kitchens
+    // / Sites / Delivery) but never read here — the control did nothing.
+    if (type)   { params.push(type);   query += ` AND o.type = $${params.length}`; }
     params.push(limit, offset);
     query += ` ORDER BY a.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
     const { rows } = await pool.query(query, params);
