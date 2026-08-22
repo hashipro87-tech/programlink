@@ -100,6 +100,14 @@ function mealLabel(v) {
   }[v] ?? v);
 }
 
+// Pluralize a meal noun for display: "1 lunch" / "30 lunches".
+// Naive label+'s' produced "30 lunchs" — sibilant endings need -es.
+function mealNoun(type, count) {
+  const base = mealLabel(type).toLowerCase();
+  if (count === 1) return base;
+  return /(ch|sh|s|x|z)$/.test(base) ? `${base}es` : `${base}s`;
+}
+
 // ─── Today's Production Schedule ──────────────────────────────────────────────
 // Auto-generated from recurring delivery plans.
 // Kitchens see exactly what to cook for each site — no guessing, no phone calls.
@@ -647,7 +655,10 @@ function KitchenDeliveriesPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch both manual routes and recurring plan production (next 60 days)
+    // Manual one-off routes + today's recurring-plan production.
+    // NOTE: /delivery-plans/production is a single-day endpoint (defaults to
+    // today). The old comment here claimed "next 60 days", which it never did —
+    // recurring deliveries beyond today only appear once their date arrives.
     Promise.allSettled([
       api.get('/delivery/routes'),
       api.get('/delivery-plans/production'),
@@ -676,14 +687,20 @@ function KitchenDeliveriesPage() {
     });
   }, []);
 
-  // Group by date
+  // Group by date, then split upcoming from past. Everything used to render in
+  // one ascending list, so a kitchen opening this page saw last month's
+  // deliveries first and had to scroll past them to find today's.
   const byDate = {};
   for (const r of routes) {
     const d = r.date ?? 'unknown';
     if (!byDate[d]) byDate[d] = [];
     byDate[d].push(r);
   }
-  const dates = Object.keys(byDate).sort();
+  const allDates    = Object.keys(byDate).sort();
+  const today       = todayISO();
+  const dates       = allDates.filter((d) => d === 'unknown' || d >= today);
+  const pastDates   = allDates.filter((d) => d !== 'unknown' && d <  today).reverse();
+  const [showPast, setShowPast] = useState(false);
 
   return (
     <div>
@@ -696,50 +713,89 @@ function KitchenDeliveriesPage() {
 
       {loading ? (
         <div className="py-20 text-center text-sm text-gray-400">Loading…</div>
-      ) : dates.length === 0 ? (
+      ) : dates.length === 0 && pastDates.length === 0 ? (
         <div className="py-24 text-center">
           <Truck className="w-12 h-12 text-gray-200 mx-auto mb-4" />
           <p className="text-base font-bold text-gray-600">No deliveries yet</p>
           <p className="text-sm text-gray-400 mt-1">Your sponsor assigns deliveries from their dashboard.</p>
         </div>
       ) : (
-        dates.map((date) => {
-          const dayRoutes = byDate[date];
-          const allStops  = dayRoutes.flatMap(r => r.stops ?? []);
-          const total     = allStops.reduce((s, st) => s + (st.meal_count || 0), 0);
-          const isNear    = date === todayISO() || date === tomorrowISO();
-
-          return (
-            <div key={date} className="mb-8">
-              <div className="flex items-baseline gap-3 mb-3">
-                <h2 className={`text-base font-bold ${isNear ? 'text-brand-700' : 'text-gray-800'}`}>
-                  {dateLabel(date)}
-                </h2>
-                <span className="text-sm text-gray-400">{total} meals · {allStops.length} sites</span>
-              </div>
-
-              <div className="card divide-y divide-gray-100">
-                {allStops.map((stop, i) => (
-                  <div key={i} className="px-5 py-4 flex items-center gap-4">
-                    <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{stop.site_name ?? 'Site'}</p>
-                      {stop.pickup_time && (
-                        <p className="text-xs text-gray-400">Pickup by {fmt12(stop.pickup_time)}</p>
-                      )}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-gray-900">
-                        {stop.meal_count} {mealLabel(stop.meal_type).toLowerCase()}s
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <>
+          {dates.length === 0 ? (
+            <div className="card px-5 py-8 text-center mb-6">
+              <Truck className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-gray-500">Nothing upcoming</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Past deliveries are below. New ones appear as your sponsor schedules them.
+              </p>
             </div>
-          );
-        })
+          ) : (
+            dates.map((date) => (
+              <DeliveryDay key={date} date={date} routes={byDate[date]} />
+            ))
+          )}
+
+          {pastDates.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowPast((v) => !v)}
+                className="text-sm font-semibold text-gray-500 hover:text-gray-700 flex items-center gap-1.5"
+              >
+                {showPast ? 'Hide' : 'Show'} past deliveries ({pastDates.length} day{pastDates.length === 1 ? '' : 's'})
+              </button>
+              {showPast && (
+                <div className="mt-4 opacity-70">
+                  {pastDates.map((date) => (
+                    <DeliveryDay key={date} date={date} routes={byDate[date]} past />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+// One day's deliveries — shared by the upcoming list and the collapsed past list.
+function DeliveryDay({ date, routes, past = false }) {
+  const allStops = routes.flatMap((r) => r.stops ?? []);
+  const total    = allStops.reduce((s, st) => s + (st.meal_count || 0), 0);
+  const isNear   = date === todayISO() || date === tomorrowISO();
+  const siteCount = new Set(allStops.map((s) => s.site_name ?? 'Site')).size;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-baseline gap-3 mb-3">
+        <h2 className={`text-base font-bold ${
+          past ? 'text-gray-500' : isNear ? 'text-brand-700' : 'text-gray-800'
+        }`}>
+          {dateLabel(date)}
+        </h2>
+        <span className="text-sm text-gray-400">
+          {total} meal{total === 1 ? '' : 's'} · {siteCount} site{siteCount === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <div className="card divide-y divide-gray-100">
+        {allStops.map((stop, i) => (
+          <div key={i} className="px-5 py-4 flex items-center gap-4">
+            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate">{stop.site_name ?? 'Site'}</p>
+              {stop.pickup_time && (
+                <p className="text-xs text-gray-400">Pickup by {fmt12(stop.pickup_time)}</p>
+              )}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-sm font-bold text-gray-900">
+                {stop.meal_count} {mealNoun(stop.meal_type, stop.meal_count)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
