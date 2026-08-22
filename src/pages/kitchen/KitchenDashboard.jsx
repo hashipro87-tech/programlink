@@ -250,7 +250,8 @@ function useKitchenData() {
       api.get(`/meal-counts?month=${month}&limit=50`),
       api.get('/documents?limit=100'),
       api.get('/notifications?limit=5'),
-    ]).then(([todayRes, tmrRes, routesRes, mcRes, docRes, notifRes]) => {
+      api.get('/applications'), // scoped to this kitchen's own org — returns its application, if any
+    ]).then(([todayRes, tmrRes, routesRes, mcRes, docRes, notifRes, appRes]) => {
       const todayProd    = todayRes.status === 'fulfilled'  ? todayRes.value.data  : null;
       const tomorrowProd = tmrRes.status   === 'fulfilled'  ? tmrRes.value.data    : null;
       const allRoutes    = routesRes.status === 'fulfilled'
@@ -259,6 +260,9 @@ function useKitchenData() {
       const mealCounts   = mcRes.status  === 'fulfilled' ? (mcRes.value.data?.meal_counts ?? mcRes.value.data?.counts ?? []) : [];
       const docs         = docRes.status === 'fulfilled' ? (docRes.value.data?.documents ?? []) : [];
       const notifications = notifRes.status === 'fulfilled' ? (notifRes.value.data?.notifications ?? []) : [];
+      const applications = appRes.status === 'fulfilled' ? (appRes.value.data?.applications ?? []) : [];
+      // Most recent application for this org, if one was ever started
+      const application  = applications[0] ?? null;
       // dayKey() on both: DATE columns come back from node-postgres as JS Dates
       // and serialize to full ISO timestamps, so raw === against 'YYYY-MM-DD'
       // never matched. todayCount was therefore always null, which meant the
@@ -267,12 +271,81 @@ function useKitchenData() {
       const todayRoutes  = allRoutes.filter((r) => dayKey(r.date) === today && r.status !== 'cancelled');
       const todayCount   = mealCounts.find((c) => dayKey(c.date) === today) ?? null;
 
-      setData({ todayProd, tomorrowProd, todayRoutes, mealCounts, docs, notifications, todayCount });
+      setData({ todayProd, tomorrowProd, todayRoutes, mealCounts, docs, notifications, todayCount, application });
       setLoading(false);
     });
   }, []);
 
   return { data, loading };
+}
+
+// ─── Get Started Checklist — for kitchens that aren't fully onboarded yet ────
+// Built from real data (documents API + this org's own application), not the
+// fabricated stats.docs_uploaded / stats.application_status fields the old
+// removed onboarding block relied on, which /stats never actually returned.
+// Hides itself once documents are on file and the application is approved —
+// a kitchen that's up and running shouldn't see a permanent to-do list.
+function KitchenGetStarted({ docs, application, navigate }) {
+  const docCount = countUploadedDocs(docs);
+  const docTotal = KITCHEN_REQUIRED_DOCS.length;
+  const docsDone = docCount >= docTotal;
+
+  // applications.status CHECK constraint: draft | submitted | under_review | approved | rejected
+  const appStatus    = application?.status ?? null;
+  const appStarted   = appStatus === 'submitted' || appStatus === 'under_review' || appStatus === 'approved';
+  const appApproved  = appStatus === 'approved';
+  const appRejected  = appStatus === 'rejected';
+
+  const fullyDone = docsDone && appApproved;
+  if (fullyDone) return null;
+
+  const steps = [
+    {
+      label: docsDone ? 'Required documents uploaded' : `Upload required documents (${docCount}/${docTotal})`,
+      done: docsDone,
+      action: () => navigate('/dashboard/kitchen/documents'),
+      cta: 'Upload',
+    },
+    {
+      label: appRejected ? 'Application needs changes' : appApproved ? 'Application approved' : appStarted ? 'Application submitted — awaiting review' : 'Submit your application',
+      done: appStarted && !appRejected,
+      warn: appRejected,
+      action: () => navigate('/dashboard/kitchen/application'),
+      cta: appRejected ? 'Review' : appStarted ? 'View' : 'Start',
+    },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+
+  return (
+    <div className="card mb-6 border-brand-100">
+      <div className="px-5 py-3.5 border-b border-brand-100 bg-brand-50 rounded-t-2xl">
+        <h2 className="text-sm font-bold text-brand-900">Get Started</h2>
+        <p className="text-xs text-brand-600 mt-0.5">
+          {doneCount}/{steps.length} steps done — finish these so your sponsor can approve your kitchen.
+        </p>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {steps.map((s, i) => (
+          <div key={i} className="px-5 py-3.5 flex items-center gap-3">
+            {s.done
+              ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+              : s.warn
+                ? <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                : <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
+            }
+            <span className={`text-sm flex-1 ${s.done ? 'text-gray-500' : s.warn ? 'text-red-700 font-medium' : 'text-gray-800 font-medium'}`}>
+              {s.label}
+            </span>
+            {!s.done || s.warn ? (
+              <button onClick={s.action} className="text-xs font-semibold text-brand-600 hover:underline flex-shrink-0">
+                {s.cta} →
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ─── Daily Checklist Banner ───────────────────────────────────────────────────
@@ -816,7 +889,7 @@ function DeliveryDay({ date, routes, past = false }) {
 // ─── Kitchen Overview — 9-section layout ─────────────────────────────────────
 function KitchenOverview({ stats, loading, navigate }) {
   const { data, loading: dataLoading } = useKitchenData();
-  const { todayProd, tomorrowProd, todayRoutes, mealCounts, docs, todayCount } = data;
+  const { todayProd, tomorrowProd, todayRoutes, mealCounts, docs, todayCount, application } = data;
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -828,6 +901,15 @@ function KitchenOverview({ stats, loading, navigate }) {
         <h1 className="text-2xl font-bold text-gray-900">Good morning, Kitchen</h1>
         <p className="text-gray-500 mt-1 text-sm">Here's everything you need to run today's service.</p>
       </div>
+
+      {/* 0. Get Started — only shows for kitchens still onboarding.
+          This is what a brand-new kitchen needs first: what's missing before
+          their sponsor can approve them. Placed above production because for
+          an unapproved kitchen, that's the actual next action — not "no
+          deliveries scheduled today." */}
+      {!dataLoading && (
+        <KitchenGetStarted docs={docs ?? []} application={application} navigate={navigate} />
+      )}
 
       {/* 1. Today's Production — primary job, above the fold */}
       <TodayProductionCard todayProd={todayProd} />
