@@ -39,7 +39,12 @@ router.get('/my-activity', authenticate, async (req, res) => {
          OR (entity_type = 'document'     AND entity_id IN (
                SELECT id::text FROM documents WHERE org_id = $1))
          OR (entity_type = 'meal_count'   AND entity_id IN (
-               SELECT id::text FROM meal_counts WHERE org_id = $1))
+               -- meal_counts has no org_id column (site_id / kitchen_id only) —
+               -- this always threw "column mc.org_id does not exist", which
+               -- meant GET /my-activity 500'd for every single user, always,
+               -- since Postgres errors on an unknown column at plan time even
+               -- when this OR branch's condition never matches a given row.
+               SELECT id::text FROM meal_counts WHERE site_id = $1 OR kitchen_id = $1))
        )
        ORDER BY created_at DESC
        LIMIT $2`,

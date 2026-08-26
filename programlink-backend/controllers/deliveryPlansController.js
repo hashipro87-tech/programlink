@@ -503,7 +503,7 @@ exports.getKitchenProduction = async (req, res) => {
       FROM delivery_instances di
       JOIN delivery_plans  dp ON dp.id  = di.plan_id
       JOIN organizations   s  ON s.id   = dp.site_id
-      LEFT JOIN meal_counts mc ON mc.org_id = s.id AND mc.date = $2
+      LEFT JOIN meal_counts mc ON mc.site_id = s.id AND mc.date = $2
       WHERE dp.kitchen_id = $1
         AND di.date       = $2
         AND di.status    != 'cancelled'

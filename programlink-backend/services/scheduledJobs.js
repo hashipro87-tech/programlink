@@ -135,9 +135,14 @@ async function checkMealCountReminders() {
       WHERE o.type IN ('kitchen', 'site')
         AND o.status = 'active'
         AND o.id NOT IN (
-          SELECT DISTINCT mc.org_id
-          FROM meal_counts mc
-          WHERE mc.date = $1
+          -- meal_counts has no org_id column — a submission is recorded under
+          -- site_id (the site being fed) and/or kitchen_id (the kitchen that
+          -- prepared it), never a generic org_id. This subquery previously
+          -- referenced mc.org_id, which doesn't exist, so this cron threw a
+          -- Postgres error on every run and no reminder was ever sent.
+          SELECT site_id    FROM meal_counts WHERE date = $1 AND site_id    IS NOT NULL
+          UNION
+          SELECT kitchen_id FROM meal_counts WHERE date = $1 AND kitchen_id IS NOT NULL
         )
     `, [today]);
 
