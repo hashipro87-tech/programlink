@@ -984,14 +984,6 @@ export default function MealOrdersPage() {
                 : 'Recurring schedules auto-generate your daily checklist.'}
             </p>
           </div>
-          {activeTab === 'schedules' && (
-            <button
-              onClick={() => setActiveTab('schedules')}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl flex-shrink-0"
-            >
-              <Plus className="w-4 h-4" /> Add Schedule
-            </button>
-          )}
         </div>
 
         {/* Date nav — only visible on Today's Deliveries tab */}
