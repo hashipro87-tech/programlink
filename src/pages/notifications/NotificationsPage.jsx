@@ -248,8 +248,9 @@ export default function NotificationsPage() {
                   return (
                     <div
                       key={n.id}
-                      className={`px-5 py-4 flex items-start gap-4 transition-colors ${
-                        isUnread ? 'bg-brand-50/40' : 'hover:bg-gray-50'
+                      onClick={() => { if (isUnread) markRead(n.id); }}
+                      className={`px-5 py-4 flex items-start gap-4 transition-colors cursor-pointer ${
+                        isUnread ? 'bg-brand-50/40 hover:bg-brand-50' : 'hover:bg-gray-50'
                       }`}
                     >
                       <NotifIcon type={n.type} />
@@ -266,7 +267,8 @@ export default function NotificationsPage() {
                           {actions.map((a) => (
                             <button
                               key={a.label}
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (isUnread) markRead(n.id);
                                 navigate(a.path);
                               }}
@@ -277,7 +279,7 @@ export default function NotificationsPage() {
                           ))}
                           {isUnread && (
                             <button
-                              onClick={() => markRead(n.id)}
+                              onClick={(e) => { e.stopPropagation(); markRead(n.id); }}
                               className="text-xs text-gray-400 hover:text-gray-600"
                             >
                               Dismiss
