@@ -18,7 +18,6 @@ import ApplicationPage   from '../application/ApplicationPage';
 import DocumentsPage     from '../documents/DocumentsPage';
 import MessagesPage      from '../messages/MessagesPage';
 import NotificationsPage from '../notifications/NotificationsPage';
-import KitchenDirectoryPage from './KitchenDirectoryPage';
 import SettingsPage      from '../settings/SettingsPage';
 import TasksPage         from '../tasks/TasksPage';
 import ActivityFeedPage from '../activity/ActivityFeedPage';
@@ -50,7 +49,6 @@ const NAV_ITEMS = [
   { label: 'Staff Training',  path: '/dashboard/kitchen/training',     icon: GraduationCap },
   { label: 'Tasks',           path: '/dashboard/kitchen/tasks',        icon: CheckSquare },
   { label: 'Activity',        path: '/dashboard/kitchen/activity',     icon: Activity },
-  { label: 'Connected Sites', path: '/dashboard/kitchen/sites',        icon: Building2 },
 
   { divider: true },
   { label: 'Messages',        path: '/dashboard/kitchen/messages',     icon: MessageSquare },
@@ -1082,7 +1080,6 @@ export default function KitchenDashboard() {
               <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"      element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="sites"         element={<KitchenDirectoryPage />} />
               <Route path="settings"      element={<SettingsPage />} />
               <Route path="*"             element={<Outlet />} />
             </Routes>

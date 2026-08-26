@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ChefHat, Search, CheckCircle, AlertTriangle, Clock,
   ChevronRight, X, Phone, MapPin, RefreshCw,
-  FileWarning, ClipboardList, Utensils, ShieldCheck,
+  FileWarning, ClipboardList, ShieldCheck,
   Building2, Plus,
 } from 'lucide-react';
 import api from '../../services/api';
@@ -59,7 +59,6 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
   const [saving,         setSaving]         = useState(false);
   const [status,         setStatus]         = useState(kitchen.status);
   const [detail,         setDetail]         = useState(null);
-  const [connectedSites, setConnectedSites] = useState([]);
   const [loadingDetail,  setLoadingDetail]  = useState(true);
   const [confirmRemove,  setConfirmRemove]  = useState(false);
   const [removing,       setRemoving]       = useState(false);
@@ -74,11 +73,6 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
       .then(({ data }) => setDetail(data))
       .catch(() => setDetail(kitchen))
       .finally(() => setLoadingDetail(false));
-
-    // Fetch sites connected to this kitchen via the kitchen directory
-    api.get(`/kitchen-directory?kitchen_id=${kitchen.id}`)
-      .then(({ data }) => setConnectedSites(data.kitchens ?? (Array.isArray(data) ? data : [])))
-      .catch(() => setConnectedSites([]));
   }, [kitchen.id]);
 
   const handleStatusSave = async () => {
@@ -164,7 +158,7 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
           {/* Compliance summary */}
           <div className="px-6 py-5 border-b border-gray-50">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Compliance</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-xl p-3 text-center">
                 <FileWarning className={`w-5 h-5 mx-auto mb-1 ${kitchen.doc_alerts > 0 ? 'text-red-500' : 'text-gray-300'}`} />
                 <p className="text-lg font-bold text-gray-900">{kitchen.doc_alerts ?? 0}</p>
@@ -175,37 +169,8 @@ function DetailPanel({ kitchen, onClose, onStatusChange, onRemoved }) {
                 <p className="text-lg font-bold text-gray-900">{kitchen.pending_applications ?? 0}</p>
                 <p className="text-[10px] text-gray-500 font-medium">Pending apps</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <Utensils className="w-5 h-5 mx-auto mb-1 text-brand-400" />
-                <p className="text-lg font-bold text-gray-900">{connectedSites.length}</p>
-                <p className="text-[10px] text-gray-500 font-medium">Sites served</p>
-              </div>
             </div>
           </div>
-
-          {/* Connected sites */}
-          {connectedSites.length > 0 && (
-            <div className="px-6 py-5 border-b border-gray-50">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-                Connected sites
-              </p>
-              <div className="space-y-2">
-                {connectedSites.slice(0, 6).map((link) => (
-                  <div key={link.id} className="flex items-center gap-2.5 text-sm">
-                    <Building2 className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                    <span className="text-gray-700 truncate">
-                      {link.site_name ?? link.site_id}
-                    </span>
-                  </div>
-                ))}
-                {connectedSites.length > 6 && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    +{connectedSites.length - 6} more
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Program info */}
           <div className="px-6 py-5 border-b border-gray-50">

@@ -10,7 +10,6 @@ router.use('/notifications', require('./notifications'));
 router.use('/messages',      require('./messages'));
 router.use('/meal-counts',   require('./mealCounts'));
 router.use('/delivery',           require('./delivery'));
-router.use('/kitchen-directory',  require('./kitchenDirectory'));
 router.use('/stats',              require('./stats'));
 router.use('/settings',           require('./settings'));
 router.use('/users',              require('./users'));

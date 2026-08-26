@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, Routes, Route, useNavigate, Link } from 'react-router-dom';
 import {
   ClipboardList, FileText, UtensilsCrossed, MessageSquare,
-  Building2, CheckCircle, Settings, AlertTriangle, ArrowRight,
+  CheckCircle, Settings, AlertTriangle, ArrowRight,
   Truck, Bell, CheckSquare, Square, Phone, Mail, Clock,
   Package, TrendingUp, ShieldCheck, Calendar, Activity, Users2, DollarSign, RotateCcw, CalendarCheck,
 } from 'lucide-react';
@@ -19,7 +19,6 @@ import ApplicationPage      from '../application/ApplicationPage';
 import DocumentsPage        from '../documents/DocumentsPage';
 import MessagesPage         from '../messages/MessagesPage';
 import NotificationsPage    from '../notifications/NotificationsPage';
-import KitchenDirectoryPage from '../kitchen/KitchenDirectoryPage';
 import SettingsPage         from '../settings/SettingsPage';
 import SiteMealCountPage    from './SiteMealCountPage';
 import AttendancePage       from '../attendance/AttendancePage';
@@ -45,7 +44,6 @@ const NAV_ITEMS = [
   { label: 'Documents',      path: '/dashboard/site/documents',    icon: FileText       },
   { label: 'Tasks',          path: '/dashboard/site/tasks',        icon: CheckSquare    },
   { label: 'Activity',       path: '/dashboard/site/activity',     icon: Activity       },
-  { label: 'My Kitchen',     path: '/dashboard/site/kitchen',      icon: Building2      },
 
   { divider: true },
   { label: 'Messages',       path: '/dashboard/site/messages',     icon: MessageSquare  },
@@ -934,7 +932,6 @@ export default function SiteDashboard() {
               <Route path="activity"    element={<ActivityFeedPage />} />
               <Route path="messages"     element={<MessagesPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="kitchen"      element={<KitchenDirectoryPage />} />
               <Route path="settings"     element={<SettingsPage />} />
             </Routes>
           )}
