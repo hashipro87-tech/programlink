@@ -118,7 +118,7 @@ function MealInput({ type, value, onChange, confidence, inputRef, onKeyDown }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function MealEntryForm() {
+export default function MealEntryForm({ compact = false }) {
   const today = toDateStr(new Date());
 
   // Form state
@@ -168,10 +168,17 @@ export default function MealEntryForm() {
       .catch(() => {});
   }, []);
 
-  // Auto-focus first input on mount
+  // Auto-focus first input on mount — standalone page only.
+  // The `compact` prop was accepted here but never actually read anywhere in
+  // this component, so <MealEntryForm compact /> on the Overview page
+  // rendered the identical full form AND still ran this autofocus. Browsers
+  // scroll a freshly-focused element into view, so every kitchen login
+  // silently jumped the page down to this card — the "why does it auto-scroll"
+  // bug. Now only the real /dashboard/kitchen/meals page autofocuses.
   useEffect(() => {
+    if (compact) return;
     setTimeout(() => inputRefs.current[0]?.focus(), 200);
-  }, []);
+  }, [compact]);
 
   // Pre-fill the form with whatever is already recorded for the selected date.
   // Without this the form always opened at 0s — a kitchen that had already
