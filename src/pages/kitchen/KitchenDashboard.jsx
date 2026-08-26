@@ -107,6 +107,15 @@ function mealNoun(type, count) {
   if (count === 1) return base;
   return /(ch|sh|s|x|z)$/.test(base) ? `${base}es` : `${base}s`;
 }
+function greetingTime() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+function todayFormatted() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
 
 // ─── Today's Production Schedule ──────────────────────────────────────────────
 // Auto-generated from recurring delivery plans.
@@ -246,7 +255,8 @@ function useKitchenData() {
       api.get('/documents?limit=100'),
       api.get('/notifications?limit=5'),
       api.get('/applications'), // scoped to this kitchen's own org — returns its application, if any
-    ]).then(([todayRes, tmrRes, routesRes, mcRes, docRes, notifRes, appRes]) => {
+      api.get('/auth/me'),
+    ]).then(([todayRes, tmrRes, routesRes, mcRes, docRes, notifRes, appRes, meRes]) => {
       const todayProd    = todayRes.status === 'fulfilled'  ? todayRes.value.data  : null;
       const tomorrowProd = tmrRes.status   === 'fulfilled'  ? tmrRes.value.data    : null;
       const allRoutes    = routesRes.status === 'fulfilled'
@@ -258,6 +268,7 @@ function useKitchenData() {
       const applications = appRes.status === 'fulfilled' ? (appRes.value.data?.applications ?? []) : [];
       // Most recent application for this org, if one was ever started
       const application  = applications[0] ?? null;
+      const me           = meRes.status === 'fulfilled' ? (meRes.value.data?.user ?? meRes.value.data) : null;
       // dayKey() on both: DATE columns come back from node-postgres as JS Dates
       // and serialize to full ISO timestamps, so raw === against 'YYYY-MM-DD'
       // never matched. todayCount was therefore always null, which meant the
@@ -266,7 +277,7 @@ function useKitchenData() {
       const todayRoutes  = allRoutes.filter((r) => dayKey(r.date) === today && r.status !== 'cancelled');
       const todayCount   = mealCounts.find((c) => dayKey(c.date) === today) ?? null;
 
-      setData({ todayProd, tomorrowProd, todayRoutes, mealCounts, docs, notifications, todayCount, application });
+      setData({ todayProd, tomorrowProd, todayRoutes, mealCounts, docs, notifications, todayCount, application, me });
       setLoading(false);
     });
   }, []);
@@ -343,30 +354,82 @@ function KitchenGetStarted({ docs, application, navigate }) {
   );
 }
 
+// ─── Hero Banner ────────────────────────────────────────────────────────────
+// Matches the Site dashboard's GoodMorningBanner pattern: brand-600 card,
+// date, greeting, and status chips (delivery/meal counts/documents) so a
+// kitchen gets the same at-a-glance summary a site director gets.
+function KitchenHeroBanner({ orgName, todayProd, todayCount, docs, application }) {
+  const totals      = todayProd?.totals ?? {};
+  const totalMeals  = (totals.breakfast ?? 0) + (totals.lunch ?? 0) + (totals.snack ?? 0) + (totals.supper ?? 0);
+  const hasDelivery = totalMeals > 0;
+  const nextDelivery = todayProd?.nextDelivery;
+  const ownSubmitted = !!todayCount && ((todayCount.breakfast ?? 0) + (todayCount.lunch ?? 0) +
+                        (todayCount.snack ?? 0) + (todayCount.supper ?? 0)) > 0;
+  const expiringDocs = (docs ?? []).filter((d) => d.status === 'expiring_soon').length;
+  const appApproved  = application?.status === 'approved';
+
+  const chips = [];
+  if (hasDelivery) {
+    chips.push({ icon: Truck, text: nextDelivery ? `Next delivery ${fmt12(nextDelivery)}` : `${totalMeals} meals to prepare today`, color: 'text-brand-200' });
+  }
+  if (!ownSubmitted) chips.push({ icon: UtensilsCrossed, text: 'Meal counts due', color: 'text-yellow-300' });
+  if (ownSubmitted)  chips.push({ icon: CheckCircle,     text: 'Meal counts submitted', color: 'text-green-300' });
+  if (expiringDocs > 0) chips.push({ icon: AlertCircle, text: `${expiringDocs} doc${expiringDocs > 1 ? 's' : ''} expiring soon`, color: 'text-yellow-300' });
+  if (expiringDocs === 0 && (docs ?? []).length > 0) chips.push({ icon: CheckCircle, text: 'All documents current', color: 'text-green-300' });
+  if (!appApproved) chips.push({ icon: AlertCircle, text: application ? 'Application pending review' : 'Application not started', color: 'text-yellow-300' });
+
+  return (
+    <div className="bg-brand-600 text-white rounded-2xl px-6 py-5 mb-6">
+      <p className="text-brand-200 text-xs font-semibold uppercase tracking-wide mb-1">{todayFormatted()}</p>
+      <h1 className="text-xl font-bold mb-3">{greetingTime()}, {orgName ?? 'Kitchen'}</h1>
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {chips.map(({ icon: Icon, text, color }, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Icon className={`w-3.5 h-3.5 ${color}`} />
+              <span className={`text-xs font-medium ${color}`}>{text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Daily Checklist Banner ───────────────────────────────────────────────────
 function KitchenDailyChecklist({ todayProd, todayRoutes, todayCount }) {
-  const totalMeals   = (todayProd?.totals?.breakfast ?? 0) + (todayProd?.totals?.lunch ?? 0) +
-                       (todayProd?.totals?.snack ?? 0)     + (todayProd?.totals?.supper ?? 0);
+  const totals = todayProd?.totals ?? {};
+  const totalMeals   = (totals.breakfast ?? 0) + (totals.lunch ?? 0) +
+                       (totals.snack ?? 0)     + (totals.supper ?? 0);
   const hasProduction  = totalMeals > 0;
   const hasDeliveries  = todayRoutes.length > 0;
   const hasSites       = (todayProd?.sites?.length ?? 0) > 0;
   const deliveriesDone = hasDeliveries && todayRoutes.every((r) => r.status === 'delivered');
   const allSubmitted   = todayProd?.pendingCount === 0 && hasSites;
-  const ownSubmitted   = !!todayCount && ((todayCount.breakfast ?? 0) + (todayCount.lunch ?? 0) +
+  const ownTotal       = !!todayCount && ((todayCount.breakfast ?? 0) + (todayCount.lunch ?? 0) +
                           (todayCount.snack ?? 0) + (todayCount.supper ?? 0)) > 0;
+
+  // Per-meal-type submission items — mirrors Site's "Submit breakfast/lunch/
+  // snack count" granularity instead of one opaque "Submit end-of-day counts"
+  // line. Only list meal types actually scheduled in today's production; on a
+  // day with no scheduled production, fall back to one generic item so the
+  // kitchen still has something to check off after logging counts manually.
+  const MEAL_KEYS = ['breakfast', 'lunch', 'snack', 'supper'];
+  const expectedMeals = MEAL_KEYS.filter((k) => (totals[k] ?? 0) > 0);
+  const mealTasks = expectedMeals.length > 0
+    ? expectedMeals.map((k) => ({
+        label: `Submit ${mealLabel(k).toLowerCase()} count`,
+        done: (todayCount?.[k] ?? 0) > 0,
+      }))
+    : [{ label: 'Submit end-of-day counts', done: ownTotal }];
 
   // Only show tasks that actually apply today. A kitchen with no production
   // scheduled shouldn't be staring at "0/5 done" — there's nothing to do.
   const tasks = [
     hasProduction && { label: 'Review today\'s production', done: true },
-    hasProduction && {
-      label: `Prepare ${totalMeals} meal${totalMeals === 1 ? '' : 's'}`,
-      // Considered prepared once every site's counts are in
-      done: allSubmitted,
-    },
     hasDeliveries && { label: 'Complete all deliveries',   done: deliveriesDone },
     hasSites      && { label: 'Verify all site meal counts', done: allSubmitted },
-    { label: 'Submit end-of-day counts', done: ownSubmitted },
+    ...mealTasks,
   ].filter(Boolean);
 
   const doneCount = tasks.filter((t) => t.done).length;
@@ -889,18 +952,19 @@ function DeliveryDay({ date, routes, past = false }) {
 // ─── Kitchen Overview — 9-section layout ─────────────────────────────────────
 function KitchenOverview({ stats, loading, navigate }) {
   const { data, loading: dataLoading } = useKitchenData();
-  const { todayProd, tomorrowProd, todayRoutes, mealCounts, docs, todayCount, application } = data;
-
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const { todayProd, tomorrowProd, todayRoutes, mealCounts, docs, todayCount, application, me } = data;
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-brand-600 uppercase tracking-wide mb-0.5">{today}</p>
-        <h1 className="text-2xl font-bold text-gray-900">Good morning, Kitchen</h1>
-        <p className="text-gray-500 mt-1 text-sm">Here's everything you need to run today's service.</p>
-      </div>
+      {/* Hero banner — date, greeting, and status chips (delivery, meal counts,
+          documents, application), matching the Site dashboard's GoodMorningBanner. */}
+      <KitchenHeroBanner
+        orgName={me?.org_name}
+        todayProd={todayProd}
+        todayCount={todayCount}
+        docs={docs ?? []}
+        application={application}
+      />
 
       {/* 0. Get Started — only shows for kitchens still onboarding.
           This is what a brand-new kitchen needs first: what's missing before
