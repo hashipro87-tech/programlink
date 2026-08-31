@@ -1064,6 +1064,64 @@ Not live/built yet as of this decision — homepage still says "Pilot free + con
 
 ---
 
+## Lucky September — Operating Plan (locked 2026-08-31, starts 2026-09-01)
+
+This is exactly how Hashi works starting September 1, 2026. No more building unless someone tells us it needs fixing — outreach is the full-time job now. Locked word-for-word, do not reinterpret.
+
+### Phase 1 — Get ready to sell (before outreach starts)
+1. Finish state readiness for Ohio — done
+2. Publish pricing
+3. Set up the outreach tracker
+4. Prepare the research process
+5. Make sure the website/demo reflects the product actually being offered
+6. Do not add random features
+
+### Pricing (goes live as part of Phase 1)
+Replace the current homepage "Pilot free + contact us" copy with:
+
+> Simple, transparent pricing
+> Your monthly price is based on the number of sites you manage.
+> 1–3 sites — $29/month
+> 4–10 sites — $59/month
+> 11–25 sites — $119/month
+> 26–100 sites — $299/month
+> 101+ sites — Contact us
+> Every plan includes every CACFPLink feature. No feature lockouts.
+> Early Pilot: CACFPLink is currently free for participating pilot organizations while we work together to make sure the platform fits your program.
+
+Billing rule: don't build billing infrastructure just because someone's interested. Get them actually using CACFPLink successfully first — billing is a future problem, not a September one.
+
+### Phase 2 — Ohio outreach
+10–15 organizations/day, Monday–Friday. Per org: research (2–3 min) → find the decision-maker → personalized email → call when appropriate → log it.
+
+Log every contact as: Contacted / No response / Interested / Wants demo / Not interested / Already has software / Follow-up date.
+
+The 26 August 13 re-engagement contacts (Iowa/Ohio/California/Virginia/Colorado) go into the tracker as their own separate follow-up lane — not counted as fresh outreach.
+
+Timing: send in the recipient's local time, not Ohio time. Two windows — 9:00–11:30 AM and 1:30–3:30 PM. Avoid before 8 AM, avoid 11:30 AM–1:00 PM (lunch), avoid after 3:30–4 PM.
+
+Texas runs as a small parallel thread the whole time — 2–3 Texas orgs/day alongside Ohio, since Texas is already the most product-ready state (full rates/deadlines/forms/agency data already built). Not a second full market yet, just a learning lane.
+
+Don't judge the strategy after three emails — give it real volume before drawing conclusions.
+
+### Phase 3 — Expand geographically
+Order: Indiana → Michigan → Pennsylvania → Kentucky → Illinois → wider (North Carolina, Georgia, Florida, New York, California).
+
+Rule: state readiness (rates, deadlines, forms, agency info, State Rule Book data) always moves ahead of outreach into that state — never contact a state CACFPLink isn't ready to serve well.
+
+Rough month shape: Week 1 Ohio only. Week 2 Ohio + Indiana + Michigan. Week 3 Pennsylvania + Kentucky + Illinois. Week 4 expand based on what the data from weeks 1–3 actually shows — double down wherever the response is strongest rather than deciding in advance.
+
+### September operating system (the rules underneath all of it)
+1. Build only when necessary
+2. Prepare before entering a state
+3. Research before contacting
+4. 10–15 quality contacts/day
+5. Track everything
+6. Let people use the product before charging them
+7. Let users tell you what to build next
+
+---
+
 ## Permanent Build Rules (set by Hashi — never override)
 
 - **Build tasks sequentially. No need to ask what's next — just start the next task.**
