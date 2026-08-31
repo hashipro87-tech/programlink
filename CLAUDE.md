@@ -903,7 +903,7 @@ These came up even after she saw the demo — treat them as confirmed real gaps:
 ### Follow-Up Strategy
 - Don't reach out every week — only when something meaningful happens
 - Meaningful moments: new sponsor signed up, major feature shipped, milestone hit
-- **Next meaningful moment: State Rule Book page is live → reach out to Alexia with a demo**
+- **Decided 2026-08-31: hold off on reaching out to Alexia until a real sponsor is actually running CACFPLink day-to-day** — not just signed up (Charles and Deborah both signed up and never really used it, which doesn't count). The State Rule Book demo is ready whenever that happens, but the moment itself is "someone is really using this," not "a feature shipped."
 - Future ask (when product is more complete): NCA Buyer's Guide listing + newsletter feature
 - Possible 2027 opportunity: NCA annual conference exhibitor/workshop slot
 
@@ -1038,6 +1038,29 @@ When talking to Alexia or any NCA contact, look for friction in these 4 areas:
 | Advocacy | State policy changes, USDA rule updates, audit preparation |
 
 For each pain point: ask "Is this something sponsors handle manually today?" If yes → it's a feature.
+
+---
+
+## Pricing (decided 2026-08-31 — "Lucky September" planning)
+
+Not live/built yet as of this decision — homepage still says "Pilot free + contact us" (Task #74). This is the locked pricing model to implement when it's time to charge.
+
+**Tiers — by number of sites, billed monthly:**
+
+| Sites | Monthly |
+|---|---|
+| 1–3 | $29 |
+| 4–10 | $59 |
+| 11–25 | $119 |
+| 26–100 | $299 |
+| 101+ | Contact us |
+
+**Principles (Hashi's own words, non-negotiable):**
+- **Every plan includes every feature. No feature lockouts, ever.** The whole pitch is "you pay based on the size of your organization, not based on how many features we decide to hide from you." Never build a paywalled/premium-only feature — this contradicts the core positioning.
+- **Don't bill anyone until they're actually running CACFPLink smoothly, with no issues.** Signing up isn't enough — real day-to-day usage is the bar before a sponsor gets a bill.
+- **First person to actually run their day-to-day CACFP work on CACFPLink (not just sign up) gets it free for life.** Charles and Deborah do NOT qualify — they signed up but never really used it. Whoever is first to genuinely run their business on it wins this, even if that's a brand-new sponsor from later outreach.
+- Deliberately priced below where a "don't seem too cheap" instinct might suggest — this is intentional, chosen as a new-software strategy: earn adoption + real reviews/logos first, raise prices later once there's proof instead of just a promise. Reconsider pricing once CACFPLink has real active users to point to.
+- Infra cost floor is roughly $20–40/month total (not per sponsor) once Railway is upgraded to Pro — even the $29 tier comfortably covers this from sponsor #1. This pricing decision is about positioning, not cost recovery.
 
 ---
 
