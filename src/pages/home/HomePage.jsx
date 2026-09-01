@@ -225,7 +225,7 @@ function Hero() {
             {/* Live pilot badge */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full mb-5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-semibold text-green-700">2 CACFP sponsors in active pilot</span>
+              <span className="text-xs font-semibold text-green-700">Pilot program now open</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight mb-5">
@@ -1791,87 +1791,6 @@ function SecuritySection() {
   );
 }
 
-// ─── Testimonials ─────────────────────────────────────────────────────────────
-
-const TESTIMONIALS = [
-  {
-    quote: "We were managing everything in spreadsheets. Now I can see which sites are missing documents in seconds — and send reminders to all of them at once.",
-    name: "Program Coordinator",
-    org: "Multi-site CACFP Sponsor",
-    initials: "PC",
-    color: "bg-brand-600",
-  },
-  {
-    quote: "The compliance dashboard alone saved us hours every week. We used to manually track expiration dates in a spreadsheet. Now it just tells us what needs attention.",
-    name: "Operations Manager",
-    org: "Regional CACFP Sponsor",
-    initials: "OM",
-    color: "bg-emerald-600",
-  },
-  {
-    quote: "Simple enough that our site directors could use it without any training. That's rare in this space.",
-    name: "Site Director",
-    org: "CACFP Center Site",
-    initials: "SD",
-    color: "bg-violet-600",
-  },
-];
-
-function Testimonials() {
-  return (
-    <section className="py-20 px-6 bg-white border-t border-gray-100">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-full mb-4">
-            <span className="text-xs font-semibold text-brand-600">From the field</span>
-          </div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
-            What CACFP operators say
-          </h2>
-          <p className="text-gray-500 max-w-xl mx-auto">
-            Real feedback from coordinators, managers, and site directors using CACFPLink.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="bg-gray-50 rounded-2xl p-7 border border-gray-100 flex flex-col gap-5">
-              {/* Stars */}
-              <div className="flex gap-0.5">
-                {[...Array(5)].map((_, s) => (
-                  <svg key={s} className="w-4 h-4 text-amber-400 fill-amber-400" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.966c.3.921-.755 1.688-1.54 1.118L10 15.347l-3.453 2.504c-.784.57-1.838-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.55 9.394c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.967z"/>
-                  </svg>
-                ))}
-              </div>
-
-              {/* Quote */}
-              <p className="text-gray-700 text-sm leading-relaxed flex-1">
-                &ldquo;{t.quote}&rdquo;
-              </p>
-
-              {/* Author */}
-              <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
-                <div className={`w-9 h-9 rounded-full ${t.color} flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-xs font-bold text-white">{t.initials}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{t.name}</p>
-                  <p className="text-xs text-gray-400">{t.org}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-center text-xs text-gray-400 mt-8">
-          Early access pilot program — names withheld at sponsor request.
-        </p>
-      </div>
-    </section>
-  );
-}
-
 // ─── Founder Story ────────────────────────────────────────────────────────────
 
 function FounderStory() {
@@ -1929,6 +1848,14 @@ function FounderStory() {
 
 // ─── Pricing Section ─────────────────────────────────────────────────────────
 
+const PRICING_TIERS = [
+  { range: '1–3 sites', price: '$29', suffix: '/month' },
+  { range: '4–10 sites', price: '$59', suffix: '/month' },
+  { range: '11–25 sites', price: '$119', suffix: '/month' },
+  { range: '26–100 sites', price: '$299', suffix: '/month' },
+  { range: '101+ sites', price: 'Contact us', suffix: '' },
+];
+
 function PricingSection() {
   return (
     <section className="py-20 px-6 bg-white border-t border-gray-100">
@@ -1939,81 +1866,60 @@ function PricingSection() {
             <span className="text-xs font-semibold text-brand-700">Pricing</span>
           </div>
           <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
-            Simple pricing. Built for sponsors of every size.
+            Simple, transparent pricing
           </h2>
           <p className="text-gray-500 max-w-lg mx-auto">
-            No per-site fees that punish growth. No setup costs. No hidden charges.
-            During our pilot period, early sponsors get full access free.
+            Your monthly price is based on the number of sites you manage.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-10">
-          {/* Pilot tier */}
-          <div className="relative bg-brand-600 rounded-2xl p-8 text-white overflow-hidden">
-            <div className="absolute top-5 right-5">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-400/20 border border-green-400/30 rounded-full text-xs font-bold text-green-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                Now Open
-              </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          {PRICING_TIERS.map((tier) => (
+            <div
+              key={tier.range}
+              className="bg-gray-50 border border-gray-200 rounded-2xl p-5 text-center flex flex-col items-center"
+            >
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{tier.range}</p>
+              <p className="text-2xl font-black text-gray-900 leading-tight">{tier.price}</p>
+              {tier.suffix && <p className="text-xs text-gray-400">{tier.suffix}</p>}
             </div>
-            <p className="text-xs font-bold text-brand-300 uppercase tracking-widest mb-2">Pilot Program</p>
-            <p className="text-5xl font-black text-white mb-1">Free</p>
-            <p className="text-brand-200 text-sm mb-6">During the pilot period</p>
-            <ul className="space-y-3 mb-8">
-              {[
-                'Full platform access — every feature',
-                'Direct access to the founder',
-                'Influence over the roadmap',
-                'Hands-on onboarding support',
-                'First access to every new release',
-                'No credit card required',
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2.5 text-sm text-brand-100">
-                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <Link
-              to="/register"
-              onClick={() => trackCTAClick('pricing_pilot_cta')}
-              className="block text-center py-3 bg-white hover:bg-gray-50 text-brand-700 font-bold rounded-xl transition-colors"
-            >
-              Join as a Pilot Sponsor →
-            </Link>
-          </div>
+          ))}
+        </div>
 
-          {/* Paid tier coming soon */}
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 flex flex-col">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">After Pilot</p>
-            <p className="text-3xl font-black text-gray-900 mb-1">Early Access Pricing</p>
-            <p className="text-gray-400 text-sm mb-6">Locked in for pilot sponsors forever</p>
-            <ul className="space-y-3 mb-8 flex-1">
-              {[
-                'Flat monthly rate — not per site',
-                'Scales with your program, not against it',
-                'Everything included, no add-on fees',
-                'Priority support for early partners',
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2.5 text-sm text-gray-600">
-                  <CheckCircle className="w-4 h-4 text-brand-400 flex-shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <a
-              href="mailto:cacfplink@gmail.com"
-              onClick={() => trackCTAClick('pricing_contact_cta')}
-              className="block text-center py-3 border-2 border-gray-200 hover:border-brand-300 text-gray-700 hover:text-brand-700 font-bold rounded-xl transition-colors"
-            >
-              Contact us for pricing details →
-            </a>
+        <div className="flex items-center justify-center gap-2.5 mb-8">
+          <CheckCircle className="w-5 h-5 text-brand-500 flex-shrink-0" />
+          <p className="text-sm font-bold text-gray-800">
+            Every plan includes every CACFPLink feature. No feature lockouts.
+          </p>
+        </div>
+
+        <div className="relative bg-brand-600 rounded-2xl p-8 text-white overflow-hidden text-center mb-8">
+          <div className="flex justify-center mb-3">
+            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-400/20 border border-green-400/30 rounded-full text-xs font-bold text-green-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              Early Pilot
+            </span>
           </div>
+          <p className="text-white font-semibold max-w-lg mx-auto mb-6">
+            CACFPLink is currently free for participating pilot organizations while we work
+            together to make sure the platform fits your program.
+          </p>
+          <Link
+            to="/register"
+            onClick={() => trackCTAClick('pricing_pilot_cta')}
+            className="inline-block px-8 py-3 bg-white hover:bg-gray-50 text-brand-700 font-bold rounded-xl transition-colors"
+          >
+            Join as a Pilot Sponsor →
+          </Link>
         </div>
 
         <p className="text-center text-xs text-gray-400">
           Questions? Email us at{' '}
-          <a href="mailto:cacfplink@gmail.com" className="text-brand-600 hover:underline font-medium">
+          <a
+            href="mailto:cacfplink@gmail.com"
+            onClick={() => trackCTAClick('pricing_contact_cta')}
+            className="text-brand-600 hover:underline font-medium"
+          >
             cacfplink@gmail.com
           </a>
           {' '}— we typically reply within a few hours.
@@ -2328,7 +2234,7 @@ function FinalCTA() {
           Modernize your food program operations
         </h2>
         <p className="text-brand-200 text-lg mb-10 max-w-xl mx-auto">
-          Join kitchens, coordinators, and sponsors already managing their programs with CACFPLink.
+          Built for kitchens, coordinators, and sponsors running CACFP programs — join the pilot.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
@@ -2520,8 +2426,6 @@ export default function HomePage() {
       <TryDemoSection />
       {/* 10. Trust — performance tested */}
       <PerformanceSection />
-      {/* 11. Social proof */}
-      <Testimonials />
       {/* 12. ROI — how much is your program worth? */}
       <ROICalculator />
       {/* 13. The founder */}
